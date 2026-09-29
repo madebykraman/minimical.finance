@@ -156,7 +156,8 @@ export default function Home() {
 
     const nextPaid = paidTotal(invoice) + amount;
     const nextStatus: Status = nextPaid >= invoiceTotal(invoice) ? "paid" : "partially_paid";
-    await supabase.from("invoices").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", invoice.id);
+    const statusUpdate = await supabase.from("invoices").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", invoice.id);
+    if (statusUpdate.error) return setActionError(statusUpdate.error.message);
     setPaymentFor(null);
     setActionError("");
     await loadInvoices();
@@ -171,13 +172,17 @@ export default function Home() {
     }).eq("id", next.id);
     if (error) return alert(error.message);
 
-    await supabase.from("invoice_contents").delete().eq("invoice_id", next.id);
+    const deleted = await supabase.from("invoice_contents").delete().eq("invoice_id", next.id);
+    if (deleted.error) return setActionError(deleted.error.message);
     const rows = next.contents.map((c, index) => ({
       invoice_id: next.id, position: index, kind: c.kind, title: c.title,
       quantity: c.quantity || 1, rate: c.rate ?? null,
       amount: c.priced ? contentAmount(c) : null, priced: c.priced, note: c.note ?? null,
     }));
-    if (rows.length) await supabase.from("invoice_contents").insert(rows);
+    if (rows.length) {
+      const inserted = await supabase.from("invoice_contents").insert(rows);
+      if (inserted.error) return setActionError(inserted.error.message);
+    }
     await loadInvoices();
     setSelected(null);
   }
@@ -209,7 +214,10 @@ export default function Home() {
       quantity: c.quantity || 1, rate: c.rate ?? null, amount: c.priced ? contentAmount(c) : null,
       priced: c.priced, note: c.note ?? null,
     }));
-    if (rows.length) await supabase.from("invoice_contents").insert(rows);
+    if (rows.length) {
+      const inserted = await supabase.from("invoice_contents").insert(rows);
+      if (inserted.error) return setActionError(inserted.error.message);
+    }
     setComposer(false);
     await loadInvoices();
   }
@@ -345,7 +353,7 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
   return <article className="invoice-card" onClick={onOpen}>
     <div className="invoice-main"><div className="invoice-id"><span>INV.</span><strong>{invoice.number}</strong></div><div><h3>{invoice.client}</h3><p>{invoice.project} · {new Date(invoice.date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</p></div></div>
     <div className="invoice-middle"><div className="content-preview">{invoice.contents.slice(0,3).map(c => <span key={c.id}>{c.title}</span>)}{invoice.contents.length > 3 && <span>+{invoice.contents.length - 3} more</span>}</div>{unpriced > 0 && <span className="warning-pill"><CircleAlert size={13}/>{unpriced} unpriced</span>}{invoice.sourceTotal != null && invoice.sourceTotal !== invoiceTotal(invoice) && <span className="warning-pill"><CircleAlert size={13}/>source mismatch</span>}</div>
-    <div className="invoice-right"><strong>{money(invoiceTotal(invoice))}</strong><span className={"balance " + (balance ? "open" : "clear")}>{balance ? money(balance) + " due" : "settled"}</span><button className={"status " + invoice.status} onClick={e => { e.stopPropagation(); onStatus(invoice, invoice.status === "paid" ? "sent" : "paid"); }}>{statusLabel(invoice.status)}</button><ChevronRight size={17} className="chevron"/></div>
+    <div className="invoice-right"><strong>{money(invoiceTotal(invoice))}</strong><span className={"balance " + (balance ? "open" : "clear")}>{balance ? money(balance) + " due" : "settled"}</span><button className={"status " + invoice.status} onClick={e => { e.stopPropagation(); onOpen(); }}>{statusLabel(invoice.status)}</button><ChevronRight size={17} className="chevron"/></div>
   </article>;
 }
 

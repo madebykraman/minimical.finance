@@ -150,7 +150,7 @@ export default function Home() {
       invoice_id: invoice.id,
       amount,
       payment_date: date || null,
-      method,
+      method: method as PaymentMethod,
       reference: reference || null,
     });
     if (error) return setActionError(error.message);

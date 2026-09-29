@@ -267,8 +267,9 @@ export default function Home() {
         {activeView === "clients" && <ClientsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
       </section>
 
-      {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice}/>}
-      {composer && <InvoiceComposer onClose={() => setComposer(false)} onCreate={createInvoice}/>}
+      {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice} onPayment={() => setPaymentFor(selected)}/>}
+      {paymentFor && <PaymentComposer invoice={paymentFor} onClose={() => setPaymentFor(null)} onCreate={recordPayment}/>}
+      {composer && <InvoiceComposer onClose={() => setComposer(false)} onCreate={createInvoice}/>} 
     </main>
   );
 }
@@ -359,6 +360,7 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
 
 function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invoice;onClose:()=>void;onStatus:(i:Invoice,s:Status)=>void;onSave:(i:Invoice)=>void;onPayment:()=>void}) {
   const [draft,setDraft] = useState(invoice);
+  useEffect(() => setDraft(invoice), [invoice.id]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
   const add = (kind:ContentKind = "service") => setDraft(d => ({...d,contents:[...d.contents,{id:crypto.randomUUID(),title:kind === "note" ? "Note" : "New content",kind,quantity:1,priced:kind === "note"}]}));
@@ -385,7 +387,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
 
 function InvoiceComposer({onClose,onCreate}:{onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;contents:Content[]})=>void}) {
   const [number,setNumber] = useState("");
-  const [client,setClient] = useState("Elle India");
+  const [client,setClient] = useState("ELLE");
   const [project,setProject] = useState("Video Editing");
   const [date,setDate] = useState(new Date().toISOString().slice(0,10));
   const [contents,setContents] = useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);

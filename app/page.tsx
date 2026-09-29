@@ -27,7 +27,7 @@ const seed: Invoice[] = [
  {id:"172",number:"172",client:"Elle India",project:"Video Editing",date:"2026-07-31",dueDate:"2026-08-30",status:"Sent",adjustment:"₹2,000 Bridgerton reduction recorded for low budget.",contents:[
   {id:"172-1",title:"Bridgerton",kind:"service",quantity:1,rate:2000,amount:2000,priced:true},
   {id:"172-2",title:"Other video edit",kind:"service",quantity:1,rate:11000,amount:11000,priced:true},
-  {id:"172-3",title:"Budget adjustment",kind:"adjustment",amount:-2000,priced:true,note:"Bridgerton reduction"}]},
+]},
  {id:"180",number:"180",client:"Elle India",project:"Video Editing",date:"2026-08-05",dueDate:"2026-09-04",status:"Sent",notes:"Current invoice total was recorded as ₹10,000 while listed contents total ₹13,000.",contents:[
   {id:"180-1",title:"Video edit 01",kind:"service",quantity:1,rate:2000,amount:2000,priced:true},
   {id:"180-2",title:"Video edit 02",kind:"service",quantity:1,rate:2000,amount:2000,priced:true},
@@ -142,7 +142,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave}:{invoice:Invoice;onClos
    {draft.adjustment&&<div className="integrity"><CircleAlert size={17}/><div><b>Adjustment context</b><span>{draft.adjustment}</span></div></div>}
    <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes??""} onChange={e=>setDraft(d=>({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
   </div>
-  <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{onSave(draft);onClose()}}><Check size={16}/>Save changes</button></div>
+  <div className="drawer-foot"><button className="secondary" onClick={()=>window.print()}>Print / PDF</button><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{onSave(draft);onClose()}}><Check size={16}/>Save changes</button></div>
  </aside></div>;
 }
 

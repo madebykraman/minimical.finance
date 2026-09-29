@@ -92,6 +92,9 @@ export default function Home() {
   const [status, setStatus] = useState<"all" | Status>("all");
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [composer, setComposer] = useState(false);
+  const [paymentFor, setPaymentFor] = useState<Invoice | null>(null);
+  const [activeView, setActiveView] = useState<"overview" | "invoices" | "payments" | "clients">("overview");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -118,30 +121,45 @@ export default function Home() {
       .order("issue_date", { ascending: false });
     if (error) {
       console.error(error);
+      setActionError(error.message);
       setLoading(false);
       return;
     }
+    setActionError("");
     setInvoices((data ?? []).map(mapInvoice));
     setLoading(false);
   }
 
   async function markStatus(invoice: Invoice, next: Status) {
-    const total = invoiceTotal(invoice);
-    const paid = paidTotal(invoice);
-    const { error } = await supabase.from("invoices").update({ status: next, updated_at: new Date().toISOString() }).eq("id", invoice.id);
-    if (error) return alert(error.message);
-
-    if (next === "paid" && paid < total) {
-      await supabase.from("payments").insert({
-        invoice_id: invoice.id,
-        amount: total - paid,
-        payment_date: new Date().toISOString().slice(0, 10),
-        method: "other",
-        notes: "Recorded when invoice was marked paid in minimical.finance.",
-      });
-    }
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: next, updated_at: new Date().toISOString() })
+      .eq("id", invoice.id);
+    if (error) return setActionError(error.message);
     await loadInvoices();
     setSelected(v => v?.id === invoice.id ? { ...v, status: next } : v);
+  }
+
+  async function recordPayment(invoice: Invoice, amount: number, date: string, method: string, reference: string) {
+    if (!Number.isFinite(amount) || amount <= 0) return setActionError("Enter a valid payment amount.");
+    const balance = Math.max(invoiceTotal(invoice) - paidTotal(invoice), 0);
+    if (amount > balance) return setActionError("Payment cannot exceed the current invoice balance.");
+
+    const { error } = await supabase.from("payments").insert({
+      invoice_id: invoice.id,
+      amount,
+      payment_date: date || null,
+      method,
+      reference: reference || null,
+    });
+    if (error) return setActionError(error.message);
+
+    const nextPaid = paidTotal(invoice) + amount;
+    const nextStatus: Status = nextPaid >= invoiceTotal(invoice) ? "paid" : "partially_paid";
+    await supabase.from("invoices").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", invoice.id);
+    setPaymentFor(null);
+    setActionError("");
+    await loadInvoices();
   }
 
   async function saveInvoice(next: Invoice) {
@@ -216,10 +234,10 @@ export default function Home() {
         <div className="brand"><div className="brand-mark">m</div><div><strong>minimical</strong><span>.finance</span></div></div>
         <div className="nav-label">WORKSPACE</div>
         <nav>
-          <button className="nav-item active"><LayoutDashboard size={17}/>Overview</button>
-          <button className="nav-item"><Receipt size={17}/>Invoices <span>{invoices.length}</span></button>
-          <button className="nav-item"><WalletCards size={17}/>Payments</button>
-          <button className="nav-item"><FileText size={17}/>Clients</button>
+          <button className={"nav-item " + (activeView === "overview" ? "active" : "")} onClick={() => setActiveView("overview")}><LayoutDashboard size={17}/>Overview</button>
+          <button className={"nav-item " + (activeView === "invoices" ? "active" : "")} onClick={() => setActiveView("invoices")}><Receipt size={17}/>Invoices <span>{invoices.length}</span></button>
+          <button className={"nav-item " + (activeView === "payments" ? "active" : "")} onClick={() => setActiveView("payments")}><WalletCards size={17}/>Payments</button>
+          <button className={"nav-item " + (activeView === "clients" ? "active" : "")} onClick={() => setActiveView("clients")}><FileText size={17}/>Clients</button>
         </nav>
         <div className="sidebar-bottom">
           <button className="nav-item"><Settings2 size={17}/>Settings</button>
@@ -229,28 +247,16 @@ export default function Home() {
       </aside>
 
       <section className="content">
+        {actionError && <div className="global-error"><CircleAlert size={15}/><span>{actionError}</span><button onClick={() => setActionError("")}><X size={14}/></button></div>}
         <header className="topbar">
-          <div><div className="eyebrow">FINANCE / OVERVIEW</div><h1>Money, without the spreadsheet.</h1><p>Your invoices, contents and collections in one source of truth.</p></div>
-          <div className="top-actions"><button className="icon-button"><Bell size={18}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
+          <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : "Clients & projects."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : "The client and project layer behind your billing."}</p></div>
+          <div className="top-actions"><button className="icon-button" title="Refresh" onClick={loadInvoices}><Bell size={18}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
         </header>
 
-        <section className="kpis">
-          <Kpi label="Total billed" value={money(stats.billed)} note="Calculated from priced contents" icon={<IndianRupee size={16}/>}/>
-          <Kpi label="Collected" value={money(stats.collected)} note="Recorded payments" icon={<Check size={16}/>}/>
-          <Kpi label="Outstanding" value={money(stats.outstanding)} note={invoices.filter(i => paidTotal(i) < invoiceTotal(i)).length + " invoices with balance"} icon={<ArrowUpRight size={16}/>} accent/>
-          <Kpi label="Collection rate" value={stats.rate + "%"} note="Collected ÷ billed" icon={<Sparkles size={16}/>}/>
-        </section>
-
-        <section className="section-head">
-          <div><h2>Invoices</h2><p>{filtered.length} records · {filtered.reduce((s, i) => s + i.contents.length, 0)} contents</p></div>
-          <div className="filters">
-            <div className="search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search invoices, clients, contents..."/></div>
-            <div className="filter"><Filter size={15}/><select value={status} onChange={e => setStatus(e.target.value as "all" | Status)}><option value="all">All</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div>
-          </div>
-        </section>
-
-        {loading ? <div className="empty-state">Loading finance data…</div> :
-          <div className="invoice-list">{filtered.map(i => <InvoiceCard key={i.id} invoice={i} onOpen={() => setSelected(i)} onStatus={markStatus}/>)}</div>}
+        {activeView === "overview" && <Overview stats={stats} invoices={invoices} onOpen={(i) => setSelected(i)} />}
+        {activeView === "invoices" && <InvoiceView filtered={filtered} query={query} setQuery={setQuery} status={status} setStatus={setStatus} loading={loading} onOpen={(i) => setSelected(i)} onStatus={markStatus} />}
+        {activeView === "payments" && <PaymentsView invoices={invoices} onOpenPayment={(i) => setPaymentFor(i)} />}
+        {activeView === "clients" && <ClientsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
       </section>
 
       {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice}/>}
@@ -291,6 +297,44 @@ function AuthScreen() {
   </div></div>;
 }
 
+function Overview({stats,invoices,onOpen}:{stats:{billed:number;collected:number;outstanding:number;rate:number};invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
+  const open = invoices.filter(i => paidTotal(i) < invoiceTotal(i)).sort((a,b) => (invoiceTotal(b)-paidTotal(b))-(invoiceTotal(a)-paidTotal(a))).slice(0,4);
+  return <><section className="kpis">
+    <Kpi label="Total billed" value={money(stats.billed)} note="Calculated from priced contents" icon={<IndianRupee size={16}/>}/>
+    <Kpi label="Collected" value={money(stats.collected)} note="Recorded payments" icon={<Check size={16}/>}/>
+    <Kpi label="Outstanding" value={money(stats.outstanding)} note={invoices.filter(i => paidTotal(i) < invoiceTotal(i)).length + " invoices with balance"} icon={<ArrowUpRight size={16}/>} accent/>
+    <Kpi label="Collection rate" value={stats.rate + "%"} note="Collected ÷ billed" icon={<Sparkles size={16}/>}/>
+  </section>
+  <section className="section-head"><div><h2>Open balances</h2><p>Invoices requiring attention, ordered by current balance.</p></div></section>
+  <div className="invoice-list">{open.length ? open.map(i => <InvoiceCard key={i.id} invoice={i} onOpen={() => onOpen(i)} onStatus={() => {}}/>) : <div className="empty-state">No open balances.</div>}</div>
+  <section className="section-head dashboard-secondary"><div><h2>Recent invoices</h2><p>{invoices.length} records in the workspace.</p></div></section>
+  <div className="invoice-list">{invoices.slice(0,5).map(i => <InvoiceCard key={i.id} invoice={i} onOpen={() => onOpen(i)} onStatus={() => {}}/>)}</div>
+</>;
+}
+
+function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
+  return <><section className="section-head">
+    <div><h2>Invoices</h2><p>{filtered.length} records · {filtered.reduce((s,i) => s+i.contents.length,0)} contents</p></div>
+    <div className="filters"><div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoices, clients, contents..."/></div><div className="filter"><Filter size={15}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
+  </section>
+  {loading ? <div className="empty-state">Loading finance data…</div> : <div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>}
+</>;
+}
+
+function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
+  const rows = invoices.flatMap(i => i.payments.map(p => ({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
+  return <div className="data-panel"><div className="data-panel-head"><div><h2>Payments</h2><p>{rows.length} recorded payments · {money(rows.reduce((s,r)=>s+r.amount,0))} collected</p></div></div>
+    {rows.length ? <div className="simple-table"><div className="simple-row simple-head"><span>Date</span><span>Invoice</span><span>Client</span><span>Method</span><span>Amount</span></div>{rows.map(r=><div className="simple-row" key={r.id}><span>{r.payment_date ? new Date(r.payment_date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</span><span>#{r.invoice.number}</span><span>{r.invoice.client}</span><span>{r.method}</span><strong>{money(r.amount)}</strong></div>)}</div> : <div className="empty-state">No payments recorded yet.</div>}
+    <div className="payment-shortcuts">{invoices.filter(i=>paidTotal(i)<invoiceTotal(i)).slice(0,6).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record payment · #{i.number}</button>)}</div>
+  </div>;
+}
+
+function ClientsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
+  const map = new Map<string,{name:string;projects:Set<string>;invoices:Invoice[];billed:number;paid:number}>();
+  invoices.forEach(i=>{const key=i.clientId||i.client;const row=map.get(key)||{name:i.client,projects:new Set<string>(),invoices:[],billed:0,paid:0};row.projects.add(i.project);row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);map.set(key,row);});
+  return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>{map.size} client records represented by invoices.</p></div></div><div className="client-grid">{Array.from(map.values()).map(c=><article className="client-card" key={c.name}><div className="client-avatar">{c.name.slice(0,1).toUpperCase()}</div><div><h3>{c.name}</h3><p>{c.projects.size} project{c.projects.size!==1?"s":""} · {c.invoices.length} invoice{c.invoices.length!==1?"s":""}</p></div><strong>{money(c.billed-c.paid)}</strong><small>outstanding</small><div className="client-invoices">{c.invoices.slice(0,3).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div></article>)}</div></div>;
+}
+
 function Kpi({icon,label,value,note,accent}:{icon:React.ReactNode;label:string;value:string;note:string;accent?:boolean}) {
   return <div className={"kpi" + (accent ? " accent" : "")}><div className="kpi-icon">{icon}</div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{note}</div></div>;
 }
@@ -305,7 +349,7 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
   </article>;
 }
 
-function InvoiceDrawer({invoice,onClose,onStatus,onSave}:{invoice:Invoice;onClose:()=>void;onStatus:(i:Invoice,s:Status)=>void;onSave:(i:Invoice)=>void}) {
+function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invoice;onClose:()=>void;onStatus:(i:Invoice,s:Status)=>void;onSave:(i:Invoice)=>void;onPayment:()=>void}) {
   const [draft,setDraft] = useState(invoice);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
@@ -314,7 +358,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave}:{invoice:Invoice;onClos
   return <div className="overlay" onMouseDown={onClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
-      <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><button className={"status " + draft.status} onClick={() => onStatus(draft, draft.status === "paid" ? "sent" : "paid")}>{statusLabel(draft.status)}</button></div></div>
+      <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); onStatus(draft,next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       {unpriced > 0 && <div className="integrity warning"><CircleAlert size={17}/><div><b>{unpriced} content item{unpriced > 1 ? "s" : ""} still unpriced</b><span>Visible and retained, but excluded from the financial total until priced.</span></div></div>}
       {draft.sourceTotal != null && draft.sourceTotal !== invoiceTotal(draft) && <div className="integrity warning"><CircleAlert size={17}/><div><b>Source total differs from calculated total</b><span>Recorded source total: {money(draft.sourceTotal)} · calculated from contents: {money(invoiceTotal(draft))}</span></div></div>}
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Everything being billed on this invoice.</p></div><button className="secondary" onClick={() => add()}><Plus size={15}/>Add content</button></div>
@@ -324,6 +368,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave}:{invoice:Invoice;onClos
         <div className="add-content-menu"><button onClick={() => add("service")}><Plus size={14}/>Service / deliverable</button><button onClick={() => add("adjustment")}><Plus size={14}/>Adjustment</button><button onClick={() => add("note")}><Plus size={14}/>Note / internal line</button></div>
       </div>
       {draft.adjustment && <div className="integrity"><CircleAlert size={17}/><div><b>Adjustment context</b><span>{draft.adjustment}</span></div></div>}
+      <div className="block payments-block"><div className="block-head"><div><h3>Payments</h3><p>{draft.payments.length} recorded · {money(paidTotal(draft))} collected</p></div><button className="secondary" onClick={onPayment} disabled={paidTotal(draft)>=invoiceTotal(draft)}><Plus size={15}/>Record payment</button></div>{draft.payments.length ? <div className="payment-list">{draft.payments.map(p=><div key={p.id}><span>{p.payment_date || "Date unknown"} · {p.method}</span><strong>{money(p.amount)}</strong></div>)}</div> : <div className="payment-empty">No payment recorded yet.</div>}</div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
     <div className="drawer-foot"><button className="secondary" onClick={() => window.print()}>Print / PDF</button><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
@@ -347,5 +392,25 @@ function InvoiceComposer({onClose,onCreate}:{onClose:()=>void;onCreate:(d:{numbe
       </div><div className="total-box"><span>Invoice total</span><strong>{money(total)}</strong></div>
     </div>
     <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!number || !contents.some(c => c.title.trim())} onClick={() => onCreate({number,client,project,date,contents})}>Create draft</button></div>
+  </div></div>;
+}
+
+
+function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onClose:()=>void;onCreate:(i:Invoice,a:number,d:string,m:string,r:string)=>void}) {
+  const [amount,setAmount] = useState(String(Math.max(invoiceTotal(invoice)-paidTotal(invoice),0)));
+  const [date,setDate] = useState(new Date().toISOString().slice(0,10));
+  const [method,setMethod] = useState("bank_transfer");
+  const [reference,setReference] = useState("");
+  const balance = Math.max(invoiceTotal(invoice)-paidTotal(invoice),0);
+  return <div className="overlay" onMouseDown={onClose}><div className="payment-composer" onMouseDown={e=>e.stopPropagation()}>
+    <div className="drawer-head"><div><div className="eyebrow">PAYMENT / #{invoice.number}</div><h2>Record payment</h2><p>{invoice.client} · {money(balance)} currently outstanding</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
+    <div className="payment-form">
+      <label>Amount<input type="number" min="1" max={balance} value={amount} onChange={e=>setAmount(e.target.value)}/></label>
+      <label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+      <label>Method<select value={method} onChange={e=>setMethod(e.target.value)}><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label>
+      <label>Reference <span className="optional">(optional)</span><input value={reference} onChange={e=>setReference(e.target.value)} placeholder="UTR / transaction reference"/></label>
+    </div>
+    <div className="payment-total"><span>Remaining after payment</span><strong>{money(Math.max(balance-(Number(amount)||0),0))}</strong></div>
+    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!Number(amount)||Number(amount)<=0||Number(amount)>balance} onClick={()=>onCreate(invoice,Number(amount),date,method,reference)}>Record payment</button></div>
   </div></div>;
 }

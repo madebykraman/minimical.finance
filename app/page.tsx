@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  ArrowUpRight, Bell, Check, RefreshCw, ShieldCheck, ChevronRight, CircleAlert, FileText, Filter,
+  ArrowUpRight, Check, RefreshCw, ShieldCheck, ChevronRight, CircleAlert, FileText, Filter,
   IndianRupee, LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt,
   Search, Settings2, Sparkles, WalletCards, X
 } from "lucide-react";
@@ -276,7 +276,7 @@ export default function Home() {
       <section className="content">
         {actionError && <div className="global-error"><CircleAlert size={15}/><span>{actionError}</span><button onClick={() => setActionError("")}><X size={14}/></button></div>}
         <header className="topbar">
-          <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : "Clients & projects."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : "The client and project layer behind your billing."}</p></div>
+          <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : activeView === "clients" ? "Clients & projects." : "Settings."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : activeView === "clients" ? "The client and project layer behind your billing." : "Private access, security and workspace configuration."}</p></div>
           <div className="top-actions"><button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
         </header>
 

@@ -435,7 +435,8 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
 }
 
 function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invoice;onClose:()=>void;onStatus:(i:Invoice,s:Status)=>void;onSave:(i:Invoice)=>void;onPayment:()=>void}) {
-  const [draft,setDraft] = useState(invoice);\n  const [showPreview,setShowPreview] = useState(true);
+  const [draft,setDraft] = useState(invoice);
+  const [showPreview,setShowPreview] = useState(true);
   useEffect(() => setDraft(invoice), [invoice.id]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
@@ -464,7 +465,8 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
-    </div>{showPreview&&<InvoiceLivePreview invoice={draft}/>}</div></div>\n    <div className="drawer-foot"><button className="secondary preview-toggle" onClick={()=>setShowPreview(v=>!v)}>{showPreview?"Hide preview":"Show preview"}</button><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    </div>{showPreview&&<InvoiceLivePreview invoice={draft}/>}</div></div>
+    <div className="drawer-foot"><button className="secondary preview-toggle" onClick={()=>setShowPreview(v=>!v)}>{showPreview?"Hide preview":"Show preview"}</button><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
 }
 

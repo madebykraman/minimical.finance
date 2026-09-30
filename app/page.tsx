@@ -316,6 +316,7 @@ function AuthScreen() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -367,6 +368,14 @@ function AuthScreen() {
     }
   }
 
+  async function resendVerification() {
+    if (!email.trim()) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: window.location.origin + "/auth/confirm" } });
+    setResending(false);
+    setMessage(error ? error.message : "A fresh verification email has been sent.");
+  }
+
   return <div className="auth-screen"><div className="auth-card">
     <div className="brand"><div className="brand-mark">m</div><div><strong>minimical</strong><span>.finance</span></div></div>
     <div className="eyebrow">PRIVATE FINANCE OS</div>
@@ -380,7 +389,7 @@ function AuthScreen() {
         <button type="button" onClick={() => setShowPassword(v => !v)}>{showPassword ? "Hide" : "Show"}</button>
       </div></label>
       {mode === "signup" && <div className="password-rules">{passwordChecks.map(([ok,label]) => <span key={label} className={ok ? "ok" : ""}><i>{ok ? "✓" : "·"}</i>{label}</span>)}</div>}
-      {message && <div className="auth-message">{message}</div>}
+      {message && <div className="auth-message">{message}{/not confirmed|confirm/i.test(message) && <button type="button" className="auth-inline-action" onClick={resendVerification} disabled={resending}>{resending ? "Sending…" : "Resend verification email"}</button>}</div>}
       <button className="primary auth-submit" disabled={busy || (mode === "signup" && !strongPassword)}>{busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}</button>
     </form>
     <button className="auth-switch" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setPassword(""); }}>{mode === "signin" ? "Need an account? Create one" : "Already have access? Sign in"}</button>

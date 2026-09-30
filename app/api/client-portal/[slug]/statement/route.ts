@@ -20,7 +20,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=await createClient(); const [{data,error},{data:orgData}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
-  await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"statement_downloaded",p_resource_type:"statement",p_resource_id:null});
+  await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"statement_downloaded",p_resource_type:"statement"});
   const payload:any=data; const org:any=orgData||{}; const [start,end]=bounds(period); const invoices=payload.invoices||[]; const payments=payload.payments||[];
   const transactions:any[]=[
     ...invoices.filter((i:any)=>d(i.issue_date)<start).map((i:any)=>({date:i.issue_date,type:"invoice",ref:"#"+i.invoice_number,debit:Number(i.total||0),credit:0})),

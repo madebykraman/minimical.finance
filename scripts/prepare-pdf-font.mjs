@@ -1,17 +1,10 @@
 import { mkdir, copyFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { createRequire } from "node:module";
+import { join } from "node:path";
 
-const require = createRequire(import.meta.url);
-const fonts = [
-  ["dejavu-fonts-ttf/ttf/DejaVuSans.ttf", "DejaVuSans.ttf"],
-  ["dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf", "DejaVuSans-Bold.ttf"],
-];
-
-for (const [sourcePackage, fileName] of fonts) {
-  const source = require.resolve(sourcePackage);
-  const destination = join(process.cwd(), "public", "fonts", fileName);
-  await mkdir(dirname(destination), { recursive: true });
-  await copyFile(source, destination);
-  console.log("Prepared PDF font:", destination);
-}
+const root=process.cwd();
+const sourceBase=join(root,"node_modules","geist","dist","fonts");
+const target=join(root,"public","fonts");
+await mkdir(target,{recursive:true});
+await copyFile(join(sourceBase,"geist-sans","Geist-Variable.ttf"),join(target,"Geist-Variable.ttf"));
+await copyFile(join(sourceBase,"geist-mono","GeistMono-Variable.ttf"),join(target,"GeistMono-Variable.ttf"));
+console.log("Prepared Geist Sans and Geist Mono PDF fonts.");

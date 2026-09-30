@@ -466,8 +466,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
         {draft.activities.length ? <div className="activity-list">{draft.activities.slice(0,8).map(a => <div className="activity-item" key={a.id}><span className="activity-dot"/><div><b>{activityLabel(a.action)}</b><small>{new Date(a.created_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></div>)}</div> : <div className="payment-empty">No history recorded yet.</div>}
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
-    </div>
-    </div>{showPreview&&<InvoiceLivePreview invoice={draft}/>}</div></div>
+    </div></div>{showPreview&&<InvoiceLivePreview invoice={draft}/>}</div></div>
     <div className="drawer-foot"><button className="secondary preview-toggle" onClick={()=>setShowPreview(v=>!v)}>{showPreview?"Hide preview":"Show preview"}</button><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
 }

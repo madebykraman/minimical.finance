@@ -11,6 +11,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import {
   calculateStats,
   contentAmount,
+  mapInvoice,
   daysOverdue,
   invoiceBalance,
   invoiceTotal,

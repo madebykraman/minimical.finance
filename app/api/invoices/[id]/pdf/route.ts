@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { createClient } from "@/lib/supabase/server";
+
+const require = createRequire(import.meta.url);
 
 const PAGE = { width: 595.2756, height: 841.8898 };
 const BLACK = rgb(0, 0, 0);

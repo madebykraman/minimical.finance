@@ -281,29 +281,76 @@ function AuthScreen() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth") === "verified") {
+      setVerified(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("auth") === "invalid") {
+      setMessage("That verification link is invalid or has expired. Request a new confirmation email.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const passwordChecks = [
+    [password.length >= 12, "12+ characters"],
+    [/[a-z]/.test(password), "lowercase"],
+    [/[A-Z]/.test(password), "uppercase"],
+    [/\d/.test(password), "number"],
+    [/[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./]/.test(password), "symbol"],
+  ] as const;
+  const strongPassword =
+    passwordChecks.every(([ok]) => ok) &&
+    !email.trim().toLowerCase().includes(password.trim().toLowerCase());
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setBusy(true); setMessage("");
+    setBusy(true);
+    setMessage("");
+
+    if (mode === "signup" && !strongPassword) {
+      setBusy(false);
+      setMessage("Use 12+ characters with upper/lowercase, a number and a symbol. Do not use your email as the password.");
+      return;
+    }
+
+    const origin = window.location.origin;
     const result = mode === "signin"
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password });
+      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      : await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: origin + "/auth/confirm" },
+        });
+
     setBusy(false);
-    if (result.error) setMessage(result.error.message);
-    else if (mode === "signup" && !result.data.session) setMessage("Account created. Check your email if confirmation is enabled, then sign in.");
+    if (result.error) {
+      setMessage(result.error.message);
+    } else if (mode === "signup" && !result.data.session) {
+      setMessage("Account created. Check your email and confirm the address before signing in.");
+    }
   }
 
   return <div className="auth-screen"><div className="auth-card">
     <div className="brand"><div className="brand-mark">m</div><div><strong>minimical</strong><span>.finance</span></div></div>
-    <div className="eyebrow">PRIVATE FINANCE OS</div><h1>{mode === "signin" ? "Sign in." : "Create access."}</h1>
+    <div className="eyebrow">PRIVATE FINANCE OS</div>
+    <h1>{mode === "signin" ? "Welcome back." : "Create access."}</h1>
     <p>Internal invoicing, collections and financial records for the studio.</p>
+    {verified && <div className="auth-success"><Check size={15}/> Email verified. You can sign in.</div>}
     <form onSubmit={submit}>
-      <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"/></label>
-      <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} autoComplete={mode === "signin" ? "current-password" : "new-password"}/></label>
+      <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@studio.com"/></label>
+      <label>Password<div className="password-wrap">
+        <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required minLength={mode === "signup" ? 12 : 1} autoComplete={mode === "signin" ? "current-password" : "new-password"} placeholder={mode === "signup" ? "Create a strong password" : "Your password"}/>
+        <button type="button" onClick={() => setShowPassword(v => !v)}>{showPassword ? "Hide" : "Show"}</button>
+      </div></label>
+      {mode === "signup" && <div className="password-rules">{passwordChecks.map(([ok,label]) => <span key={label} className={ok ? "ok" : ""}><i>{ok ? "✓" : "·"}</i>{label}</span>)}</div>}
       {message && <div className="auth-message">{message}</div>}
-      <button className="primary auth-submit" disabled={busy}>{busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}</button>
+      <button className="primary auth-submit" disabled={busy || (mode === "signup" && !strongPassword)}>{busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}</button>
     </form>
-    <button className="auth-switch" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Need an account? Create one" : "Already have access? Sign in"}</button>
+    <button className="auth-switch" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setPassword(""); }}>{mode === "signin" ? "Need an account? Create one" : "Already have access? Sign in"}</button>
   </div></div>;
 }
 
@@ -369,7 +416,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
   return <div className="overlay" onMouseDown={onClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
-      <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); onStatus(draft,next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
+      <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       {unpriced > 0 && <div className="integrity warning"><CircleAlert size={17}/><div><b>{unpriced} content item{unpriced > 1 ? "s" : ""} still unpriced</b><span>Visible and retained, but excluded from the financial total until priced.</span></div></div>}
       {draft.sourceTotal != null && draft.sourceTotal !== invoiceTotal(draft) && <div className="integrity warning"><CircleAlert size={17}/><div><b>Source total differs from calculated total</b><span>Recorded source total: {money(draft.sourceTotal)} · calculated from contents: {money(invoiceTotal(draft))}</span></div></div>}
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Everything being billed on this invoice.</p></div><button className="secondary" onClick={() => add()}><Plus size={15}/>Add content</button></div>
@@ -382,7 +429,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
       <div className="block payments-block"><div className="block-head"><div><h3>Payments</h3><p>{draft.payments.length} recorded · {money(paidTotal(draft))} collected</p></div><button className="secondary" onClick={onPayment} disabled={paidTotal(draft)>=invoiceTotal(draft)}><Plus size={15}/>Record payment</button></div>{draft.payments.length ? <div className="payment-list">{draft.payments.map(p=><div key={p.id}><span>{p.payment_date || "Date unknown"} · {p.method}</span><strong>{money(p.amount)}</strong></div>)}</div> : <div className="payment-empty">No payment recorded yet.</div>}</div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
-    <div className="drawer-foot"><button className="secondary" onClick={() => window.print()}>Print / PDF</button><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    <div className="drawer-foot"><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
 }
 

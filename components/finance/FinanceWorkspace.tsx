@@ -164,6 +164,21 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} onSignOut={() => supabase.auth.signOut()} />}
       </section>
 
+      <nav className="mobile-nav" aria-label="Primary navigation">
+        {[
+          ["overview",LayoutDashboard,"Overview","/overview"],
+          ["invoices",Receipt,"Invoices","/invoices"],
+          ["payments",WalletCards,"Payments","/payments"],
+          ["clients",FileText,"Clients","/clients"],
+          ["projects",FolderKanban,"Projects","/projects"],
+          ["reports",BarChart3,"Reports","/reports"],
+          ["settings",Settings2,"Settings","/settings"],
+        ].map(([key,Icon,label,path])=>{
+          const C=Icon as any;
+          return <button key={String(key)} className={activeView===key?"active":""} onClick={()=>router.push(String(path))}><C size={17}/><span>{String(label)}</span></button>;
+        })}
+      </nav>
+
       {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice} onPayment={() => setPaymentFor(selected)}/>}
       {paymentFor && <PaymentComposer invoice={paymentFor} onClose={() => setPaymentFor(null)} onCreate={recordPayment}/>}
       {composer && <InvoiceComposer initialNumber={nextInvoiceNumber} onClose={() => setComposer(false)} onCreate={createInvoice}/>} 

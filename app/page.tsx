@@ -22,6 +22,7 @@ type Content = {
   note?: string | null;
 };
 type Payment = { id: string; amount: number; payment_date: string; method: string };
+type Activity = { id: string; action: string; metadata: Record<string, any>; created_at: string };
 type Invoice = {
   id: string;
   number: string;
@@ -35,6 +36,7 @@ type Invoice = {
   sourceTotal?: number | null;
   contents: Content[];
   payments: Payment[];
+  activities: Activity[];
   adjustment?: string | null;
   notes?: string | null;
 };
@@ -87,6 +89,9 @@ function mapInvoice(row: any): Invoice {
     payments: (row.payments ?? []).map((p: any) => ({
       id: p.id, amount: Number(p.amount), payment_date: p.payment_date, method: p.method,
     })),
+    activities: (row.activity_log ?? []).sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at))).map((a: any) => ({
+      id: a.id, action: a.action, metadata: a.metadata ?? {}, created_at: a.created_at,
+    })),
   };
 }
 
@@ -124,7 +129,7 @@ export default function Home() {
     setLoading(true);
     const { data, error } = await supabase
       .from("invoices")
-      .select("*, clients(name), projects(name), invoice_contents(*), payments(*)")
+      .select("*, clients(name), projects(name), invoice_contents(*), payments(*), activity_log(*)")
       .order("issue_date", { ascending: false });
     if (error) {
       console.error(error);
@@ -459,6 +464,15 @@ function ClientsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>v
   return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>{map.size} client records represented by invoices.</p></div></div><div className="client-grid">{Array.from(map.values()).map(c=><article className="client-card" key={c.name}><div className="client-avatar">{c.name.slice(0,1).toUpperCase()}</div><div><h3>{c.name}</h3><p>{c.projects.size} project{c.projects.size!==1?"s":""} · {c.invoices.length} invoice{c.invoices.length!==1?"s":""}</p></div><strong>{money(c.billed-c.paid)}</strong><small>outstanding</small><div className="client-invoices">{c.invoices.slice(0,3).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div></article>)}</div></div>;
 }
 
+function activityLabel(action:string) {
+  return ({
+    invoice_created: "Invoice created",
+    invoice_updated: "Invoice updated",
+    invoice_status_changed: "Status changed",
+    payment_recorded: "Payment recorded",
+  } as Record<string,string>)[action] ?? action.replaceAll("_"," ");
+}
+
 function Kpi({icon,label,value,note,accent}:{icon:React.ReactNode;label:string;value:string;note:string;accent?:boolean}) {
   return <div className={"kpi" + (accent ? " accent" : "")}><div className="kpi-icon">{icon}</div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{note}</div></div>;
 }
@@ -499,6 +513,9 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
       </div>
       {draft.adjustment && <div className="integrity"><CircleAlert size={17}/><div><b>Adjustment context</b><span>{draft.adjustment}</span></div></div>}
       <div className="block payments-block"><div className="block-head"><div><h3>Payments</h3><p>{draft.payments.length} recorded · {money(paidTotal(draft))} collected</p></div><button className="secondary" onClick={onPayment} disabled={paidTotal(draft)>=invoiceTotal(draft)}><Plus size={15}/>Record payment</button></div>{draft.payments.length ? <div className="payment-list">{draft.payments.map(p=><div key={p.id}><span>{p.payment_date || "Date unknown"} · {p.method}</span><strong>{money(p.amount)}</strong></div>)}</div> : <div className="payment-empty">No payment recorded yet.</div>}</div>
+      <div className="block activity-block"><div className="block-head"><div><h3>History</h3><p>Recorded changes and financial events.</p></div></div>
+        {draft.activities.length ? <div className="activity-list">{draft.activities.slice(0,8).map(a => <div className="activity-item" key={a.id}><span className="activity-dot"/><div><b>{activityLabel(a.action)}</b><small>{new Date(a.created_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></div>)}</div> : <div className="payment-empty">No history recorded yet.</div>}
+      </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
     <div className="drawer-foot"><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>

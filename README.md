@@ -65,3 +65,16 @@ All finance tables have Row Level Security enabled and are accessible through th
 ## Before expanding the product
 
 Next logical modules are: document storage, proper invoice PDF generation, client/project CRUD, activity timeline, reporting, recurring invoices, and optional email delivery.
+
+## Auth hardening
+
+- Production confirmation redirects are handled by `/auth/confirm` using Supabase PKCE/token-hash verification.
+- The finance tables are restricted to the seeded workspace owner through `workspace_members`.
+- The browser uses only the Supabase publishable key; credentials are supplied through environment variables.
+- The UI enforces a strong signup password before calling Supabase.
+
+Supabase Dashboard configuration still required for the production auth boundary:
+1. Authentication → URL Configuration → set Site URL to `https://minimical-finance.vercel.app`.
+2. Add `https://minimical-finance.vercel.app/auth/confirm` to Redirect URLs. Keep `http://localhost:3000/**` only if local development is needed.
+3. Authentication → Password Security → enable leaked-password protection and set strong password requirements.
+4. Because this is an internal single-owner finance system, disable “Allow new users to sign up” after the owner account is established.

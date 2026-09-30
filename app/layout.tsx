@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "minimical.finance",
-  description: "Internal finance and invoicing OS for Minimical.",
+  title: "FinOS",
+  description: "Private finance and invoicing operating system.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

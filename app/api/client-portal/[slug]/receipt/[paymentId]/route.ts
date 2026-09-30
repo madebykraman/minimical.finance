@@ -12,7 +12,7 @@ const fmt=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;paymentId:string}>}){
   const {slug,paymentId}=await context.params; const session=request.cookies.get("finos_portal_session")?.value||"";
   if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient(); const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)});
+  const supabase=await createClient(); const [{data,error},{data:org}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   const payload:any=data; const payment=(payload.payments||[]).find((p:any)=>p.id===paymentId);
   if(!payment)return new NextResponse("Receipt not found",{status:404});
@@ -28,9 +28,12 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   right(receiptNo,724,9,bold);right(fmt(payment.payment_date),708,8,regular,rgb(.42,.42,.4));
   page.drawRectangle({x:48,y:610,width:499,height:76,borderWidth:.6,borderColor:rgb(.85,.84,.81)});
   text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,bold);
-  text("PAYMENT DETAILS",48,570,8,bold,rgb(.42,.42,.4));
+  text("RECEIVED FROM",48,570,8,bold,rgb(.42,.42,.4));
+  text(payload.client.legal_name||payload.client.name,48,548,9,bold);(payload.client.address_lines||[]).slice(0,3).forEach((v:string,i:number)=>text(v,48,534-i*13,7,regular,rgb(.45,.45,.43)));
+  text("PAYMENT DETAILS",310,570,8,bold,rgb(.42,.42,.4));
   const rows=[["Invoice",invoice?"#"+invoice.invoice_number:"#"+payment.invoice_number],["Payment date",fmt(payment.payment_date)],["Method",String(payment.method||"").replaceAll("_"," ")],["Reference",payment.reference||"Not provided"],["Invoice total",invoice?money(invoice.total):"—"],["Remaining balance",invoice?money(invoice.balance):"—"]];
-  rows.forEach((r,i)=>{const y=540-i*34;text(r[0],48,y,8,regular,rgb(.45,.45,.43));text(r[1],190,y,9,bold)});
+  rows.forEach((r,i)=>{const y=540-i*30;text(r[0],310,y,7,regular,rgb(.45,.45,.43));text(r[1],405,y,8,bold)});
+  text("PAY TO",48,460,8,bold,rgb(.42,.42,.4));text(org?.payee_name||org?.legal_name||"Kumar Aman",48,442,8,bold);text(org?.bank_name||"",48,428,7,regular,rgb(.45,.45,.43));text(org?.account_number?"A/C "+org.account_number:"",48,416,7,regular,rgb(.45,.45,.43));text(org?.ifsc_code?"IFSC "+org.ifsc_code:"",48,404,7,regular,rgb(.45,.45,.43));
   text("This receipt confirms that the payment above was recorded against the referenced invoice.",48,280,8,regular,rgb(.42,.42,.4));
   text("Thank you for your business.",48,264,8,regular,rgb(.42,.42,.4));
   text("FinOS · Payment record",48,42,6.5,regular,rgb(.55,.55,.52));

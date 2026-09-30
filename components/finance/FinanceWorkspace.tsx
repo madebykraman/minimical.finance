@@ -249,35 +249,82 @@ function AuthScreen() {
 }
 
 function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
+  const [profile,setProfile] = useState({
+    studio_name:"Kumar Aman", brand_name:"minimical", contact_email:"framedbyaman@gmail.com",
+    payee_name:"Kumar Aman", account_number:"55550101570800", bank_name:"FEDERAL BANK",
+    branch_name:"Patna/Kankarbagh", branch_code:"2189", ifsc_code:"FDRL0002189", pan_number:"CIBPA9801L",
+    invoice_footer_line_1:"Please contact framedbyaman@gmail.com in case of any queries.",
+    invoice_footer_line_2:"Thank you for your time.", pdf_template:"legacy_elle"
+  });
   const [password,setPassword] = useState("");
   const [confirm,setConfirm] = useState("");
   const [message,setMessage] = useState("");
+  const [saving,setSaving] = useState(false);
+  const [loading,setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle().then(({data,error}) => {
+      if (data) setProfile(p => ({...p,...data}));
+      if (error) setMessage(error.message);
+      setLoading(false);
+    });
+  }, []);
+
   const strong = password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./]/.test(password) && !email.toLowerCase().includes(password.toLowerCase());
 
-  async function changePassword(e: FormEvent) {
+  async function saveProfile(e: FormEvent) {
     e.preventDefault();
-    setMessage("");
+    setSaving(true); setMessage("");
+    const { error } = await supabase.from("workspace_settings").upsert({...profile,id:true,updated_at:new Date().toISOString()});
+    setSaving(false);
+    setMessage(error ? error.message : "Billing profile saved.");
+  }
+
+  async function changePassword(e: FormEvent) {
+    e.preventDefault(); setMessage("");
     if (!strong) return setMessage("Use 12+ characters with upper/lowercase, a number and a symbol. Do not reuse your email.");
     if (password !== confirm) return setMessage("Passwords do not match.");
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return setMessage(error.message);
-    setPassword(""); setConfirm("");
-    setMessage("Password updated successfully.");
+    setPassword(""); setConfirm(""); setMessage("Password updated successfully.");
   }
 
   return <div className="settings-stack">
     <div className="data-panel">
-      <div className="data-panel-head"><div><h2>Workspace settings</h2><p>Private configuration for minimical.finance.</p></div></div>
-      <div className="settings-row"><div className="settings-icon"><ShieldCheck size={17}/></div><div><b>Single-owner access</b><p>Finance data is restricted to the authenticated workspace owner.</p></div><span className="settings-good">Protected</span></div>
-      <div className="settings-row"><div className="settings-icon"><FileText size={17}/></div><div><b>Signed-in account</b><p>{email}</p></div></div>
-      <div className="settings-row"><div className="settings-icon"><Receipt size={17}/></div><div><b>Invoice PDFs</b><p>Generated server-side from the stored invoice record.</p></div><span className="settings-good">Live</span></div>
+      <div className="data-panel-head"><div><h2>Invoice identity</h2><p>The stored billing profile used by generated PDFs. Nothing is hardcoded into the invoice renderer.</p></div>{loading && <span className="settings-good">Loading</span>}</div>
+      <form className="password-settings" onSubmit={saveProfile}>
+        <div className="form-grid">
+          <label>Studio / legal name<input value={profile.studio_name} onChange={e=>setProfile(p=>({...p,studio_name:e.target.value}))}/></label>
+          <label>Brand name<input value={profile.brand_name} onChange={e=>setProfile(p=>({...p,brand_name:e.target.value}))}/></label>
+          <label>Contact email<input type="email" value={profile.contact_email||""} onChange={e=>setProfile(p=>({...p,contact_email:e.target.value}))}/></label>
+          <label>Payee name<input value={profile.payee_name||""} onChange={e=>setProfile(p=>({...p,payee_name:e.target.value}))}/></label>
+          <label>Account number<input value={profile.account_number||""} onChange={e=>setProfile(p=>({...p,account_number:e.target.value}))}/></label>
+          <label>Bank<input value={profile.bank_name||""} onChange={e=>setProfile(p=>({...p,bank_name:e.target.value}))}/></label>
+          <label>Branch<input value={profile.branch_name||""} onChange={e=>setProfile(p=>({...p,branch_name:e.target.value}))}/></label>
+          <label>Branch code<input value={profile.branch_code||""} onChange={e=>setProfile(p=>({...p,branch_code:e.target.value}))}/></label>
+          <label>IFSC<input value={profile.ifsc_code||""} onChange={e=>setProfile(p=>({...p,ifsc_code:e.target.value}))}/></label>
+          <label>PAN<input value={profile.pan_number||""} onChange={e=>setProfile(p=>({...p,pan_number:e.target.value}))}/></label>
+        </div>
+        <div className="form-grid">
+          <label>Footer line 1<input value={profile.invoice_footer_line_1||""} onChange={e=>setProfile(p=>({...p,invoice_footer_line_1:e.target.value}))}/></label>
+          <label>Footer line 2<input value={profile.invoice_footer_line_2||""} onChange={e=>setProfile(p=>({...p,invoice_footer_line_2:e.target.value}))}/></label>
+        </div>
+        <div className="settings-row"><div className="settings-icon"><FileText size={17}/></div><div><b>PDF template</b><p>Reference-faithful legacy invoice geometry. This is intentionally not the dashboard's visual language.</p></div><span className="settings-good">Reference</span></div>
+        <button className="primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save invoice identity"}</button>
+      </form>
     </div>
     <div className="data-panel">
-      <div className="data-panel-head"><div><h2>Change password</h2><p>Use a unique password; the old email-as-password test credential should not remain active.</p></div></div>
+      <div className="data-panel-head"><div><h2>Workspace security</h2><p>Private access and account controls.</p></div></div>
+      <div className="settings-row"><div className="settings-icon"><ShieldCheck size={17}/></div><div><b>Single-owner access</b><p>Finance data is restricted to the authenticated workspace owner.</p></div><span className="settings-good">Protected</span></div>
+      <div className="settings-row"><div className="settings-icon"><FileText size={17}/></div><div><b>Signed-in account</b><p>{email}</p></div></div>
+      <div className="settings-row"><div className="settings-icon"><Receipt size={17}/></div><div><b>Invoice PDFs</b><p>Generated server-side from stored invoice, client and billing-profile data.</p></div><span className="settings-good">Live</span></div>
+    </div>
+    <div className="data-panel">
+      <div className="data-panel-head"><div><h2>Change password</h2><p>Use a unique password; the previous test credential should not remain active.</p></div></div>
       <form className="password-settings" onSubmit={changePassword}>
         <label>New password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" placeholder="12+ characters"/></label>
         <label>Confirm password<input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} autoComplete="new-password" placeholder="Repeat password"/></label>
-        {message && <div className={message.includes("successfully") ? "auth-success" : "auth-message"}>{message}</div>}
+        {message && <div className={message.includes("successfully") || message.includes("saved") ? "auth-success" : "auth-message"}>{message}</div>}
         <button className="primary" type="submit" disabled={!strong || password !== confirm}>Update password</button>
       </form>
     </div>
@@ -321,9 +368,59 @@ function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment
 }
 
 function ClientsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
-  const map = new Map<string,{name:string;projects:Set<string>;invoices:Invoice[];billed:number;paid:number}>();
-  invoices.forEach(i=>{const key=i.clientId||i.client;const row=map.get(key)||{name:i.client,projects:new Set<string>(),invoices:[],billed:0,paid:0};row.projects.add(i.project);row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);map.set(key,row);});
-  return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>{map.size} client records represented by invoices.</p></div></div><div className="client-grid">{Array.from(map.values()).map(c=><article className="client-card" key={c.name}><div className="client-avatar">{c.name.slice(0,1).toUpperCase()}</div><div><h3>{c.name}</h3><p>{c.projects.size} project{c.projects.size!==1?"s":""} · {c.invoices.length} invoice{c.invoices.length!==1?"s":""}</p></div><strong>{money(c.billed-c.paid)}</strong><small>outstanding</small><div className="client-invoices">{c.invoices.slice(0,3).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div></article>)}</div></div>;
+  const map = new Map<string,{id:string|null;name:string;projects:Set<string>;invoices:Invoice[];billed:number;paid:number}>();
+  invoices.forEach(i=>{
+    const key=i.clientId||i.client;
+    const row=map.get(key)||{id:i.clientId||null,name:i.client,projects:new Set<string>(),invoices:[],billed:0,paid:0};
+    row.projects.add(i.project); row.invoices.push(i); row.billed+=invoiceTotal(i); row.paid+=paidTotal(i); map.set(key,row);
+  });
+  const [editing,setEditing]=useState<{id:string;name:string}|null>(null);
+  return <div className="data-panel">
+    <div className="data-panel-head"><div><h2>Clients</h2><p>{map.size} client records represented by invoices. Billing identity is stored per client.</p></div></div>
+    <div className="client-grid">
+      {Array.from(map.values()).map(c=><article className="client-card" key={c.name}>
+        <div className="client-avatar">{c.name.slice(0,1).toUpperCase()}</div>
+        <div><h3>{c.name}</h3><p>{c.projects.size} project{c.projects.size!==1?"s":""} · {c.invoices.length} invoice{c.invoices.length!==1?"s":""}</p></div>
+        <strong>{money(c.billed-c.paid)}</strong><small>outstanding</small>
+        <div className="client-invoices">{c.invoices.slice(0,3).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div>
+        {c.id && <button className="secondary client-edit" onClick={()=>setEditing({id:c.id!,name:c.name})}><FileText size={14}/>Edit billing profile</button>}
+      </article>)}
+    </div>
+    {editing && <ClientProfileModal id={editing.id} fallbackName={editing.name} onClose={()=>setEditing(null)}/>}
+  </div>;
+}
+
+function ClientProfileModal({id,fallbackName,onClose}:{id:string;fallbackName:string;onClose:()=>void}) {
+  const [form,setForm]=useState({name:fallbackName,legal_name:"",email:"",phone:"",pan:"",gstin:"",address:"",notes:""});
+  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [message,setMessage]=useState("");
+  useEffect(()=>{supabase.from("clients").select("*").eq("id",id).single().then(({data,error})=>{
+    if(data) setForm({name:data.name,legal_name:data.legal_name||"",email:data.email||"",phone:data.phone||"",pan:data.pan||"",gstin:data.gstin||"",address:Array.isArray(data.address_lines)?data.address_lines.join("\\n"):"",notes:data.notes||""});
+    if(error) setMessage(error.message); setLoading(false);
+  })},[id]);
+  async function save(e:FormEvent){e.preventDefault();setSaving(true);setMessage("");
+    const address_lines=form.address.split("\\n").map(v=>v.trim()).filter(Boolean);
+    const {error}=await supabase.from("clients").update({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines,notes:form.notes.trim()||null,updated_at:new Date().toISOString()}).eq("id",id);
+    setSaving(false); if(error) setMessage(error.message); else onClose();
+  }
+  return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}>
+    <div className="drawer-head"><div><div className="eyebrow">CLIENT / BILLING PROFILE</div><h2>{form.name || fallbackName}</h2><p>These fields are used directly by the canonical invoice PDF.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
+    <div className="composer-body">
+      {loading ? <div className="empty-state">Loading client profile…</div> : <form className="password-settings" onSubmit={save}>
+        <div className="form-grid">
+          <label>Display name<input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></label>
+          <label>Legal / billed-to name<input value={form.legal_name} onChange={e=>setForm(f=>({...f,legal_name:e.target.value}))}/></label>
+          <label>Email<input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></label>
+          <label>Phone<input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></label>
+          <label>PAN<input value={form.pan} onChange={e=>setForm(f=>({...f,pan:e.target.value}))}/></label>
+          <label>GSTIN<input value={form.gstin} onChange={e=>setForm(f=>({...f,gstin:e.target.value}))}/></label>
+        </div>
+        <label>Address lines<textarea value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>
+        <label>Internal notes<textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/></label>
+        {message && <div className="auth-message">{message}</div>}
+      </form>}
+    </div>
+    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={loading||saving} onClick={(e)=>{const formEl=(e.currentTarget.parentElement?.previousElementSibling?.querySelector("form") as HTMLFormElement|null); formEl?.requestSubmit();}}>{saving?"Saving…":"Save profile"}</button></div>
+  </div></div>;
 }
 
 function ProjectsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {

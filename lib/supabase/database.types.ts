@@ -53,6 +53,107 @@ export type Database = {
           },
         ]
       }
+      client_contacts: {
+        Row: {
+          auth_user_id: string | null
+          client_id: string
+          created_at: string
+          email: string
+          id: string
+          is_primary: boolean
+          name: string
+          phone: string | null
+          portal_enabled: boolean
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id?: string | null
+          client_id: string
+          created_at?: string
+          email: string
+          id?: string
+          is_primary?: boolean
+          name: string
+          phone?: string | null
+          portal_enabled?: boolean
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string | null
+          client_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_primary?: boolean
+          name?: string
+          phone?: string | null
+          portal_enabled?: boolean
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_tokens: {
+        Row: {
+          client_id: string
+          contact_id: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          client_id: string
+          contact_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_tokens_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address_lines: Json
@@ -118,30 +219,52 @@ export type Database = {
       }
       documents: {
         Row: {
+          client_id: string | null
           created_at: string
+          description: string | null
           document_type: string
           file_name: string
           file_path: string
           id: string
           invoice_id: string | null
+          mime_type: string | null
+          size_bytes: number | null
+          visible_to_client: boolean
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
+          description?: string | null
           document_type: string
           file_name: string
           file_path: string
           id?: string
           invoice_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          visible_to_client?: boolean
         }
         Update: {
+          client_id?: string | null
           created_at?: string
+          description?: string | null
           document_type?: string
           file_name?: string
           file_path?: string
           id?: string
           invoice_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          visible_to_client?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -476,7 +599,10 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_client_portal: {
+        Args: { p_slug: string; p_token: string }
+        Returns: Json
+      }
     }
     Enums: {
       invoice_content_kind: "service" | "adjustment" | "note"

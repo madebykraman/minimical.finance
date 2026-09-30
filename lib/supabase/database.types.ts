@@ -55,29 +55,41 @@ export type Database = {
       }
       clients: {
         Row: {
+          address_lines: Json
           created_at: string
           email: string | null
+          gstin: string | null
           id: string
+          legal_name: string | null
           name: string
           notes: string | null
+          pan: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          address_lines?: Json
           created_at?: string
           email?: string | null
+          gstin?: string | null
           id?: string
+          legal_name?: string | null
           name: string
           notes?: string | null
+          pan?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          address_lines?: Json
           created_at?: string
           email?: string | null
+          gstin?: string | null
           id?: string
+          legal_name?: string | null
           name?: string
           notes?: string | null
+          pan?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -349,6 +361,60 @@ export type Database = {
         Update: {
           created_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      workspace_settings: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          branch_code: string | null
+          branch_name: string | null
+          brand_name: string
+          contact_email: string | null
+          id: boolean
+          ifsc_code: string | null
+          invoice_footer_line_1: string | null
+          invoice_footer_line_2: string | null
+          pan_number: string | null
+          payee_name: string | null
+          pdf_template: string
+          studio_name: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          brand_name?: string
+          contact_email?: string | null
+          id?: boolean
+          ifsc_code?: string | null
+          invoice_footer_line_1?: string | null
+          invoice_footer_line_2?: string | null
+          pan_number?: string | null
+          payee_name?: string | null
+          pdf_template?: string
+          studio_name?: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          brand_name?: string
+          contact_email?: string | null
+          id?: boolean
+          ifsc_code?: string | null
+          invoice_footer_line_1?: string | null
+          invoice_footer_line_2?: string | null
+          pan_number?: string | null
+          payee_name?: string | null
+          pdf_template?: string
+          studio_name?: string
+          updated_at?: string
         }
         Relationships: []
       }

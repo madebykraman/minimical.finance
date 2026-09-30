@@ -135,7 +135,7 @@ export default function Home() {
   }
 
   async function logActivity(invoiceId: string | null, action: string, metadata: Record<string, unknown> = {}) {
-    const { error } = await supabase.from("activity_log").insert({ invoice_id: invoiceId, action, metadata });
+    const { error } = await supabase.from("activity_log").insert({ invoice_id: invoiceId, action, metadata: metadata as any });
     if (error) console.warn("Activity log failed:", error.message);
   }
 

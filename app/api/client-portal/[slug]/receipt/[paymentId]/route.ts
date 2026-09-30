@@ -37,5 +37,5 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   text("This receipt confirms that the payment above was recorded against the referenced invoice.",48,280,8,regular,rgb(.42,.42,.4));
   text("Thank you for your business.",48,264,8,regular,rgb(.42,.42,.4));
   text("FinOS · Payment record",48,42,6.5,regular,rgb(.55,.55,.52));
-  const bytes=await pdf.save();return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition:`attachment; filename="${receiptNo}.pdf"`,"Cache-Control":"private, no-store"}});
+  const bytes=await pdf.save();return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition": `attachment; filename="${receiptNo}.pdf"`, "Cache-Control":"private, no-store"}});
 }

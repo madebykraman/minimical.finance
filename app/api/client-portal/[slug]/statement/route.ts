@@ -40,7 +40,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
     const cards=[["OPENING",money(opening)],["BILLED",money(billed)],["PAID",money(paid)],["CLOSING",money(closing)]];
     cards.forEach(([k,v],idx)=>{const x=48+idx*124;page.drawRectangle({x,y:H-174,width:112,height:40,borderWidth:.5,borderColor:LINE});text(k,x+8,H-151,6.5,bold,MUTED);text(v,x+8,H-167,10,bold)});};
   header(); let y=H-208;
-  const drawTableHeader=()=>{page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=18;text("DATE",48,y,6.5,bold,MUTED);text("TYPE",125,y,6.5,bold,MUTED);text("REFERENCE",195,y,6.5,bold,MUTED);right("DEBIT",415,y,6.5,bold,MUTED);right("CREDIT",480,y,6.5,bold,MUTED);right("BALANCE",547,y,6.5,bold,MUTED);y-=10;page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.4,color:LINE)};
+  const drawTableHeader=()=>{page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=18;text("DATE",48,y,6.5,bold,MUTED);text("TYPE",125,y,6.5,bold,MUTED);text("REFERENCE",195,y,6.5,bold,MUTED);right("DEBIT",415,y,6.5,bold,MUTED);right("CREDIT",480,y,6.5,bold,MUTED);right("BALANCE",547,y,6.5,bold,MUTED);y-=10;page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.4,color:LINE});
   };
   drawTableHeader();
   for(const tx of current){if(y<90){page=pdf.addPage(A4);y=H-60;text("FinOS",48,y,14,bold);y-=22;drawTableHeader();}

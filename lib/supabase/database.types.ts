@@ -139,6 +139,44 @@ export type Database = {
           },
         ]
       }
+      client_portal_activity: {
+        Row: {
+          action: string
+          client_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          resource_id: string | null
+          resource_type: string | null
+        }
+        Insert: {
+          action: string
+          client_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type?: string | null
+        }
+        Update: {
+          action?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_activity_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_portal_sessions: {
         Row: {
           client_id: string
@@ -304,6 +342,45 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_access_log: {
+        Row: {
+          accessed_at: string
+          action: string
+          client_id: string | null
+          document_id: string
+          id: string
+        }
+        Insert: {
+          accessed_at?: string
+          action?: string
+          client_id?: string | null
+          document_id: string
+          id?: string
+        }
+        Update: {
+          accessed_at?: string
+          action?: string
+          client_id?: string | null
+          document_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_access_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_access_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -520,9 +597,12 @@ export type Database = {
           ifsc_code: string | null
           invoice_footer_line_1: string | null
           invoice_footer_line_2: string | null
+          invoice_prefix: string
+          invoice_template_key: string
           legal_name: string | null
           logo_path: string | null
           name: string
+          next_invoice_number: number
           pan: string | null
           payee_name: string | null
           phone: string | null
@@ -543,9 +623,12 @@ export type Database = {
           ifsc_code?: string | null
           invoice_footer_line_1?: string | null
           invoice_footer_line_2?: string | null
+          invoice_prefix?: string
+          invoice_template_key?: string
           legal_name?: string | null
           logo_path?: string | null
           name: string
+          next_invoice_number?: number
           pan?: string | null
           payee_name?: string | null
           phone?: string | null
@@ -566,9 +649,12 @@ export type Database = {
           ifsc_code?: string | null
           invoice_footer_line_1?: string | null
           invoice_footer_line_2?: string | null
+          invoice_prefix?: string
+          invoice_template_key?: string
           legal_name?: string | null
           logo_path?: string | null
           name?: string
+          next_invoice_number?: number
           pan?: string | null
           payee_name?: string | null
           phone?: string | null
@@ -628,37 +714,84 @@ export type Database = {
           },
         ]
       }
+      project_activity: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json
+          project_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          project_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
+          actual_cost: number
+          budget_cost: number
           client_id: string | null
           created_at: string
+          description: string | null
+          end_date: string | null
           id: string
           name: string
           notes: string | null
           organization_id: string | null
           project_type: string | null
+          start_date: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          actual_cost?: number
+          budget_cost?: number
           client_id?: string | null
           created_at?: string
+          description?: string | null
+          end_date?: string | null
           id?: string
           name: string
           notes?: string | null
           organization_id?: string | null
           project_type?: string | null
+          start_date?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          actual_cost?: number
+          budget_cost?: number
           client_id?: string | null
           created_at?: string
+          description?: string | null
+          end_date?: string | null
           id?: string
           name?: string
           notes?: string | null
           organization_id?: string | null
           project_type?: string | null
+          start_date?: string | null
           status?: string
           updated_at?: string
         }
@@ -804,6 +937,25 @@ export type Database = {
       }
       get_client_portal_secret: {
         Args: { p_slug: string; p_token: string }
+        Returns: Json
+      }
+      log_client_portal_activity: {
+        Args: {
+          p_action: string
+          p_metadata?: Json
+          p_resource_id?: string
+          p_resource_type?: string
+          p_session: string
+          p_slug: string
+        }
+        Returns: undefined
+      }
+      next_invoice_number: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
+      update_client_portal_profile: {
+        Args: { p_payload: Json; p_session: string; p_slug: string }
         Returns: Json
       }
     }

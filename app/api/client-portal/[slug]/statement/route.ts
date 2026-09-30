@@ -31,8 +31,8 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const billed=current.reduce((s:number,x:any)=>s+x.debit,0); const paid=current.reduce((s:number,x:any)=>s+x.credit,0); const closing=opening+billed-paid;
 
   const pdf=await PDFDocument.create(); pdf.registerFontkit(fontkit);
-  const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans.ttf")),{subset:true});
-  const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans-Bold.ttf")),{subset:true});
+  const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
+  const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
   let page=pdf.addPage(A4); const W=A4[0],H=A4[1];
   const text=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
   const right=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font,color)};

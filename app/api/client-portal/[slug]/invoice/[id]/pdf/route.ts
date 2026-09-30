@@ -17,19 +17,19 @@ const wrap=(t:string,font:any,max:number)=>{const out:string[]=[];let cur="";for
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;id:string}>}){
   const {slug,id}=await context.params;const session=request.cookies.get("finos_portal_session")?.value||"";if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient();const [{data,error},{data:org}]=await Promise.all([
+  const supabase=await createClient();const [{data,error},{data:orgRaw}]=await Promise.all([
     supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),
     supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})
   ]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
-  const invoice=(data as any).invoices.find((i:any)=>i.id===id);if(!invoice)return new NextResponse("Invoice not found",{status:404});
+  const org:any=orgRaw||{}; const invoice=(data as any).invoices.find((i:any)=>i.id===id);if(!invoice)return new NextResponse("Invoice not found",{status:404});
   const client=(data as any).client;const contents=[...(invoice.contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
   const total=contents.reduce((s:number,i:any)=>s+(i.priced?Number(i.amount??Number(i.quantity||1)*Number(i.rate||0)):0),0);const hasUnpriced=contents.some((i:any)=>!i.priced);
   const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans.ttf")),{subset:true});const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans-Bold.ttf")),{subset:true});const page=pdf.addPage([PAGE.width,PAGE.height]);
   const draw=(s:string,x:number,y:number,font:any=regular,size=FONT_SIZE)=>page.drawText(safe(s),{x,y,size,font,color:BLACK});const center=(s:string,x:number,y:number,font:any=regular,size=FONT_SIZE)=>{const v=safe(s);draw(v,x-font.widthOfTextAtSize(v,size)/2,y,font,size)};const right=(s:string,x:number,y:number,font:any=regular,size=FONT_SIZE)=>{const v=safe(s);draw(v,x-font.widthOfTextAtSize(v,size),y,font,size)};
   draw("BILLED TO:",X.left,Y.billedLabel,bold);const billed=[client.legal_name||client.name,...(client.address_lines||[]),client.pan?"PAN No. "+client.pan:"",client.gstin?"GSTIN: "+client.gstin:""].filter(Boolean);billed.forEach((s:string,i:number)=>draw(s,X.left,Y.billedFirst-i*LEADING));
   draw("PAY TO:",X.left,Y.payLabel,bold);const pay=[`NAME: ${org?.payee_name||org?.legal_name||"Kumar Aman"}`,org?.account_number?`A/C NO. ${org.account_number}`:"",org?.bank_name?`BANK: ${org.bank_name}`:"",org?.branch_name?`BRANCH: ${org.branch_name}`:"",org?.branch_code?`BRANCH CODE: ${org.branch_code}`:"",org?.ifsc_code?`IFSC CODE: ${org.ifsc_code}`:"",org?.pan?`PAN NO. ${org.pan}`:""].filter(Boolean);pay.forEach((s:string,i:number)=>draw(s,X.left,Y.payFirst-i*LEADING));
-  right("INVOICE NO.",X.invoiceLabel,Y.invoiceLabel,bold);right(String(invoice.invoice_number),X.metaRight,Y.invoiceNumber);right("DATE:",X.dateLabel,Y.dateLabel,bold);right(formatDate(invoice.issue_date),X.metaRight,Y.dateValue);
+  right("INVOICE NO.",X.metaRight,Y.invoiceLabel,bold);right(String(invoice.invoice_number),X.metaRight,Y.invoiceNumber);right("DATE:",X.metaRight,Y.dateLabel,bold);right(formatDate(invoice.issue_date),X.metaRight,Y.dateValue);
   const line={thickness:.62,color:BLACK};page.drawRectangle({x:X.left,y:Y.tableBottom,width:X.right-X.left,height:Y.tableTop-Y.tableBottom,borderWidth:.62,borderColor:BLACK});page.drawLine({start:{x:X.divider,y:Y.tableBottom},end:{x:X.divider,y:Y.tableTop},...line});page.drawLine({start:{x:X.left,y:Y.tableHeader},end:{x:X.right,y:Y.tableHeader},...line});page.drawLine({start:{x:X.left,y:Y.tableTotal},end:{x:X.right,y:Y.tableTotal},...line});
   center("DESCRIPTION",X.descriptionCenter,Y.tableTop-17,bold);center("AMOUNT",X.amountCenter,Y.tableTop-17,bold);
   const n=Math.max(contents.length,1);const bodyTop=Y.tableHeader-32;const bodyBottom=Y.tableTotal+24;const step=n===1?0:Math.min(43,(bodyTop-bodyBottom)/(n-1));

@@ -38,6 +38,7 @@ export type Invoice = {
   project: string;
   clientId?: string | null;
   projectId?: string | null;
+  organizationId?: string | null;
   date: string;
   dueDate?: string | null;
   status: Status;
@@ -84,6 +85,7 @@ export function mapInvoice(row: any): Invoice {
     project: row.projects?.name ?? "No project",
     clientId: row.client_id,
     projectId: row.project_id,
+    organizationId: row.organization_id,
     date: row.issue_date,
     dueDate: row.due_date,
     status: row.status,

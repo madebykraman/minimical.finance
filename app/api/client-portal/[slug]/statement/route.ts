@@ -49,5 +49,5 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   if(!current.length)text("No transactions in this period.",48,y,8,regular,MUTED);
   text("Statement of account · Invoice charges are debits; recorded payments are credits.",48,42,6.5,regular,MUTED);
   const bytes=await pdf.save();
-  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition:`attachment; filename="${String(payload.client.name).replace(/[^a-z0-9]+/gi,"-")}-Account-Statement.pdf"`,"Cache-Control":"private, no-store"}});
+  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition": `attachment; filename="${String(payload.client.name).replace(/[^a-z0-9]+/gi,"-")}-Account-Statement.pdf"`, "Cache-Control":"private, no-store"}});
 }

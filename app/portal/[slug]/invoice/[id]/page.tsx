@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const supabase=createClient();
@@ -15,8 +15,8 @@ export default function ClientInvoicePage({params}:{params:Promise<{slug:string;
   if(!p||!data)return <main className="portal-screen"><div className="portal-card">Loading invoice…</div></main>;
   const token=new URLSearchParams(window.location.search).get("token")||"";
   return <main className="portal-screen"><div className="portal-shell">
-    <header className="portal-header"><div><a className="back-link" href={"/portal/"+p.slug+"?token="+encodeURIComponent(token)}><ArrowLeft size={13}/> Account</a><div className="portal-kicker">INVOICE</div><h1>#{data.invoice_number}</h1><p>{data.issue_date}{data.due_date?" · Due "+data.due_date:""}</p></div><a className="portal-button dark" href={"/api/invoices/"+data.id+"/pdf"}><Download size={14}/>Invoice PDF</a></header>
-    <section className="portal-hero"><div><span>AMOUNT DUE</span><strong>{money(data.balance)}</strong><p>{data.balance>0?(data.is_overdue?"Overdue":"Open"):"Paid"}</p></div><div className="portal-hero-actions"><a href={"/api/invoices/"+data.id+"/pdf"}><FileText size={15}/>Supporting PDF</a></div></section>
+    <header className="portal-header"><div><a className="back-link" href={"/portal/"+p.slug+"?token="+encodeURIComponent(token)}><ArrowLeft size={13}/> Account</a><div className="portal-kicker">INVOICE</div><h1>#{data.invoice_number}</h1><p>{data.issue_date}{data.due_date?" · Due "+data.due_date:""}</p></div></header>
+    <section className="portal-hero"><div><span>AMOUNT DUE</span><strong>{money(data.balance)}</strong><p>{data.balance>0?(data.is_overdue?"Overdue":"Open"):"Paid"}</p></div><div className="portal-hero-actions"><span className="portal-button">Included in account statement</span></div></section>
     <section className="portal-kpis"><div><span>Invoice total</span><b>{money(data.total)}</b></div><div><span>Paid</span><b>{money(data.paid)}</b></div><div><span>Outstanding</span><b>{money(data.balance)}</b></div><div><span>Status</span><b>{data.status}</b></div></section>
     <footer className="portal-footer">This invoice is part of your consolidated minimical.finance account.</footer>
   </div></main>;

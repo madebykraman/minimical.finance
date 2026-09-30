@@ -48,12 +48,12 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   right(periodTitle,W-48,H-112,9,bold); right(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),W-48,H-128,8,regular,GRAY);
   const cards=[["BILLED",money(billed)],["PAID",money(paid)],["OPEN",money(open)]];
   cards.forEach(([label,value],i)=>{const x=48+i*166;page.drawRectangle({x,y:H-188,width:150,height:42,borderWidth:.5,borderColor:rgb(.88,.87,.83)});text(label,x+10,H-163,7,bold,GRAY);text(value,x+10,H-180,11,bold)});
-  let currentPage=page; let y=H-226; page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=20;
+  let y=H-226; page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=20;
   text("INVOICE",48,y,7,bold,GRAY);text("DATE",132,y,7,bold,GRAY);text("STATUS",230,y,7,bold,GRAY);right("BILLED",405,y,7,bold,GRAY);right("PAID",470,y,7,bold,GRAY);right("OPEN",547,y,7,bold,GRAY);
   y-=10;page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.4,color:rgb(.88,.87,.83)});
   for(const i of invoices){y-=22;if(y<100){page=pdf.addPage(A4);y=H-70;page.drawText("ACCOUNT STATEMENT · CONTINUED",{x:48,y,size:8,font:bold,color:GRAY});y-=28;}text("#"+i.invoice_number,48,y,8,bold);text(fmt(i.issue_date),132,y,8);text(i.balance>0?(i.is_overdue?"OVERDUE":"OPEN"):"PAID",230,y,7,bold);right(money(i.total),405,y,8);right(money(i.paid),470,y,8);right(money(i.balance),547,y,8);page.drawLine({start:{x:48,y:y-7},end:{x:W-48,y:y-7},thickness:.25,color:rgb(.92,.91,.88)})}
   y-=34;text("PAYMENTS",48,y,8,bold,GRAY);y-=17;
-  for(const p of payments){if(y<65){currentPage=pdf.addPage(A4);y=H-70;currentPage.drawText("PAYMENTS · CONTINUED",{x:48,y,size:8,font:bold,color:GRAY});y-=28;}text(fmt(p.payment_date||new Date().toISOString().slice(0,10)),48,y,8);text(money(p.amount),150,y,8,bold);text(String(p.method||"").replace("_"," "),245,y,8);text(p.reference||"Recorded payment",360,y,8,regular,GRAY);y-=18}
+  for(const p of payments){if(y<65){page=pdf.addPage(A4);y=H-70;page.drawText("PAYMENTS · CONTINUED",{x:48,y,size:8,font:bold,color:GRAY});y-=28;}text(fmt(p.payment_date||new Date().toISOString().slice(0,10)),48,y,8);text(money(p.amount),150,y,8,bold);text(String(p.method||"").replace("_"," "),245,y,8);text(p.reference||"Recorded payment",360,y,8,regular,GRAY);y-=18}
   text("Generated from minimical.finance · This statement consolidates the account; individual invoice PDFs are supporting documents.",48,38,7,regular,GRAY);
   const bytes=await pdf.save();
   return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="${payload.client.name}-Account-Statement.pdf"`,"Cache-Control":"private, no-store"}});

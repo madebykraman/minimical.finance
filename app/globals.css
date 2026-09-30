@@ -88,3 +88,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .overdue-pill{background:#faece9;border-color:#edcfca;color:#9b4037}
 
 .activity-list{border:1px solid var(--line);border-radius:9px;overflow:hidden}.activity-item{display:flex;gap:10px;align-items:flex-start;padding:10px 11px;border-bottom:1px solid var(--line)}.activity-item:last-child{border-bottom:0}.activity-dot{width:7px;height:7px;border-radius:50%;background:#bbb;margin-top:4px;flex:none}.activity-item b{font-size:9px;font-weight:600;display:block;text-transform:capitalize}.activity-item small{font-size:8px;color:#aaa;display:block;margin-top:3px}
+
+.auth-inline-action{display:block;border:0;background:transparent;color:#6c4f18;font-size:9px;padding:7px 0 0;text-decoration:underline;text-underline-offset:2px}

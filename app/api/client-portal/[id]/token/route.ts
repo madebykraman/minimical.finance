@@ -13,12 +13,13 @@ export async function POST(
 
   const { data: client, error: clientError } = await supabase
     .from("clients")
-    .select("id,name,portal_enabled,portal_slug")
+    .select("id,name,portal_enabled,portal_slug,portal_password_hash")
     .eq("id", id)
     .maybeSingle();
 
   if (clientError || !client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
   if (!client.portal_enabled) return NextResponse.json({ error: "Enable the client portal first." }, { status: 400 });
+  if (!client.portal_password_hash) return NextResponse.json({ error: "Set a portal password before creating a shareable link." }, { status: 400 });
 
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");

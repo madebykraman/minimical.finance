@@ -56,6 +56,8 @@ export type Database = {
       clients: {
         Row: {
           address_lines: Json
+          allow_profile_edit: boolean
+          archived_at: string | null
           created_at: string
           email: string | null
           gstin: string | null
@@ -65,10 +67,17 @@ export type Database = {
           notes: string | null
           pan: string | null
           phone: string | null
+          portal_enabled: boolean
+          portal_message: string | null
+          portal_slug: string | null
+          show_documents: boolean
+          show_projects: boolean
           updated_at: string
         }
         Insert: {
           address_lines?: Json
+          allow_profile_edit?: boolean
+          archived_at?: string | null
           created_at?: string
           email?: string | null
           gstin?: string | null
@@ -78,10 +87,17 @@ export type Database = {
           notes?: string | null
           pan?: string | null
           phone?: string | null
+          portal_enabled?: boolean
+          portal_message?: string | null
+          portal_slug?: string | null
+          show_documents?: boolean
+          show_projects?: boolean
           updated_at?: string
         }
         Update: {
           address_lines?: Json
+          allow_profile_edit?: boolean
+          archived_at?: string | null
           created_at?: string
           email?: string | null
           gstin?: string | null
@@ -91,6 +107,11 @@ export type Database = {
           notes?: string | null
           pan?: string | null
           phone?: string | null
+          portal_enabled?: boolean
+          portal_message?: string | null
+          portal_slug?: string | null
+          show_documents?: boolean
+          show_projects?: boolean
           updated_at?: string
         }
         Relationships: []

@@ -337,7 +337,32 @@ function ClientPortal({clientId,invoices,onBack,onOpenInvoice,onSaved}:{clientId
     {tab==="invoices"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Invoices</h2><p>{scoped.length+" invoices · "+periodLabel(period)}</p></div></div><div className="simple-list">{scoped.map(i=><button className="simple-row client-invoice-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span>{i.date}</span><span>{i.project}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></button>)}</div></div>}
     {tab==="projects"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Projects</h2><p>Projects linked to this client.</p></div></div><div className="project-directory">{projects.map(p=>{const ps=rows.filter(i=>i.project===p);return <div className="project-row" key={p}><div><b>{p}</b><span>{ps.length+" invoices"}</span></div><strong>{money(ps.reduce((s,i)=>s+invoiceTotal(i),0))}</strong><span>{money(ps.reduce((s,i)=>s+invoiceBalance(i),0))+" open"}</span></div>})}</div></div>}
     {tab==="statement"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Account statement</h2><p>Billed, paid and outstanding activity for {periodLabel(period).toLowerCase()}.</p></div></div><div className="statement-summary"><div><span>Invoiced</span><b>{money(billed)}</b></div><div><span>Paid</span><b>{money(paid)}</b></div><div><span>Balance</span><b>{money(Math.max(billed-paid,0))}</b></div></div><div className="simple-list">{scoped.map(i=><div className="simple-row" key={i.id}><b>{"Invoice #"+i.number}</b><span>{i.date}</span><span>{i.project}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></div>)}</div></div>}
-    {tab==="settings"&&<div className="settings-stack"><div className="data-panel"><div className="data-panel-head"><div><h2>Billing identity</h2><p>This is the BILLED TO block used on future invoices.</p></div></div><div className="password-settings"><div className="form-grid">{["name","legal_name","email","phone","pan","gstin"].map(k=><label key={k}>{k==="legal_name"?"Billed-to / legal name":k==="name"?"Client name":k.toUpperCase()}<input value={form[k]||""} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.value}))}/></label>)}</div><label>Address lines<textarea value={form.address||""} onChange={e=>setForm((p:any)=>({...p,address:e.target.value}))}/></label></div></div><div className="data-panel"><div className="data-panel-head"><div><h2>Client portal</h2><p>Control the future client-facing workspace from one place.</p></div></div><div className="portal-settings">{[["portal_enabled","Portal enabled"],["allow_profile_edit","Allow client to edit profile"],["show_projects","Show projects"],["show_documents","Show documents"]].map(([k,label])=><label className="toggle-row" key={k}><span><b>{label}</b></span><input type="checkbox" checked={!!form[k]} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.checked}))}/></label>)}<label>Portal message<textarea value={form.portal_message||""} onChange={e=>setForm((p:any)=>({...p,portal_message:e.target.value}))} placeholder="Optional message"/></label><div className="portal-link-tools"><button className="secondary" type="button" disabled={!form.portal_enabled} onClick={async()=>{const r=await fetch("/api/client-portal/"+clientId+"/token",{method:"POST"});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not create access link.");return}setPortalLink(j.url);setMessage("New secure client portal link created.");}}><ExternalLink size={14}/>Create secure access link</button>{portalLink&&<div className="portal-link-box"><input readOnly value={portalLink}/><button className="secondary" type="button" onClick={()=>navigator.clipboard?.writeText(portalLink)}>Copy</button></div>}</div></div></div></div>{message&&<div className="auth-success">{message}</div>}<button className="primary" disabled={saving} onClick={save}>{saving?"Saving…":"Save client settings"}</button></div>}
+    {tab==="settings"&&(
+      <div className="settings-stack">
+        <div className="data-panel">
+          <div className="data-panel-head"><div><h2>Billing identity</h2><p>This is the BILLED TO block used on future invoices.</p></div></div>
+          <div className="password-settings">
+            <div className="form-grid">{["name","legal_name","email","phone","pan","gstin"].map(k=><label key={k}>{k==="legal_name"?"Billed-to / legal name":k==="name"?"Client name":k.toUpperCase()}<input value={form[k]||""} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.value}))}/></label>)}</div>
+            <label>Address lines<textarea value={form.address||""} onChange={e=>setForm((p:any)=>({...p,address:e.target.value}))}/></label>
+          </div>
+        </div>
+        <div className="data-panel">
+          <div className="data-panel-head"><div><h2>Client portal</h2><p>A secure client-facing account view, separate from your internal workspace.</p></div></div>
+          <div className="portal-settings">
+            {([["portal_enabled","Portal enabled"],["allow_profile_edit","Allow client to edit profile"],["show_projects","Show projects"],["show_documents","Show documents"]] as const).map(([k,label])=><label className="toggle-row" key={k}><span><b>{label}</b></span><input type="checkbox" checked={!!form[k]} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.checked}))}/></label>)}
+            <label>Portal message<textarea value={form.portal_message||""} onChange={e=>setForm((p:any)=>({...p,portal_message:e.target.value}))} placeholder="Optional message"/></label>
+            <div className="portal-link-tools">
+              <button className="secondary" type="button" disabled={!form.portal_enabled} onClick={async()=>{const r=await fetch("/api/client-portal/"+clientId+"/token",{method:"POST"});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not create access link.");return;}setPortalLink(j.url);setMessage("New secure client portal link created.");}}>
+                <ExternalLink size={14}/>Create secure access link
+              </button>
+              {portalLink ? <div className="portal-link-box"><input readOnly value={portalLink}/><button className="secondary" type="button" onClick={()=>navigator.clipboard?.writeText(portalLink)}>Copy</button></div> : null}
+            </div>
+          </div>
+        </div>
+        {message&&<div className="auth-success">{message}</div>}
+        <button className="primary" disabled={saving} onClick={save}>{saving?"Saving…":"Save client settings"}</button>
+      </div>
+    )}
   </div>;
 }
 

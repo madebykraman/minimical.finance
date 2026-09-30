@@ -15,6 +15,8 @@ const X = {
   right: 536.60,
   divider: 419.30,
   metaRight: 520.20,
+  invoiceLabel: 470.43,
+  dateLabel: 470.43,
   descriptionCenter: 240.86,
   amountCenter: 477.95,
 };

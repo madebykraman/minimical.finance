@@ -798,6 +798,10 @@ export type Database = {
         Args: { p_session?: string; p_slug: string; p_token?: string }
         Returns: Json
       }
+      get_client_portal_organization: {
+        Args: { p_session: string; p_slug: string }
+        Returns: Json
+      }
       get_client_portal_secret: {
         Args: { p_slug: string; p_token: string }
         Returns: Json

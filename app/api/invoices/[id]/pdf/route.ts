@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
-
-const require = createRequire(import.meta.url);
 
 const PAGE = { width: 595.2756, height: 841.8898 };
 const BLACK = rgb(0, 0, 0);
@@ -79,7 +77,7 @@ export async function GET(
 
   let fontBytes: Uint8Array;
   try {
-    fontBytes = await readFile(require.resolve("dejavu-fonts-ttf/ttf/DejaVuSans.ttf"));
+    fontBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans.ttf"));
   } catch {
     return new NextResponse("Invoice font unavailable", { status: 500 });
   }

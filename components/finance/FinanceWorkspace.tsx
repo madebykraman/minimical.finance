@@ -132,9 +132,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           <button className={"nav-item " + (activeView === "clients" ? "active" : "")} onClick={() => router.push("/clients")}><FileText size={17}/>Clients</button>
           <button className={"nav-item " + (activeView === "projects" ? "active" : "")} onClick={() => router.push("/projects")}><FolderKanban size={17}/>Projects</button>
           <button className={"nav-item " + (activeView === "reports" ? "active" : "")} onClick={() => router.push("/reports")}><BarChart3 size={17}/>Reports</button>
+          <button className={"nav-item " + (activeView === "settings" ? "active" : "")} onClick={() => router.push("/settings")}><Settings2 size={17}/>Settings</button>
         </nav>
         <div className="sidebar-bottom">
-          <button className={"nav-item " + (activeView === "settings" ? "active" : "")} onClick={() => router.push("/settings")}><Settings2 size={17}/>Settings</button>
           <button className="nav-item" onClick={() => supabase.auth.signOut()}><LogOut size={17}/>Sign out</button>
           <div className="profile"><div className="avatar">M</div><div><b>Finance workspace</b><small>Authenticated</small></div><MoreHorizontal size={16}/></div>
         </div>

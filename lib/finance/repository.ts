@@ -87,6 +87,7 @@ export async function createInvoice(draft: {
   project: string;
   date: string;
   dueDate: string;
+  organizationId?: string | null;
   contents: Content[];
 }) {
   let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).maybeSingle();
@@ -130,6 +131,7 @@ export async function createInvoice(draft: {
       due_date: draft.dueDate || null,
       status: "draft",
       source_total: total,
+      organization_id: draft.organizationId ?? null,
     })
     .select("id")
     .single();

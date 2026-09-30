@@ -13,8 +13,26 @@ const amber = rgb(0.52, 0.36, 0.08);
 
 const money = (value: number) => `INR ${Math.round(value).toLocaleString("en-IN")}`;
 
+function pdfSafe(value: unknown, font: any) {
+  const text = String(value ?? "").replaceAll("₹", "INR ");
+  let safe = "";
+  for (const char of text) {
+    if (char === "\n" || char === "\r" || char === "\t") {
+      safe += " ";
+      continue;
+    }
+    try {
+      font.encodeText(char);
+      safe += char;
+    } catch {
+      safe += "?";
+    }
+  }
+  return safe;
+}
+
 function wrap(text: string, font: any, size: number, maxWidth: number) {
-  const words = String(text || "").split(/\s+/);
+  const words = pdfSafe(text, font).split(/\s+/);
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
@@ -86,8 +104,8 @@ export async function GET(
   page.drawRectangle({ x: 0, y: 0, width: PAGE.width, height: PAGE.height, color: rgb(1, 1, 1) });
   page.drawText("minimical", { x: 48, y, size: 22, font: bold, color: ink });
   page.drawText("STUDIO FINANCE", { x: 48, y: y - 17, size: 7, font: regular, color: muted });
-  page.drawText(`INVOICE #${invoice.invoice_number}`, { x: 365, y: y + 1, size: 12, font: bold, color: ink });
-  page.drawText(String(invoice.status).replace("_", " ").toUpperCase(), { x: 365, y: y - 14, size: 7, font: bold, color: invoice.status === "paid" ? green : muted });
+  page.drawText(pdfSafe(`INVOICE #${invoice.invoice_number}`, bold), { x: 365, y: y + 1, size: 12, font: bold, color: ink });
+  page.drawText(pdfSafe(String(invoice.status).replace("_", " ").toUpperCase(), bold), { x: 365, y: y - 14, size: 7, font: bold, color: invoice.status === "paid" ? green : muted });
   page.drawLine({ start: { x: 48, y: y - 30 }, end: { x: 547, y: y - 30 }, thickness: 1, color: ink });
   y -= 70;
 
@@ -98,14 +116,14 @@ export async function GET(
   };
 
   drawLabelValue(48, "Bill to", client);
-  if (invoice.clients?.email) page.drawText(invoice.clients.email, { x: 48, y: y - 45, size: 8, font: regular, color: muted });
-  if (invoice.clients?.phone) page.drawText(invoice.clients.phone, { x: 48, y: y - 58, size: 8, font: regular, color: muted });
+  if (invoice.clients?.email) page.drawText(pdfSafe(invoice.clients.email, regular), { x: 48, y: y - 45, size: 8, font: regular, color: muted });
+  if (invoice.clients?.phone) page.drawText(pdfSafe(invoice.clients.phone, regular), { x: 48, y: y - 58, size: 8, font: regular, color: muted });
 
   drawLabelValue(300, "Project", project, 140);
   page.drawText("ISSUED", { x: 300, y: y - 45, size: 7, font: bold, color: faint });
-  page.drawText(dateLabel(invoice.issue_date), { x: 300, y: y - 59, size: 8.5, font: regular, color: ink });
+  page.drawText(pdfSafe(dateLabel(invoice.issue_date), regular), { x: 300, y: y - 59, size: 8.5, font: regular, color: ink });
   page.drawText("DUE", { x: 425, y: y - 45, size: 7, font: bold, color: faint });
-  page.drawText(dateLabel(invoice.due_date), { x: 425, y: y - 59, size: 8.5, font: regular, color: ink });
+  page.drawText(pdfSafe(dateLabel(invoice.due_date), regular), { x: 425, y: y - 59, size: 8.5, font: regular, color: ink });
   y -= 100;
 
   const header = () => {
@@ -129,7 +147,7 @@ export async function GET(
     titleLines.slice(0, 3).forEach((l, idx) => page.drawText(l, {
       x: 58, y: y - idx * 12, size: 8.5, font: item.priced ? regular : bold, color: item.priced ? ink : amber,
     }));
-    page.drawText(String(item.quantity ?? 1), { x: 350, y, size: 8.5, font: regular, color: ink });
+    page.drawText(pdfSafe(String(item.quantity ?? 1), regular), { x: 350, y, size: 8.5, font: regular, color: ink });
     page.drawText(item.priced && item.rate != null ? money(Number(item.rate)) : "—", { x: 397, y, size: 8.5, font: regular, color: muted });
     page.drawText(item.priced ? money(amount) : "TBD", { x: 472, y, size: 8.5, font: bold, color: item.priced ? ink : amber });
     y -= Math.max(28, titleLines.length * 12 + 10);

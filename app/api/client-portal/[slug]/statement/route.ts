@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
 
-const A4=[595.2756,841.8898];
+const A4: [number, number]=[595.2756,841.8898];
 const BLACK=rgb(0,0,0);
 const GRAY=rgb(.45,.45,.42);
 const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;

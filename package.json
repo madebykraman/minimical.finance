@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "prebuild": "node scripts/prepare-pdf-font.mjs"
+    "prebuild": "node scripts/prepare-pdf-font.mjs",
+    "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

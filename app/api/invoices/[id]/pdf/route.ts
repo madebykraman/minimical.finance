@@ -75,7 +75,7 @@ export async function GET(
 
   const contents = [...(invoice.invoice_contents ?? [])].sort((a, b) => a.position - b.position) as Line[];
   const total = contents.reduce((sum, c) => sum + (c.priced ? Number(c.amount ?? (c.quantity * (c.rate ?? 0))) : 0), 0);
-  const paid = (invoice.payments ?? []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const paid = (invoice.payments ?? []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   const balance = Math.max(total - paid, 0);
   const client = invoice.clients?.name ?? "Client";
   const project = invoice.projects?.name ?? "Project";

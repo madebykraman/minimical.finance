@@ -20,7 +20,7 @@ function pdfDocument(lines: string[]) {
   const objects: string[] = [];
   const add = (body: string) => { objects.push(body); return objects.length; };
   const content = lines.join("\n");
-  const contentId = add(`<< /Length ${content.length} >>\\nstream\\n${content}\\nendstream`);
+  const contentId = add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
   const fontId = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
   const boldId = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
   const pageId = add(`<< /Type /Page /Parent 4 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R /F2 ${boldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
@@ -30,16 +30,16 @@ function pdfDocument(lines: string[]) {
   // Fix the page's parent now that the Pages object exists.
   objects[pageId - 1] = objects[pageId - 1].replace("/Parent 4 0 R", `/Parent ${pagesId} 0 R`);
 
-  let pdf = "%PDF-1.4\\n%\xE2\xE3\xCF\xD3\\n";
+  let pdf = "%PDF-1.4\n% minimical.finance\n";
   const offsets = [0];
   objects.forEach((object, index) => {
     offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\\n${object}\\nendobj\\n`;
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
   });
   const xref = pdf.length;
-  pdf += `xref\\n0 ${objects.length + 1}\\n0000000000 65535 f \\n`;
-  offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \\n`; });
-  pdf += `trailer\\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\\nstartxref\\n${xref}\\n%%EOF`;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return new TextEncoder().encode(pdf);
 }
 

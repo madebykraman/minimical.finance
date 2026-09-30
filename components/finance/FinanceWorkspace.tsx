@@ -117,13 +117,13 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
   const stats = useMemo(() => calculateStats(invoices), [invoices]);
 
-  if (!authReady) return <div className="auth-screen"><div className="auth-card">Loading minimical.finance…</div></div>;
+  if (!authReady) return <div className="auth-screen"><div className="auth-card">Loading FinOS…</div></div>;
   if (!session) return <AuthScreen />;
 
   return (
     <main className="shell">
       <aside className="sidebar">
-        <div className="brand"><div className="brand-mark">m</div><div><strong>minimical</strong><span>.finance</span></div></div>
+        <div className="brand"><div className="brand-mark">m</div><div><strong>FinOS</strong></div></div>
         <div className="nav-label">WORKSPACE</div>
         <nav>
           <button className={"nav-item " + (activeView === "overview" ? "active" : "")} onClick={() => router.push("/overview")}><LayoutDashboard size={17}/>Overview</button>

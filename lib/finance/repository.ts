@@ -81,6 +81,7 @@ export async function saveInvoice(next: Invoice) {
   });
 }
 
+// FinOS organisation-aware invoice creation
 export async function createInvoice(draft: {
   number: string;
   client: string;

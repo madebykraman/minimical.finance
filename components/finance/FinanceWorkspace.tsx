@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowUpRight, Check, RefreshCw, ShieldCheck, ChevronRight, CircleAlert, FileText, Filter,
+  ArrowUpRight, Check, RefreshCw, ShieldCheck, ChevronRight, CircleAlert, FileText, Filter, FolderKanban,
   IndianRupee, LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt,
   Search, Settings2, Sparkles, WalletCards, X
 } from "lucide-react";
@@ -26,7 +26,7 @@ const supabase = createClient();
 const money = (n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
 
 
-export type FinanceView = "overview" | "invoices" | "payments" | "clients" | "settings";
+export type FinanceView = "overview" | "invoices" | "payments" | "clients" | "projects" | "settings";
 
 export default function FinanceWorkspace({ initialView = "overview" }: { initialView?: FinanceView }) {
   const [session, setSession] = useState<any>(null);
@@ -129,6 +129,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           <button className={"nav-item " + (activeView === "invoices" ? "active" : "")} onClick={() => router.push("/invoices")}><Receipt size={17}/>Invoices <span>{invoices.length}</span></button>
           <button className={"nav-item " + (activeView === "payments" ? "active" : "")} onClick={() => router.push("/payments")}><WalletCards size={17}/>Payments</button>
           <button className={"nav-item " + (activeView === "clients" ? "active" : "")} onClick={() => router.push("/clients")}><FileText size={17}/>Clients</button>
+          <button className={"nav-item " + (activeView === "projects" ? "active" : "")} onClick={() => router.push("/projects")}><FolderKanban size={17}/>Projects</button>
         </nav>
         <div className="sidebar-bottom">
           <button className={"nav-item " + (activeView === "settings" ? "active" : "")} onClick={() => router.push("/settings")}><Settings2 size={17}/>Settings</button>
@@ -140,7 +141,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       <section className="content">
         {actionError && <div className="global-error"><CircleAlert size={15}/><span>{actionError}</span><button onClick={() => setActionError("")}><X size={14}/></button></div>}
         <header className="topbar">
-          <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : activeView === "clients" ? "Clients & projects." : "Settings."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : activeView === "clients" ? "The client and project layer behind your billing." : "Private access, security and workspace configuration."}</p></div>
+          <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : activeView === "clients" ? "Clients & projects." : activeView === "projects" ? "Projects." : "Settings."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : activeView === "clients" ? "The client and project layer behind your billing." : activeView === "projects" ? "Billing performance grouped by the work you actually deliver." : "Private access, security and workspace configuration."}</p></div>
           <div className="top-actions"><button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
         </header>
 
@@ -148,6 +149,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         {activeView === "invoices" && <InvoiceView filtered={filtered} query={query} setQuery={setQuery} status={status} setStatus={setStatus} loading={loading} onOpen={(i) => setSelected(i)} onStatus={markStatus} />}
         {activeView === "payments" && <PaymentsView invoices={invoices} onOpenPayment={(i) => setPaymentFor(i)} />}
         {activeView === "clients" && <ClientsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
+        {activeView === "projects" && <ProjectsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
         {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} onSignOut={() => supabase.auth.signOut()} />}
       </section>
 
@@ -322,6 +324,32 @@ function ClientsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>v
   const map = new Map<string,{name:string;projects:Set<string>;invoices:Invoice[];billed:number;paid:number}>();
   invoices.forEach(i=>{const key=i.clientId||i.client;const row=map.get(key)||{name:i.client,projects:new Set<string>(),invoices:[],billed:0,paid:0};row.projects.add(i.project);row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);map.set(key,row);});
   return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>{map.size} client records represented by invoices.</p></div></div><div className="client-grid">{Array.from(map.values()).map(c=><article className="client-card" key={c.name}><div className="client-avatar">{c.name.slice(0,1).toUpperCase()}</div><div><h3>{c.name}</h3><p>{c.projects.size} project{c.projects.size!==1?"s":""} · {c.invoices.length} invoice{c.invoices.length!==1?"s":""}</p></div><strong>{money(c.billed-c.paid)}</strong><small>outstanding</small><div className="client-invoices">{c.invoices.slice(0,3).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div></article>)}</div></div>;
+}
+
+function ProjectsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
+  const map = new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();
+  invoices.forEach(i=>{
+    const key = (i.projectId || i.project) + "::" + (i.clientId || i.client);
+    const row = map.get(key) || {name:i.project,client:i.client,invoices:[],billed:0,paid:0};
+    row.invoices.push(i);
+    row.billed += invoiceTotal(i);
+    row.paid += paidTotal(i);
+    map.set(key,row);
+  });
+  const projects = Array.from(map.values()).sort((a,b)=>(b.billed-b.paid)-(a.billed-a.paid));
+  return <div className="data-panel">
+    <div className="data-panel-head"><div><h2>Projects</h2><p>{projects.length} project records represented by invoices.</p></div></div>
+    {projects.length ? <div className="client-grid">{projects.map(p=>{
+      const outstanding = Math.max(p.billed-p.paid,0);
+      return <article className="client-card" key={p.name+"::"+p.client}>
+        <div className="client-avatar"><FolderKanban size={17}/></div>
+        <div><h3>{p.name}</h3><p>{p.client} · {p.invoices.length} invoice{p.invoices.length!==1?"s":""}</p></div>
+        <strong>{money(p.billed)}</strong>
+        <small>{money(p.paid)} collected · {money(outstanding)} outstanding</small>
+        <div className="client-invoices">{p.invoices.slice(0,4).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div>
+      </article>;
+    })}</div> : <div className="empty-state">No projects represented yet.</div>}
+  </div>;
 }
 
 function activityLabel(action:string) {

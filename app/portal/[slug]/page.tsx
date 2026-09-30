@@ -5,7 +5,7 @@ import { ArrowDownToLine, ArrowRight, CheckCircle2, ChevronDown, FileText, LockK
 
 type Period="month"|"3months"|"6months"|"fy"|"all";
 type StatusFilter="all"|"paid"|"open"|"overdue"|"partial";
-type PortalData={client:any;invoices:any[];payments:any[];documents:any[]};
+type PortalData={client:any;invoices:any[];payments:any[];projects:any[];documents:any[]};
 
 const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n||0);
 const date=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"";
@@ -76,7 +76,9 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
       </div>):<div className="portal-empty">No payments recorded yet.</div>}</div>
     </section>
 
-    {data.client.show_documents&&<section className="portal-panel portal-docs"><div className="portal-panel-head"><div><h2>Shared documents</h2><p>Files your studio has made available to you.</p></div><FileText size={17}/></div><div className="portal-doc-grid">{data.documents.length?data.documents.map(d=><div className="portal-doc" key={d.id}><FileText size={16}/><div><b>{d.file_name}</b><span>{d.description||d.document_type}</span></div></div>):<div className="portal-empty">No shared documents yet.</div>}</div></section>}
+    {data.client.show_projects&&<section className="portal-panel portal-docs"><div className="portal-panel-head"><div><h2>Projects</h2><p>Projects associated with your account.</p></div><WalletCards size={17}/></div><div className="portal-doc-grid">{(data.projects||[]).length?(data.projects||[]).map((p:any)=><div className="portal-doc" key={p.id}><FileText size={16}/><div><b>{p.name}</b><span>{p.status||"active"}{p.description?" · "+p.description:""}</span></div></div>):<div className="portal-empty">No projects shared yet.</div>}</div></section>}
+
+    {data.client.show_documents&&<section className="portal-panel portal-docs"><div className="portal-panel-head"><div><h2>Shared documents</h2><p>Files your studio has made available to you.</p></div><FileText size={17}/></div><div className="portal-doc-grid">{data.documents.length?data.documents.map(d=><a className="portal-doc" key={d.id} href={"/api/client-portal/"+slug+"/document/"+d.id}><FileText size={16}/><div><b>{d.file_name}</b><span>{d.description||d.document_type} · Download</span></div><ArrowDownToLine size={14}/></a>):<div className="portal-empty">No shared documents yet.</div>}</div></section>}
 
     <footer className="portal-footer">Secure client account · {data.client.email||"Contact your studio for account questions"}</footer>
   </div></main>;

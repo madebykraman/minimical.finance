@@ -1,56 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { readFile } from "node:fs/promises";
 import { createClient } from "@/lib/supabase/server";
 
-const PAGE = { width: 595, height: 842 };
-const ink = rgb(0.09, 0.09, 0.08);
-const muted = rgb(0.43, 0.43, 0.40);
-const faint = rgb(0.62, 0.61, 0.57);
-const line = rgb(0.88, 0.87, 0.83);
-const paper = rgb(0.98, 0.975, 0.955);
-const green = rgb(0.09, 0.42, 0.28);
-const amber = rgb(0.52, 0.36, 0.08);
+const PAGE = { width: 595.2756, height: 841.8898 };
+const BLACK = rgb(0, 0, 0);
+const LIGHT_GREY = rgb(0.960784, 0.960784, 0.960784);
+const TABLE = { x: 57.6378, width: 480, divider: 417.6378, top: 541.8898, bottom: 113.3 };
+const FONT_SIZE = 10;
+const LEADING = 12;
 
-const money = (value: number) => `INR ${Math.round(value).toLocaleString("en-IN")}`;
-
-function pdfSafe(value: unknown, font: any) {
-  const text = String(value ?? "").replaceAll("₹", "INR ");
-  let safe = "";
-  for (const char of text) {
-    if (char === "\n" || char === "\r" || char === "\t") {
-      safe += " ";
-      continue;
-    }
-    try {
-      font.encodeText(char);
-      safe += char;
-    } catch {
-      safe += "?";
-    }
-  }
-  return safe;
+function pdfSafe(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("\r", " ")
+    .replaceAll("\n", " ")
+    .replaceAll("\t", " ");
 }
 
-function wrap(text: string, font: any, size: number, maxWidth: number) {
-  const words = pdfSafe(text, font).split(/\s+/);
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? current + " " + word : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) current = candidate;
-    else {
-      if (current) lines.push(current);
-      current = word;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [""];
+function money(value: number) {
+  return `₹${Math.round(value).toLocaleString("en-IN")}/-`;
 }
 
-function dateLabel(value?: string | null) {
-  if (!value) return "—";
+function unknownMoney() {
+  return "₹X,XXX/-";
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "";
   const d = new Date(value + "T00:00:00");
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  if (Number.isNaN(d.getTime())) return value;
+  const day = d.getDate();
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  return `${day}${suffix} ${d.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`;
+}
+
+function centerText(page: any, text: string, font: any, size: number, centerX: number, y: number) {
+  const safe = pdfSafe(text);
+  const width = font.widthOfTextAtSize(safe, size);
+  page.drawText(safe, { x: centerX - width / 2, y, size, font, color: BLACK });
+}
+
+function drawLines(page: any, lines: string[], x: number, firstBaseline: number) {
+  lines.forEach((line, index) => {
+    page.drawText(pdfSafe(line), { x, y: firstBaseline - index * LEADING, size: FONT_SIZE, font: page.__font, color: BLACK });
+  });
 }
 
 export async function GET(
@@ -69,130 +63,143 @@ export async function GET(
     .maybeSingle();
 
   if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
+
   const invoice: any = rawInvoice;
   const contents = [...(invoice.invoice_contents ?? [])].sort((a: any, b: any) => a.position - b.position);
-  const total = contents.reduce((sum: number, c: any) => sum + (c.priced ? Number(c.amount ?? Number(c.quantity) * Number(c.rate ?? 0)) : 0), 0);
-  const paid = (invoice.payments ?? []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-  const balance = Math.max(total - paid, 0);
-  const client = invoice.clients?.name ?? "Client";
-  const project = invoice.projects?.name ?? "Project";
+  const pricedContents = contents.filter((item: any) => item.priced);
+  const total = pricedContents.reduce((sum: number, item: any) => sum + Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)), 0);
+  const paid = (invoice.payments ?? []).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
+  const hasUnpriced = contents.some((item: any) => !item.priced);
 
   const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  let page = pdf.addPage([PAGE.width, PAGE.height]);
-  let pageNumber = 1;
-  let y = 786;
+  pdf.registerFontkit(fontkit);
 
-  const footer = () => {
-    page.drawLine({ start: { x: 48, y: 42 }, end: { x: 547, y: 42 }, thickness: 0.5, color: line });
-    page.drawText("minimical.finance · internal finance record", { x: 48, y: 26, size: 7, font: regular, color: faint });
-    page.drawText(`${pageNumber}`, { x: 540, y: 26, size: 7, font: regular, color: faint });
-  };
-
-  const newPage = () => {
-    footer();
-    page = pdf.addPage([PAGE.width, PAGE.height]);
-    pageNumber += 1;
-    y = 786;
-  };
-
-  const ensure = (height: number) => {
-    if (y - height < 70) newPage();
-  };
-
-  page.drawRectangle({ x: 0, y: 0, width: PAGE.width, height: PAGE.height, color: rgb(1, 1, 1) });
-  page.drawText("minimical", { x: 48, y, size: 22, font: bold, color: ink });
-  page.drawText("STUDIO FINANCE", { x: 48, y: y - 17, size: 7, font: regular, color: muted });
-  page.drawText(pdfSafe(`INVOICE #${invoice.invoice_number}`, bold), { x: 365, y: y + 1, size: 12, font: bold, color: ink });
-  page.drawText(pdfSafe(String(invoice.status).replace("_", " ").toUpperCase(), bold), { x: 365, y: y - 14, size: 7, font: bold, color: invoice.status === "paid" ? green : muted });
-  page.drawLine({ start: { x: 48, y: y - 30 }, end: { x: 547, y: y - 30 }, thickness: 1, color: ink });
-  y -= 70;
-
-  const drawLabelValue = (x: number, label: string, value: string, width = 220) => {
-    page.drawText(label.toUpperCase(), { x, y, size: 7, font: bold, color: faint });
-    const lines = wrap(value, bold, 11, width);
-    lines.slice(0, 2).forEach((l, idx) => page.drawText(l, { x, y: y - 17 - idx * 14, size: 11, font: bold, color: ink }));
-  };
-
-  drawLabelValue(48, "Bill to", client);
-  if (invoice.clients?.email) page.drawText(pdfSafe(invoice.clients.email, regular), { x: 48, y: y - 45, size: 8, font: regular, color: muted });
-  if (invoice.clients?.phone) page.drawText(pdfSafe(invoice.clients.phone, regular), { x: 48, y: y - 58, size: 8, font: regular, color: muted });
-
-  drawLabelValue(300, "Project", project, 140);
-  page.drawText("ISSUED", { x: 300, y: y - 45, size: 7, font: bold, color: faint });
-  page.drawText(pdfSafe(dateLabel(invoice.issue_date), regular), { x: 300, y: y - 59, size: 8.5, font: regular, color: ink });
-  page.drawText("DUE", { x: 425, y: y - 45, size: 7, font: bold, color: faint });
-  page.drawText(pdfSafe(dateLabel(invoice.due_date), regular), { x: 425, y: y - 59, size: 8.5, font: regular, color: ink });
-  y -= 100;
-
-  const header = () => {
-    page.drawRectangle({ x: 48, y: y - 5, width: 499, height: 28, color: paper });
-    page.drawText("DESCRIPTION", { x: 58, y: y + 5, size: 7, font: bold, color: muted });
-    page.drawText("QTY", { x: 350, y: y + 5, size: 7, font: bold, color: muted });
-    page.drawText("RATE", { x: 397, y: y + 5, size: 7, font: bold, color: muted });
-    page.drawText("AMOUNT", { x: 472, y: y + 5, size: 7, font: bold, color: muted });
-    y -= 30;
-  };
-
-  header();
-
-  for (const item of contents) {
-    const amount = item.priced ? Number(item.amount ?? Number(item.quantity) * Number(item.rate ?? 0)) : 0;
-    const title = item.priced ? item.title : `${item.title} · TBD`;
-    const titleLines = wrap(title, item.priced ? regular : bold, 8.5, 275);
-    ensure(Math.max(30, titleLines.length * 12 + 18));
-    if (y > 770) header();
-
-    titleLines.slice(0, 3).forEach((l, idx) => page.drawText(l, {
-      x: 58, y: y - idx * 12, size: 8.5, font: item.priced ? regular : bold, color: item.priced ? ink : amber,
-    }));
-    page.drawText(pdfSafe(String(item.quantity ?? 1), regular), { x: 350, y, size: 8.5, font: regular, color: ink });
-    page.drawText(item.priced && item.rate != null ? money(Number(item.rate)) : "—", { x: 397, y, size: 8.5, font: regular, color: muted });
-    page.drawText(item.priced ? money(amount) : "TBD", { x: 472, y, size: 8.5, font: bold, color: item.priced ? ink : amber });
-    y -= Math.max(28, titleLines.length * 12 + 10);
-    page.drawLine({ start: { x: 48, y: y + 7 }, end: { x: 547, y: y + 7 }, thickness: 0.35, color: line });
+  let fontBytes: Uint8Array;
+  try {
+    fontBytes = await readFile(require.resolve("dejavu-fonts-ttf/ttf/DejaVuSans.ttf"));
+  } catch {
+    return new NextResponse("Invoice font unavailable", { status: 500 });
   }
+  const font = await pdf.embedFont(fontBytes, { subset: true });
 
-  ensure(120);
-  y -= 10;
-  page.drawRectangle({ x: 326, y: y - 82, width: 221, height: 88, color: paper });
-  page.drawText("TOTAL", { x: 342, y: y - 3, size: 8, font: bold, color: muted });
-  page.drawText(money(total), { x: 442, y: y - 2, size: 13, font: bold, color: ink });
-  page.drawText("PAID", { x: 342, y: y - 27, size: 8, font: regular, color: muted });
-  page.drawText(money(paid), { x: 442, y: y - 26, size: 9, font: regular, color: ink });
-  page.drawText("BALANCE", { x: 342, y: y - 51, size: 8, font: bold, color: muted });
-  page.drawText(money(balance), { x: 442, y: y - 50, size: 10, font: bold, color: balance ? amber : green });
-  y -= 108;
+  const page = pdf.addPage([PAGE.width, PAGE.height]);
+  (page as any).__font = font;
 
-  const notes: string[] = [];
-  if (invoice.notes) notes.push(invoice.notes);
-  if (invoice.adjustment_note) notes.push(`Adjustment context: ${invoice.adjustment_note}`);
-  if (invoice.source_total != null && Number(invoice.source_total) !== total) {
-    notes.push(`Source total recorded as ${money(Number(invoice.source_total))}; calculated total is ${money(total)}.`);
-  }
+  // Canonical Elle/Ogaan billing profile used by the supplied invoice reference.
+  // Other clients fall back to their stored client name while retaining the same geometry.
+  const isElle = /elle|ogaan/i.test(String(invoice.clients?.name ?? ""));
+  const billedTo = isElle
+    ? [
+        "BILLED TO:",
+        "Ogaan Media Pvt. Ltd.",
+        "Floor 11, A-1102, Naman Midtown",
+        "Senapati Bapat Marg, Nr India Bulls",
+        "Prabhadevi, Mumbai City",
+        "PAN No. AAACO1078K",
+        "GSTIN: 27AAACO1078K1ZB",
+      ]
+    : [
+        "BILLED TO:",
+        String(invoice.clients?.name ?? "Client"),
+        invoice.clients?.phone ?? "",
+        invoice.clients?.email ?? "",
+      ].filter(Boolean);
 
-  if (notes.length) {
-    ensure(70);
-    page.drawText("NOTES", { x: 48, y, size: 7, font: bold, color: faint });
-    y -= 16;
-    for (const note of notes) {
-      const lines = wrap(note, regular, 8.5, 490);
-      for (const l of lines.slice(0, 8)) {
-        ensure(14);
-        page.drawText(l, { x: 48, y, size: 8.5, font: regular, color: muted });
-        y -= 13;
+  const payTo = [
+    "PAY TO:",
+    "NAME: Kumar Aman",
+    "A/C NO. 55550101570800",
+    "BANK: FEDERAL BANK",
+    "BRANCH: Patna/Kankarbagh",
+    "BRANCH CODE: 2189",
+    "IFSC CODE: FDRL0002189",
+    "PAN NO. CIBPA9801L",
+  ];
+
+  drawLines(page, billedTo, 53.6378, 750.8898);
+  drawLines(page, payTo, 53.6378, 654.8898);
+
+  drawLines(page, ["INVOICE NO:", String(invoice.invoice_number ?? "")], 413.6378, 618.8898);
+  drawLines(page, ["DATE:", formatDate(invoice.issue_date)], 413.6378, 582.8898);
+
+  // Fixed-height table matching the supplied 186 reference.
+  page.drawRectangle({
+    x: TABLE.x,
+    y: TABLE.top - 23,
+    width: TABLE.width,
+    height: 23,
+    color: LIGHT_GREY,
+    borderWidth: 0,
+  });
+
+  const top = TABLE.top;
+  const bottom = TABLE.bottom;
+  const headerBottom = top - 23;
+  const totalTop = bottom + 23;
+
+  // Outer frame + header/total rules + description/amount divider.
+  const lineWidth = 0.8;
+  const lineOpts = { thickness: lineWidth, color: BLACK };
+  page.drawLine({ start: { x: TABLE.x, y: top }, end: { x: TABLE.x + TABLE.width, y: top }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.x, y: bottom }, end: { x: TABLE.x + TABLE.width, y: bottom }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.x, y: bottom }, end: { x: TABLE.x, y: top }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.x + TABLE.width, y: bottom }, end: { x: TABLE.x + TABLE.width, y: top }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.x, y: headerBottom }, end: { x: TABLE.x + TABLE.width, y: headerBottom }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.x, y: totalTop }, end: { x: TABLE.x + TABLE.width, y: totalTop }, ...lineOpts });
+  page.drawLine({ start: { x: TABLE.divider, y: bottom }, end: { x: TABLE.divider, y: top }, ...lineOpts });
+
+  centerText(page, "DESCRIPTION", font, FONT_SIZE, TABLE.x + 180, top - 16);
+  centerText(page, "AMOUNT", font, FONT_SIZE, TABLE.divider + (TABLE.width - (TABLE.divider - TABLE.x)) / 2, top - 16);
+
+  // The supplied reference vertically spaces four 186 line items near the top
+  // of a deliberately tall table, leaving the remaining body blank.
+  const descriptionCenter = (TABLE.x + TABLE.divider) / 2;
+  const amountCenter = TABLE.divider + (TABLE.width - (TABLE.divider - TABLE.x)) / 2;
+  const itemBaselines = [top - 48, top - 88, top - 128, top - 168];
+
+  contents.slice(0, 4).forEach((item: any, index: number) => {
+    const title = String(item.title ?? "");
+    const amount = item.priced
+      ? money(Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)))
+      : unknownMoney();
+
+    const words = pdfSafe(title).split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= 270) current = candidate;
+      else {
+        if (current) lines.push(current);
+        current = word;
       }
-      y -= 4;
     }
-  }
+    if (current) lines.push(current);
 
-  footer();
+    const baseline = itemBaselines[index] ?? itemBaselines[itemBaselines.length - 1] - (index - 3) * 40;
+    lines.slice(0, 3).forEach((line, lineIndex) => {
+      centerText(page, line, font, FONT_SIZE, descriptionCenter, baseline - lineIndex * LEADING);
+    });
+    centerText(page, amount, font, FONT_SIZE, amountCenter, baseline);
+  });
+
+  const totalLabelY = bottom + 7;
+  centerText(page, "TOTAL", font, FONT_SIZE, descriptionCenter, totalLabelY);
+  centerText(page, hasUnpriced ? unknownMoney() : money(total), font, FONT_SIZE, amountCenter, totalLabelY);
+
+  // The supplied reference uses a two-line footer close to the page bottom.
+  page.drawText("Please contact framedbyaman@gmail.com in case of any queries.", {
+    x: 78, y: 25, size: FONT_SIZE, font, color: BLACK,
+  });
+  page.drawText("Thank you for your time.", {
+    x: 78, y: 9, size: FONT_SIZE, font, color: BLACK,
+  });
+
   const bytes = await pdf.save();
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`,
+      "Content-Disposition": `attachment; filename="INV_${invoice.invoice_number}-Kumar Aman-Video Editing.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

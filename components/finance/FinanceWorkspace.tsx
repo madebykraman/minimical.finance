@@ -152,6 +152,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             <button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button>
             {(activeView === "overview" || activeView === "invoices") && <button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button>}
             {activeView === "clients" && <button className="primary" onClick={() => window.dispatchEvent(new Event("finance:new-client"))}><Plus size={17}/>New client</button>}
+            {activeView === "projects" && <button className="primary" onClick={() => window.dispatchEvent(new Event("finance:new-project"))}><Plus size={17}/>New project</button>}
           </div>
         </header>
 
@@ -400,31 +401,27 @@ function ReportsView({invoices}:{invoices:Invoice[]}) {
 }
 
 function ProjectsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
-  const map = new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();
-  invoices.forEach(i=>{
-    const key = (i.projectId || i.project) + "::" + (i.clientId || i.client);
-    const row = map.get(key) || {name:i.project,client:i.client,invoices:[],billed:0,paid:0};
-    row.invoices.push(i);
-    row.billed += invoiceTotal(i);
-    row.paid += paidTotal(i);
-    map.set(key,row);
-  });
-  const projects = Array.from(map.values()).sort((a,b)=>(b.billed-b.paid)-(a.billed-a.paid));
-  return <div className="data-panel">
-    <div className="data-panel-head"><div><h2>Projects</h2><p>{projects.length} project records represented by invoices.</p></div></div>
-    {projects.length ? <div className="client-grid">{projects.map(p=>{
-      const outstanding = Math.max(p.billed-p.paid,0);
-      return <article className="client-card" key={p.name+"::"+p.client}>
-        <div className="client-avatar"><FolderKanban size={17}/></div>
-        <div><h3>{p.name}</h3><p>{p.client} · {p.invoices.length} invoice{p.invoices.length!==1?"s":""}</p></div>
-        <strong>{money(p.billed)}</strong>
-        <small>{money(p.paid)} collected · {money(outstanding)} outstanding</small>
-        <div className="client-invoices">{p.invoices.slice(0,4).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div>
-      </article>;
-    })}</div> : <div className="empty-state">No projects represented yet.</div>}
+  const [projects,setProjects]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
+  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[]);
+  async function load(){setLoading(true);const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").order("name");setProjects(data||[]);setLoading(false);}
+  const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const row=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);fallback.set(key,row)});
+  const derived=Array.from(fallback.values()).filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));
+  return <div className="data-panel"><div className="data-panel-head"><div><h2>Projects</h2><p>{projects.length+derived.length} project records · billing and production cost.</p></div></div>
+    {loading?<div className="empty-state">Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
+    {!loading&&!projects.length&&!derived.length&&<div className="empty-state">No projects yet. Create the first project.</div>}
+    {creating&&<ProjectCreateModal onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
   </div>;
 }
-
+function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[];onOpen:(i:Invoice)=>void;onSaved?:()=>void}){
+ const rows=invoices.filter(i=>(p.id&&i.projectId===p.id)||(!p.id&&i.project===p.name&&i.client===(p.clients?.name||"")));const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0);const paid=rows.reduce((s,i)=>s+paidTotal(i),0);const profit=billed-Number(p.actual_cost||0);
+ return <article className="client-card project-card"><div className="client-avatar"><FolderKanban size={17}/></div><div><h3>{p.name}</h3><p>{p.clients?.name||"Unassigned client"} · {p.status||"active"}</p></div><strong>{money(billed)}</strong><small>{money(paid)} collected · {money(Math.max(billed-paid,0))} outstanding · {money(profit)} gross after recorded cost</small><div className="client-invoices">{rows.slice(0,5).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div></article>;
+}
+function ProjectCreateModal({onClose,onSaved}:{onClose:()=>void;onSaved:()=>void}){
+ const [form,setForm]=useState({name:"",client_id:"",organization_id:"",status:"active",description:"",budget_cost:"0",actual_cost:"0"});const [clients,setClients]=useState<any[]>([]);const [orgs,setOrgs]=useState<any[]>([]);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
+ useEffect(()=>{Promise.all([supabase.from("clients").select("id,name").is("archived_at",null).order("name"),supabase.from("organizations").select("id,name").order("name")]).then(([a,b])=>{setClients(a.data||[]);setOrgs(b.data||[])})},[]);
+ async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Project name is required.");setSaving(true);const {error}=await supabase.from("projects").insert({...form,name:form.name.trim(),description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,client_id:form.client_id||null,organization_id:form.organization_id||null});setSaving(false);if(error)setMessage(error.message);else onSaved()}
+ return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">NEW PROJECT</div><h2>Create project</h2><p>Track revenue and production cost together.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="form-grid" onSubmit={save}><label>Project name<input required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></label><label>Client<select value={form.client_id} onChange={e=>setForm(f=>({...f,client_id:e.target.value}))}><option value="">Unassigned</option>{clients.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Organisation<select value={form.organization_id} onChange={e=>setForm(f=>({...f,organization_id:e.target.value}))}><option value="">Unassigned</option>{orgs.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Status<select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm(f=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm(f=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{const formEl=document.querySelector(".composer form") as HTMLFormElement|null;formEl?.requestSubmit()}} disabled={saving}>{saving?"Creating…":"Create project"}</button></div></div></div>;
+}
 function activityLabel(action:string) {
   return ({
     invoice_created: "Invoice created",

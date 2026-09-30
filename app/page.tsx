@@ -20,6 +20,10 @@ import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentM
 import { createClient } from "@/lib/supabase/client";
 import { createInvoice as createInvoiceRecord, listInvoices, logActivity, recordPayment as recordPaymentRecord, saveInvoice as saveInvoiceRecord, setInvoiceStatus } from "@/lib/finance/repository";
 
+const supabase = createClient();
+
+const money = (n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
+
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);

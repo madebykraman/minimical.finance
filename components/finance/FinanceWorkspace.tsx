@@ -264,7 +264,22 @@ function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
 
   useEffect(() => {
     supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle().then(({data,error}) => {
-      if (data) setProfile(p => ({...p,...data}));
+      if (data) setProfile(p => ({
+      ...p,
+      studio_name: data.studio_name ?? p.studio_name,
+      brand_name: data.brand_name ?? p.brand_name,
+      contact_email: data.contact_email ?? "",
+      payee_name: data.payee_name ?? "",
+      account_number: data.account_number ?? "",
+      bank_name: data.bank_name ?? "",
+      branch_name: data.branch_name ?? "",
+      branch_code: data.branch_code ?? "",
+      ifsc_code: data.ifsc_code ?? "",
+      pan_number: data.pan_number ?? "",
+      invoice_footer_line_1: data.invoice_footer_line_1 ?? "",
+      invoice_footer_line_2: data.invoice_footer_line_2 ?? "",
+      pdf_template: data.pdf_template ?? p.pdf_template,
+    }));
       if (error) setMessage(error.message);
       setLoading(false);
     });

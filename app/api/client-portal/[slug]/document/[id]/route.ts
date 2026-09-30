@@ -9,6 +9,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{slug:str
  const supabase=await createClient();
  const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)});
  if(error||!data)return new NextResponse("Unauthorized",{status:401});
+ await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"document_downloaded",p_resource_type:"document",p_resource_id:id});
  const doc=(data.documents||[]).find((d:any)=>d.id===id);
  if(!doc?.file_path)return new NextResponse("Document not found",{status:404});
  const upstream=await fetch(doc.file_path,{cache:"no-store"});

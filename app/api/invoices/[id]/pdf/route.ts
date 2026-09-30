@@ -132,19 +132,14 @@ export async function GET(
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const [{ data: rawInvoice, error }, { data: client }, { data: settings }] = await Promise.all([
+  const [{ data: rawInvoice, error }, { data: settings }] = await Promise.all([
     supabase
       .from("invoices")
       .select("*, clients(*), projects(name), invoice_contents(*), payments(*)")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("clients").select("*").eq("id", id).maybeSingle(),
     supabase.from("workspace_settings").select("*").eq("id", true).maybeSingle(),
   ]);
-
-  // The client lookup above is intentionally not used as the invoice relation already
-  // contains the authoritative client row. It is kept out of the rendering path.
-  void client;
 
   if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
 

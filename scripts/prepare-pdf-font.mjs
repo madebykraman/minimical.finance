@@ -3,9 +3,15 @@ import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const source = require.resolve("dejavu-fonts-ttf/ttf/DejaVuSans.ttf");
-const destination = join(process.cwd(), "public", "fonts", "DejaVuSans.ttf");
+const fonts = [
+  ["dejavu-fonts-ttf/ttf/DejaVuSans.ttf", "DejaVuSans.ttf"],
+  ["dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf", "DejaVuSans-Bold.ttf"],
+];
 
-await mkdir(dirname(destination), { recursive: true });
-await copyFile(source, destination);
-console.log("Prepared PDF font:", destination);
+for (const [sourcePackage, fileName] of fonts) {
+  const source = require.resolve(sourcePackage);
+  const destination = join(process.cwd(), "public", "fonts", fileName);
+  await mkdir(dirname(destination), { recursive: true });
+  await copyFile(source, destination);
+  console.log("Prepared PDF font:", destination);
+}

@@ -92,7 +92,7 @@ export async function createInvoice(draft: {
   let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).maybeSingle();
 
   if (!client) {
-    const result = await supabase.from("clients").insert({ name: draft.client }).select("id").single();
+    const result = await supabase.from("clients").insert({ name: draft.client, organization_id: draft.organizationId ?? null }).select("id").single();
     if (result.error) return { id: null, error: result.error.message };
     client = result.data;
   }
@@ -107,7 +107,7 @@ export async function createInvoice(draft: {
   if (!project) {
     const result = await supabase
       .from("projects")
-      .insert({ name: draft.project, client_id: client.id })
+      .insert({ name: draft.project, client_id: client.id, organization_id: draft.organizationId ?? null })
       .select("id")
       .single();
 

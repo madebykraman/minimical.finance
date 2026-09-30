@@ -7,7 +7,8 @@ import {
   Search, Settings2, Sparkles, WalletCards, X
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { PaymentMethod } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database.types";
+type PaymentMethod = Database["public"]["Enums"]["payment_method"];
 
 type Status = "draft" | "sent" | "partially_paid" | "paid" | "void";
 type ContentKind = "service" | "adjustment" | "note";

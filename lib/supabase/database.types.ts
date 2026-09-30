@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_profile: {
+        Row: {
+          address_lines: Json
+          display_name: string | null
+          email: string | null
+          id: boolean
+          legal_name: string
+          logo_path: string | null
+          pan: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_lines?: Json
+          display_name?: string | null
+          email?: string | null
+          id?: boolean
+          legal_name?: string
+          logo_path?: string | null
+          pan?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_lines?: Json
+          display_name?: string | null
+          email?: string | null
+          id?: boolean
+          legal_name?: string
+          logo_path?: string | null
+          pan?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -103,6 +139,41 @@ export type Database = {
           },
         ]
       }
+      client_portal_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          session_hash: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_used_at?: string | null
+          session_hash: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          session_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_portal_tokens: {
         Row: {
           client_id: string
@@ -164,12 +235,16 @@ export type Database = {
           gstin: string | null
           id: string
           legal_name: string | null
+          logo_path: string | null
           name: string
           notes: string | null
+          organization_id: string | null
           pan: string | null
           phone: string | null
           portal_enabled: boolean
           portal_message: string | null
+          portal_password_hash: string | null
+          portal_password_set_at: string | null
           portal_slug: string | null
           show_documents: boolean
           show_projects: boolean
@@ -184,12 +259,16 @@ export type Database = {
           gstin?: string | null
           id?: string
           legal_name?: string | null
+          logo_path?: string | null
           name: string
           notes?: string | null
+          organization_id?: string | null
           pan?: string | null
           phone?: string | null
           portal_enabled?: boolean
           portal_message?: string | null
+          portal_password_hash?: string | null
+          portal_password_set_at?: string | null
           portal_slug?: string | null
           show_documents?: boolean
           show_projects?: boolean
@@ -204,18 +283,30 @@ export type Database = {
           gstin?: string | null
           id?: string
           legal_name?: string | null
+          logo_path?: string | null
           name?: string
           notes?: string | null
+          organization_id?: string | null
           pan?: string | null
           phone?: string | null
           portal_enabled?: boolean
           portal_message?: string | null
+          portal_password_hash?: string | null
+          portal_password_set_at?: string | null
           portal_slug?: string | null
           show_documents?: boolean
           show_projects?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -354,6 +445,7 @@ export type Database = {
           invoice_number: string
           issue_date: string
           notes: string | null
+          organization_id: string | null
           project_id: string | null
           source_total: number | null
           status: Database["public"]["Enums"]["invoice_status"]
@@ -368,6 +460,7 @@ export type Database = {
           invoice_number: string
           issue_date?: string
           notes?: string | null
+          organization_id?: string | null
           project_id?: string | null
           source_total?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -382,6 +475,7 @@ export type Database = {
           invoice_number?: string
           issue_date?: string
           notes?: string | null
+          organization_id?: string | null
           project_id?: string | null
           source_total?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -396,6 +490,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -403,6 +504,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          account_number: string | null
+          address_lines: Json
+          bank_name: string | null
+          branch_code: string | null
+          branch_name: string | null
+          created_at: string
+          email: string | null
+          entity_type: string
+          gstin: string | null
+          id: string
+          ifsc_code: string | null
+          invoice_footer_line_1: string | null
+          invoice_footer_line_2: string | null
+          legal_name: string | null
+          logo_path: string | null
+          name: string
+          pan: string | null
+          payee_name: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          address_lines?: Json
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          email?: string | null
+          entity_type?: string
+          gstin?: string | null
+          id?: string
+          ifsc_code?: string | null
+          invoice_footer_line_1?: string | null
+          invoice_footer_line_2?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          name: string
+          pan?: string | null
+          payee_name?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          address_lines?: Json
+          bank_name?: string | null
+          branch_code?: string | null
+          branch_name?: string | null
+          created_at?: string
+          email?: string | null
+          entity_type?: string
+          gstin?: string | null
+          id?: string
+          ifsc_code?: string | null
+          invoice_footer_line_1?: string | null
+          invoice_footer_line_2?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          name?: string
+          pan?: string | null
+          payee_name?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -413,6 +586,7 @@ export type Database = {
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
           payment_date: string | null
+          receipt_number: string | null
           reference: string | null
         }
         Insert: {
@@ -423,6 +597,7 @@ export type Database = {
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string | null
+          receipt_number?: string | null
           reference?: string | null
         }
         Update: {
@@ -433,6 +608,7 @@ export type Database = {
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string | null
+          receipt_number?: string | null
           reference?: string | null
         }
         Relationships: [
@@ -459,6 +635,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          organization_id: string | null
           project_type: string | null
           status: string
           updated_at: string
@@ -469,6 +646,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          organization_id?: string | null
           project_type?: string | null
           status?: string
           updated_at?: string
@@ -479,6 +657,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          organization_id?: string | null
           project_type?: string | null
           status?: string
           updated_at?: string
@@ -489,6 +668,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -599,7 +785,20 @@ export type Database = {
       }
     }
     Functions: {
+      create_client_portal_session: {
+        Args: {
+          p_expires_at: string
+          p_session_hash: string
+          p_slug: string
+          p_token: string
+        }
+        Returns: boolean
+      }
       get_client_portal: {
+        Args: { p_session?: string; p_slug: string; p_token?: string }
+        Returns: Json
+      }
+      get_client_portal_secret: {
         Args: { p_slug: string; p_token: string }
         Returns: Json
       }

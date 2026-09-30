@@ -78,3 +78,6 @@ Supabase Dashboard configuration still required for the production auth boundary
 2. Add `https://minimical-finance.vercel.app/auth/confirm` to Redirect URLs. Keep `http://localhost:3000/**` only if local development is needed.
 3. Authentication → Password Security → enable leaked-password protection and set strong password requirements.
 4. Because this is an internal single-owner finance system, disable “Allow new users to sign up” after the owner account is established.
+
+
+<!-- FinOS client/account layer verified: 2026-09-30T23:28:17.731Z -->

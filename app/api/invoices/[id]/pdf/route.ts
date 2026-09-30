@@ -11,7 +11,7 @@ const paper = rgb(0.98, 0.975, 0.955);
 const green = rgb(0.09, 0.42, 0.28);
 const amber = rgb(0.52, 0.36, 0.08);
 
-const money = (value: number) => `₹${Math.round(value).toLocaleString("en-IN")}`;
+const money = (value: number) => `INR ${Math.round(value).toLocaleString("en-IN")}`;
 
 function wrap(text: string, font: any, size: number, maxWidth: number) {
   const words = String(text || "").split(/\s+/);

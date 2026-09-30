@@ -24,7 +24,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   text("FinOS",48,790,17,bold);text("PAYMENT RECEIPT",48,770,8,bold,rgb(.42,.42,.4));
   text(payload.client.legal_name||payload.client.name,48,724,11,bold);text(payload.client.email||"",48,708,8,regular,rgb(.42,.42,.4));
   const receiptNo=payment.receipt_number||`RCP-${payment.invoice_number}-${payment.id.slice(0,8)}`;
-  const right=(s:string,y:number,size=8,font:any=regular)=>{const v=String(s||"");text(v,547-font.widthOfTextAtSize(v,size),y,size,font)};
+  const right=(s:string,y:number,size=8,font:any=regular,color:any=rgb(0,0,0))=>{const v=String(s||"");text(v,547-font.widthOfTextAtSize(v,size),y,size,font,color)};
   right(receiptNo,724,9,bold);right(fmt(payment.payment_date),708,8,regular,rgb(.42,.42,.4));
   page.drawRectangle({x:48,y:610,width:499,height:76,borderWidth:.6,borderColor:rgb(.85,.84,.81)});
   text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,bold);

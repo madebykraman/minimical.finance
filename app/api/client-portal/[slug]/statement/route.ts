@@ -12,15 +12,16 @@ function fyStart(now=new Date()){return new Date(now.getMonth()>=3?now.getFullYe
 function bounds(period:string){const now=new Date();const end=new Date(now.getFullYear(),now.getMonth()+1,0);if(period==="month")return [new Date(now.getFullYear(),now.getMonth(),1),end];if(period==="3months")return [new Date(now.getFullYear(),now.getMonth()-2,1),end];if(period==="6months")return [new Date(now.getFullYear(),now.getMonth()-5,1),end];if(period==="fy")return [fyStart(now),new Date(fyStart(now).getFullYear()+1,2,31)];return [new Date(2000,0,1),new Date(2100,11,31)]}
 function d(s:string){return s?new Date(s+"T00:00:00"):new Date(0)}
 function fmt(s:string){return new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}
+async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return null;const b=new Uint8Array(await r.arrayBuffer());const t=(r.headers.get("content-type")||"").toLowerCase();return t.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(b):await pdf.embedJpg(b)}catch{return null}}
 function label(period:string){if(period==="month")return "This month";if(period==="3months")return "Last 3 months";if(period==="6months")return "Last 6 months";if(period==="fy"){const s=fyStart();return `FY ${s.getFullYear()}-${String(s.getFullYear()+1).slice(-2)}`;}return "All time"}
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string}>}){
   const {slug}=await context.params; const session=request.cookies.get("finos_portal_session")?.value||""; const period=request.nextUrl.searchParams.get("period")||"all";
   if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient(); const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)});
+  const supabase=await createClient(); const [{data,error},{data:orgData}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"statement_downloaded",p_resource_type:"statement",p_resource_id:null});
-  const payload:any=data; const [start,end]=bounds(period); const invoices=payload.invoices||[]; const payments=payload.payments||[];
+  const payload:any=data; const org:any=orgData||{}; const [start,end]=bounds(period); const invoices=payload.invoices||[]; const payments=payload.payments||[];
   const transactions:any[]=[
     ...invoices.filter((i:any)=>d(i.issue_date)<start).map((i:any)=>({date:i.issue_date,type:"invoice",ref:"#"+i.invoice_number,debit:Number(i.total||0),credit:0})),
     ...payments.filter((p:any)=>p.payment_date&&d(p.payment_date)<start).map((p:any)=>({date:p.payment_date,type:"payment",ref:p.receipt_number||p.id.slice(0,8),debit:0,credit:Number(p.amount||0)})),
@@ -34,10 +35,10 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const pdf=await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
   const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
-  let page=pdf.addPage(A4); const W=A4[0],H=A4[1];
+  let page=pdf.addPage(A4); const W=A4[0],H=A4[1]; const orgLogo=await embedLogo(pdf,org.logo_path); const clientLogo=await embedLogo(pdf,payload.client.logo_path);
   const text=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
   const right=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font,color)};
-  const header=()=>{text("FinOS",48,H-52,16,bold);text("ACCOUNT STATEMENT",48,H-69,8,bold,MUTED);text(payload.client.legal_name||payload.client.name,48,H-100,11,bold);text(label(period),W-48-(bold.widthOfTextAtSize(label(period),8)),H-100,8,bold);text(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),W-48-regular.widthOfTextAtSize(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),8),H-116,8,regular,MUTED);
+  const header=()=>{if(orgLogo){const d=orgLogo.scale(Math.min(46/orgLogo.width,24/orgLogo.height));page.drawImage(orgLogo,{x:48,y:H-48-d.height,width:d.width,height:d.height});}if(clientLogo){const d=clientLogo.scale(Math.min(46/clientLogo.width,24/clientLogo.height));page.drawImage(clientLogo,{x:W-48-d.width,y:H-48-d.height,width:d.width,height:d.height});}text("FinOS",48,H-52,16,bold);text("ACCOUNT STATEMENT",48,H-69,8,bold,MUTED);text(payload.client.legal_name||payload.client.name,48,H-100,11,bold);text(label(period),W-48-(bold.widthOfTextAtSize(label(period),8)),H-100,8,bold);text(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),W-48-regular.widthOfTextAtSize(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),8),H-116,8,regular,MUTED);
     const cards=[["OPENING",money(opening)],["BILLED",money(billed)],["PAID",money(paid)],["CLOSING",money(closing)]];
     cards.forEach(([k,v],idx)=>{const x=48+idx*124;page.drawRectangle({x,y:H-174,width:112,height:40,borderWidth:.5,borderColor:LINE});text(k,x+8,H-151,6.5,bold,MUTED);text(v,x+8,H-167,10,bold)});};
   header(); let y=H-208;

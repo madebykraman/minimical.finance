@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import { hashPortalSession } from "@/lib/portal/auth";
 
-async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return null;const b=new Uint8Array(await r.arrayBuffer());const t=(r.headers.get("content-type")||"").toLowerCase();return t.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(b):await pdf.embedJpg(b)}catch{return null}}\nconst money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
+async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return null;const b=new Uint8Array(await r.arrayBuffer());const t=(r.headers.get("content-type")||"").toLowerCase();return t.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(b):await pdf.embedJpg(b)}catch{return null}}
+const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
 const fmt=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"}):"—";
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;paymentId:string}>}){

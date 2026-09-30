@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  ArrowUpRight, Bell, Check, ChevronRight, CircleAlert, FileText, Filter,
+  ArrowUpRight, Bell, Check, RefreshCw, ShieldCheck, ChevronRight, CircleAlert, FileText, Filter,
   IndianRupee, LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt,
   Search, Settings2, Sparkles, WalletCards, X
 } from "lucide-react";
@@ -94,7 +94,7 @@ export default function Home() {
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [composer, setComposer] = useState(false);
   const [paymentFor, setPaymentFor] = useState<Invoice | null>(null);
-  const [activeView, setActiveView] = useState<"overview" | "invoices" | "payments" | "clients">("overview");
+  const [activeView, setActiveView] = useState<"overview" | "invoices" | "payments" | "clients" | "settings">("overview");
   const [actionError, setActionError] = useState("");
 
   useEffect(() => {
@@ -124,11 +124,19 @@ export default function Home() {
       console.error(error);
       setActionError(error.message);
       setLoading(false);
-      return;
+      return [] as Invoice[];
     }
+    const mapped = (data ?? []).map(mapInvoice);
     setActionError("");
-    setInvoices((data ?? []).map(mapInvoice));
+    setInvoices(mapped);
+    setSelected(current => current ? (mapped.find(i => i.id === current.id) ?? current) : current);
     setLoading(false);
+    return mapped;
+  }
+
+  async function logActivity(invoiceId: string | null, action: string, metadata: Record<string, unknown> = {}) {
+    const { error } = await supabase.from("activity_log").insert({ invoice_id: invoiceId, action, metadata });
+    if (error) console.warn("Activity log failed:", error.message);
   }
 
   async function markStatus(invoice: Invoice, next: Status) {
@@ -137,8 +145,8 @@ export default function Home() {
       .update({ status: next, updated_at: new Date().toISOString() })
       .eq("id", invoice.id);
     if (error) return setActionError(error.message);
+    await logActivity(invoice.id, "invoice_status_changed", { from: invoice.status, to: next });
     await loadInvoices();
-    setSelected(v => v?.id === invoice.id ? { ...v, status: next } : v);
   }
 
   async function recordPayment(invoice: Invoice, amount: number, date: string, method: string, reference: string) {
@@ -159,6 +167,7 @@ export default function Home() {
     const nextStatus: Status = nextPaid >= invoiceTotal(invoice) ? "paid" : "partially_paid";
     const statusUpdate = await supabase.from("invoices").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", invoice.id);
     if (statusUpdate.error) return setActionError(statusUpdate.error.message);
+    await logActivity(invoice.id, "payment_recorded", { amount, payment_date: date || null, method, reference: reference || null });
     setPaymentFor(null);
     setActionError("");
     await loadInvoices();
@@ -168,6 +177,8 @@ export default function Home() {
     const { error } = await supabase.from("invoices").update({
       notes: next.notes ?? null,
       adjustment_note: next.adjustment ?? null,
+      issue_date: next.date,
+      due_date: next.dueDate ?? null,
       status: next.status,
       updated_at: new Date().toISOString(),
     }).eq("id", next.id);
@@ -184,12 +195,13 @@ export default function Home() {
       const inserted = await supabase.from("invoice_contents").insert(rows);
       if (inserted.error) return setActionError(inserted.error.message);
     }
+    await logActivity(next.id, "invoice_updated", { content_count: rows.length, total: invoiceTotal(next) });
     await loadInvoices();
     setSelected(null);
   }
 
   async function createInvoice(draft: {
-    number: string; client: string; project: string; date: string; contents: Content[];
+    number: string; client: string; project: string; date: string; dueDate: string; contents: Content[];
   }) {
     let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).maybeSingle();
     if (!client) {
@@ -204,8 +216,8 @@ export default function Home() {
       project = result.data;
     }
     const result = await supabase.from("invoices").insert({
-      invoice_number: draft.number, client_id: client.id, project_id: project.id,
-      issue_date: draft.date, due_date: new Date(Date.parse(draft.date) + 30 * 86400000).toISOString().slice(0, 10),
+      invoice_number: draft.number.trim(), client_id: client.id, project_id: project.id,
+      issue_date: draft.date, due_date: draft.dueDate || null,
       status: "draft", source_total: draft.contents.reduce((s, c) => s + contentAmount(c), 0),
     }).select("id").single();
     if (result.error) return alert(result.error.message);
@@ -219,9 +231,15 @@ export default function Home() {
       const inserted = await supabase.from("invoice_contents").insert(rows);
       if (inserted.error) return setActionError(inserted.error.message);
     }
+    await logActivity(result.data.id, "invoice_created", { invoice_number: draft.number.trim(), total: draft.contents.reduce((s, c) => s + contentAmount(c), 0) });
     setComposer(false);
     await loadInvoices();
   }
+
+  const nextInvoiceNumber = useMemo(() => {
+    const numeric = invoices.map(i => Number.parseInt(String(i.number).replace(/\D/g, ""), 10)).filter(Number.isFinite);
+    return numeric.length ? String(Math.max(...numeric) + 1) : "1";
+  }, [invoices]);
 
   const filtered = useMemo(() => invoices.filter(i => {
     const text = [i.number, i.client, i.project, i.notes, ...i.contents.map(c => c.title)].join(" ").toLowerCase();
@@ -249,7 +267,7 @@ export default function Home() {
           <button className={"nav-item " + (activeView === "clients" ? "active" : "")} onClick={() => setActiveView("clients")}><FileText size={17}/>Clients</button>
         </nav>
         <div className="sidebar-bottom">
-          <button className="nav-item"><Settings2 size={17}/>Settings</button>
+          <button className={"nav-item " + (activeView === "settings" ? "active" : "")} onClick={() => setActiveView("settings")}><Settings2 size={17}/>Settings</button>
           <button className="nav-item" onClick={() => supabase.auth.signOut()}><LogOut size={17}/>Sign out</button>
           <div className="profile"><div className="avatar">M</div><div><b>Finance workspace</b><small>Authenticated</small></div><MoreHorizontal size={16}/></div>
         </div>
@@ -259,18 +277,19 @@ export default function Home() {
         {actionError && <div className="global-error"><CircleAlert size={15}/><span>{actionError}</span><button onClick={() => setActionError("")}><X size={14}/></button></div>}
         <header className="topbar">
           <div><div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div><h1>{activeView === "overview" ? "Money, without the spreadsheet." : activeView === "invoices" ? "Invoices." : activeView === "payments" ? "Collections." : "Clients & projects."}</h1><p>{activeView === "overview" ? "Your invoices, contents and collections in one source of truth." : activeView === "invoices" ? "Create, edit and audit every invoice from its actual contents." : activeView === "payments" ? "Every recorded payment against every invoice." : "The client and project layer behind your billing."}</p></div>
-          <div className="top-actions"><button className="icon-button" title="Refresh" onClick={loadInvoices}><Bell size={18}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
+          <div className="top-actions"><button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button><button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button></div>
         </header>
 
         {activeView === "overview" && <Overview stats={stats} invoices={invoices} onOpen={(i) => setSelected(i)} />}
         {activeView === "invoices" && <InvoiceView filtered={filtered} query={query} setQuery={setQuery} status={status} setStatus={setStatus} loading={loading} onOpen={(i) => setSelected(i)} onStatus={markStatus} />}
         {activeView === "payments" && <PaymentsView invoices={invoices} onOpenPayment={(i) => setPaymentFor(i)} />}
         {activeView === "clients" && <ClientsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
+        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} onSignOut={() => supabase.auth.signOut()} />}
       </section>
 
       {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice} onPayment={() => setPaymentFor(selected)}/>}
       {paymentFor && <PaymentComposer invoice={paymentFor} onClose={() => setPaymentFor(null)} onCreate={recordPayment}/>}
-      {composer && <InvoiceComposer onClose={() => setComposer(false)} onCreate={createInvoice}/>} 
+      {composer && <InvoiceComposer initialNumber={nextInvoiceNumber} onClose={() => setComposer(false)} onCreate={createInvoice}/>} 
     </main>
   );
 }
@@ -354,6 +373,21 @@ function AuthScreen() {
   </div></div>;
 }
 
+function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
+  return <div className="settings-stack">
+    <div className="data-panel">
+      <div className="data-panel-head"><div><h2>Workspace settings</h2><p>Private configuration for minimical.finance.</p></div></div>
+      <div className="settings-row"><div className="settings-icon"><ShieldCheck size={17}/></div><div><b>Single-owner access</b><p>Finance data is restricted to the authenticated workspace owner.</p></div><span className="settings-good">Protected</span></div>
+      <div className="settings-row"><div className="settings-icon"><FileText size={17}/></div><div><b>Signed-in account</b><p>{email}</p></div></div>
+      <div className="settings-row"><div className="settings-icon"><Receipt size={17}/></div><div><b>Invoice PDFs</b><p>Generated server-side from the stored invoice record.</p></div><span className="settings-good">Live</span></div>
+    </div>
+    <div className="data-panel">
+      <div className="data-panel-head"><div><h2>Session</h2><p>End the current authenticated session on this device.</p></div></div>
+      <div className="settings-actions"><button className="secondary" onClick={onSignOut}><LogOut size={15}/>Sign out</button></div>
+    </div>
+  </div>;
+}
+
 function Overview({stats,invoices,onOpen}:{stats:{billed:number;collected:number;outstanding:number;rate:number};invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
   const open = invoices.filter(i => paidTotal(i) < invoiceTotal(i)).sort((a,b) => (invoiceTotal(b)-paidTotal(b))-(invoiceTotal(a)-paidTotal(a))).slice(0,4);
   return <><section className="kpis">
@@ -417,6 +451,10 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
       <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
+      <div className="invoice-meta-grid">
+        <label>Issue date<input type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))}/></label>
+        <label>Due date<input type="date" value={draft.dueDate ?? ""} onChange={e=>setDraft(d=>({...d,dueDate:e.target.value || null}))}/></label>
+      </div>
       {unpriced > 0 && <div className="integrity warning"><CircleAlert size={17}/><div><b>{unpriced} content item{unpriced > 1 ? "s" : ""} still unpriced</b><span>Visible and retained, but excluded from the financial total until priced.</span></div></div>}
       {draft.sourceTotal != null && draft.sourceTotal !== invoiceTotal(draft) && <div className="integrity warning"><CircleAlert size={17}/><div><b>Source total differs from calculated total</b><span>Recorded source total: {money(draft.sourceTotal)} · calculated from contents: {money(invoiceTotal(draft))}</span></div></div>}
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Everything being billed on this invoice.</p></div><button className="secondary" onClick={() => add()}><Plus size={15}/>Add content</button></div>
@@ -433,23 +471,24 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
   </aside></div>;
 }
 
-function InvoiceComposer({onClose,onCreate}:{onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;contents:Content[]})=>void}) {
-  const [number,setNumber] = useState("");
+function InvoiceComposer({initialNumber,onClose,onCreate}:{initialNumber:string;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;contents:Content[]})=>void}) {
+  const [number,setNumber] = useState(initialNumber);
   const [client,setClient] = useState("ELLE");
   const [project,setProject] = useState("Video Editing");
   const [date,setDate] = useState(new Date().toISOString().slice(0,10));
+  const [dueDate,setDueDate] = useState(new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10));
   const [contents,setContents] = useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   const total = contents.reduce((s,c) => s + contentAmount(c), 0);
   const patch = (id:string,p:Partial<Content>) => setContents(v => v.map(c => c.id === id ? {...c,...p} : c));
   const add = () => setContents(v => [...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">NEW INVOICE</div><h2>Create invoice</h2><p>Build it from the actual contents.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="e.g. 196"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label></div>
+    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="e.g. 196"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Billable, adjustment and unpriced content can coexist.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
         {contents.map((c,idx) => <div className="composer-row" key={c.id}><span>{idx + 1}</span><input value={c.title} onChange={e => patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input type="number" value={c.quantity ?? ""} onChange={e => patch(c.id,{quantity:Number(e.target.value) || 1})} placeholder="Qty"/><input type="number" value={c.rate ?? ""} onChange={e => patch(c.id,{rate:e.target.value ? Number(e.target.value) : null,priced:!!e.target.value})} placeholder="Rate"/><b>{c.priced && c.rate ? money(contentAmount(c)) : "TBD"}</b></div>)}
       </div><div className="total-box"><span>Invoice total</span><strong>{money(total)}</strong></div>
     </div>
-    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!number || !contents.some(c => c.title.trim())} onClick={() => onCreate({number,client,project,date,contents})}>Create draft</button></div>
+    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!number || !contents.some(c => c.title.trim())} onClick={() => onCreate({number,client,project,date,dueDate,contents})}>Create draft</button></div>
   </div></div>;
 }
 

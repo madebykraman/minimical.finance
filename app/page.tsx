@@ -20,6 +20,8 @@ import {
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
 
+const supabase = createClient();
+
 export default function Home() {
   const [session, setSession] = useState<any>(null);
   const [authReady, setAuthReady] = useState(false);

@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
 
-const A4=[595.2756,841.8898] as const;
+const A4=[595.2756,841.8898];
 const BLACK=rgb(0,0,0);
 const GRAY=rgb(.45,.45,.42);
 const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
@@ -38,8 +38,8 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans.ttf")),{subset:true});
   const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans-Bold.ttf")),{subset:true});
   let page=pdf.addPage(A4); const W=A4[0],H=A4[1];
-  const text=(s:string,x:number,y:number,size=9,font=regular,color=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
-  const right=(s:string,x:number,y:number,size=9,font=regular)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font)};
+  const text=(s:string,x:number,y:number,size=9,font:any=regular,color:any=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
+  const right=(s:string,x:number,y:number,size=9,font:any=regular,color:any=BLACK)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font,color)};
   page.drawText("minimical.finance",{x:48,y:H-55,size:15,font:bold,color:BLACK});
   text("ACCOUNT STATEMENT",48,H-76,8,bold,GRAY);
   text(payload.client.legal_name||payload.client.name,48,H-112,11,bold);

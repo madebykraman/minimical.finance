@@ -55,6 +55,12 @@ const invoiceTotal = (i: Invoice) =>
 const paidTotal = (i: Invoice) =>
   i.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
+const daysOverdue = (i: Invoice, today = new Date()) => {
+  if (!i.dueDate || paidTotal(i) >= invoiceTotal(i) || i.status === "void") return 0;
+  const due = new Date(i.dueDate + "T00:00:00");
+  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86400000));
+};
+
 const statusLabel = (s: Status) =>
   ({ draft: "Draft", sent: "Sent", partially_paid: "Partially paid", paid: "Paid", void: "Void" })[s];
 
@@ -249,7 +255,9 @@ export default function Home() {
   const stats = useMemo(() => {
     const billed = invoices.reduce((s, i) => s + invoiceTotal(i), 0);
     const collected = invoices.reduce((s, i) => s + paidTotal(i), 0);
-    return { billed, collected, outstanding: Math.max(billed - collected, 0), rate: billed ? Math.round(collected / billed * 1000) / 10 : 0 };
+    const overdueInvoices = invoices.filter(i => daysOverdue(i) > 0);
+    const overdue = overdueInvoices.reduce((s, i) => s + Math.max(invoiceTotal(i) - paidTotal(i), 0), 0);
+    return { billed, collected, outstanding: Math.max(billed - collected, 0), overdue, overdueCount: overdueInvoices.length, rate: billed ? Math.round(collected / billed * 1000) / 10 : 0 };
   }, [invoices]);
 
   if (!authReady) return <div className="auth-screen"><div className="auth-card">Loading minimical.finance…</div></div>;
@@ -414,7 +422,7 @@ function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
 }
 
 function Overview({stats,invoices,onOpen}:{stats:{billed:number;collected:number;outstanding:number;rate:number};invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
-  const open = invoices.filter(i => paidTotal(i) < invoiceTotal(i)).sort((a,b) => (invoiceTotal(b)-paidTotal(b))-(invoiceTotal(a)-paidTotal(a))).slice(0,4);
+  const open = invoices.filter(i => paidTotal(i) < invoiceTotal(i)).sort((a,b) => (daysOverdue(b) - daysOverdue(a)) || ((invoiceTotal(b)-paidTotal(b))-(invoiceTotal(a)-paidTotal(a)))).slice(0,5);
   return <><section className="kpis">
     <Kpi label="Total billed" value={money(stats.billed)} note="Calculated from priced contents" icon={<IndianRupee size={16}/>}/>
     <Kpi label="Collected" value={money(stats.collected)} note="Recorded payments" icon={<Check size={16}/>}/>
@@ -460,7 +468,8 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
   const balance = Math.max(invoiceTotal(invoice) - paidTotal(invoice), 0);
   return <article className="invoice-card" onClick={onOpen}>
     <div className="invoice-main"><div className="invoice-id"><span>INV.</span><strong>{invoice.number}</strong></div><div><h3>{invoice.client}</h3><p>{invoice.project} · {new Date(invoice.date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</p></div></div>
-    <div className="invoice-middle"><div className="content-preview">{invoice.contents.slice(0,3).map(c => <span key={c.id}>{c.title}</span>)}{invoice.contents.length > 3 && <span>+{invoice.contents.length - 3} more</span>}</div>{unpriced > 0 && <span className="warning-pill"><CircleAlert size={13}/>{unpriced} unpriced</span>}{invoice.sourceTotal != null && invoice.sourceTotal !== invoiceTotal(invoice) && <span className="warning-pill"><CircleAlert size={13}/>source mismatch</span>}</div>
+    <div className="invoice-middle"><div className="content-preview">{invoice.contents.slice(0,3).map(c => <span key={c.id}>{c.title}</span>)}{invoice.contents.length > 3 && <span>+{invoice.contents.length - 3} more</span>}</div>{unpriced > 0 && <span className="warning-pill"><CircleAlert size={13}/>{unpriced} unpriced</span>}
+    {daysOverdue(invoice) > 0 && <span className="warning-pill overdue-pill"><CircleAlert size={13}>{daysOverdue(invoice)}d overdue</span>}{invoice.sourceTotal != null && invoice.sourceTotal !== invoiceTotal(invoice) && <span className="warning-pill"><CircleAlert size={13}/>source mismatch</span>}</div>
     <div className="invoice-right"><strong>{money(invoiceTotal(invoice))}</strong><span className={"balance " + (balance ? "open" : "clear")}>{balance ? money(balance) + " due" : "settled"}</span><button className={"status " + invoice.status} onClick={e => { e.stopPropagation(); onOpen(); }}>{statusLabel(invoice.status)}</button><ChevronRight size={17} className="chevron"/></div>
   </article>;
 }

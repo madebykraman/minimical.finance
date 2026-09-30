@@ -137,7 +137,7 @@ export async function GET(
   const [{ data: rawInvoice, error }, { data: settings }] = await Promise.all([
     supabase
       .from("invoices")
-      .select("*, clients(*), projects(name), invoice_contents(*), payments(*)")
+      .select("*, clients(*), projects(name), invoice_contents(*), payments(*), organizations(*)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("workspace_settings").select("*").eq("id", true).maybeSingle(),
@@ -147,6 +147,7 @@ export async function GET(
 
   const invoice: any = rawInvoice;
   const billingClient = invoice.clients ?? {};
+  const organization = invoice.organizations ?? settings ?? {};
   const contents = [...(invoice.invoice_contents ?? [])].sort(
     (a: any, b: any) => Number(a.position) - Number(b.position),
   );
@@ -189,13 +190,13 @@ export async function GET(
 
   page.drawText("PAY TO:", { x: X.left, y: Y.payLabel, size: FONT_SIZE, font: bold, color: BLACK });
   const payLines = [
-    `NAME: ${settings?.payee_name || "Kumar Aman"}`,
-    `A/C NO. ${settings?.account_number || ""}`,
-    `BANK: ${settings?.bank_name || ""}`,
-    `BRANCH: ${settings?.branch_name || ""}`,
-    `BRANCH CODE: ${settings?.branch_code || ""}`,
-    `IFSC CODE: ${settings?.ifsc_code || ""}`,
-    `PAN NO. ${settings?.pan_number || ""}`,
+    `NAME: ${organization?.payee_name || "Kumar Aman"}`,
+    `A/C NO. ${organization?.account_number || ""}`,
+    `BANK: ${organization?.bank_name || ""}`,
+    `BRANCH: ${organization?.branch_name || ""}`,
+    `BRANCH CODE: ${organization?.branch_code || ""}`,
+    `IFSC CODE: ${organization?.ifsc_code || ""}`,
+    `PAN NO. ${organization?.pan || ""}`,
   ];
   payLines.forEach((line: string, index: number) =>
     draw(page, line, X.left, Y.payFirst - index * LEADING, regular),
@@ -224,32 +225,32 @@ export async function GET(
   center(page, "DESCRIPTION", X.descriptionCenter, Y.tableTop - 17.0, bold);
   center(page, "AMOUNT", X.amountCenter, Y.tableTop - 17.0, bold);
 
-  // The original template deliberately leaves a large empty body.
-  // Four line-item slots are placed at the same vertical rhythm as the reference.
-  const slots = [Y.tableTop - 53, Y.tableTop - 96, Y.tableTop - 139, Y.tableTop - 182];
+  // Preserve the canonical sparse table, but reflow the body when an invoice has
+  // more than four contents. Never silently drop billable work.
+  const count = Math.max(contents.length, 1);
+  const bodyTop = Y.tableHeader - 32;
+  const bodyBottom = Y.tableTotal + 24;
+  const step = count === 1 ? 0 : Math.min(43, (bodyTop - bodyBottom) / (count - 1));
 
-  contents.slice(0, 4).forEach((item: any, index: number) => {
+  contents.forEach((item: any, index: number) => {
     const title = String(item.title ?? "");
     const amount = item.priced
       ? money(Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)))
       : unknownMoney();
-
+    const slot = count === 1 ? (bodyTop + bodyBottom) / 2 : bodyTop - index * step;
     const lines = wrap(title, regular, 245, FONT_SIZE).slice(0, 3);
-    const slot = slots[index] ?? slots[slots.length - 1] - (index - 3) * 43;
     const first = slot + ((lines.length - 1) * LEADING) / 2;
-
-    lines.forEach((text, lineIndex) =>
-      center(page, text, X.descriptionCenter, first - lineIndex * LEADING, regular),
+    lines.forEach((lineText, lineIndex) =>
+      center(page, lineText, X.descriptionCenter, first - lineIndex * LEADING, regular),
     );
     center(page, amount, X.amountCenter, slot, regular);
   });
-
   center(page, "TOTAL", X.descriptionCenter, Y.totalBaseline, bold);
   center(page, hasUnpriced ? unknownMoney() : money(total), X.amountCenter, Y.totalBaseline, bold);
 
   draw(
     page,
-    settings?.invoice_footer_line_1 || "Please contact framedbyaman@gmail.com in case of any queries.",
+    organization?.invoice_footer_line_1 || "Please contact framedbyaman@gmail.com in case of any queries.",
     X.left,
     Y.footer1,
     regular,
@@ -257,7 +258,7 @@ export async function GET(
   );
   draw(
     page,
-    settings?.invoice_footer_line_2 || "Thank you for your time.",
+    organization?.invoice_footer_line_2 || "Thank you for your time.",
     X.left,
     Y.footer2,
     regular,

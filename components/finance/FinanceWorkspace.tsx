@@ -436,7 +436,6 @@ function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;
 
 function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invoice;onClose:()=>void;onStatus:(i:Invoice,s:Status)=>void;onSave:(i:Invoice)=>void;onPayment:()=>void}) {
   const [draft,setDraft] = useState(invoice);
-  const [showPreview,setShowPreview] = useState(true);
   const [organizations,setOrganizations]=useState<any[]>([]);
   useEffect(()=>{supabase.from("organizations").select("id,name,status").order("name").then(({data})=>setOrganizations(data||[]))},[]);
   useEffect(() => setDraft(invoice), [invoice.id]);
@@ -446,7 +445,7 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
   const remove = (id:string) => setDraft(d => ({...d,contents:d.contents.filter(c => c.id !== id)}));
   return <div className="overlay" onMouseDown={onClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="drawer-body"><div className="invoice-editor-grid"><div className="drawer-editor-main">
+    <div className="drawer-body">
       <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       <div className="invoice-meta-grid">
         <label>Issue date<input type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))}/></label>
@@ -466,13 +465,9 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
         {draft.activities.length ? <div className="activity-list">{draft.activities.slice(0,8).map(a => <div className="activity-item" key={a.id}><span className="activity-dot"/><div><b>{activityLabel(a.action)}</b><small>{new Date(a.created_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></div>)}</div> : <div className="payment-empty">No history recorded yet.</div>}
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
-    </div>{showPreview&&<InvoiceLivePreview invoice={draft}/>}</div></div>
-    <div className="drawer-foot"><button className="secondary preview-toggle" onClick={()=>setShowPreview(v=>!v)}>{showPreview?"Hide preview":"Show preview"}</button><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    </div>
+    <div className="drawer-foot"><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
-}
-
-function InvoiceLivePreview({invoice}:{invoice:Invoice}){
-  return <aside className="invoice-live-preview"><div className="preview-toolbar"><span>LIVE PREVIEW</span><small>A4 · updates as you edit</small></div><div className="invoice-paper-preview"><div className="preview-top"><div><b>BILLED TO:</b><strong>{invoice.client}</strong><span>{invoice.project}</span></div><div className="preview-meta"><b>INVOICE NO.</b><strong>#{invoice.number}</strong><b>DATE</b><strong>{invoice.date}</strong></div></div><div className="preview-payto"><b>PAY TO:</b><span>Kumar Aman</span><span>FEDERAL BANK</span></div><div className="preview-table"><div className="preview-table-head"><b>DESCRIPTION</b><b>AMOUNT</b></div>{invoice.contents.map((c,i)=><div className="preview-item" key={c.id}><span>{String(i+1).padStart(2,"0")}</span><strong>{c.title||"Untitled content"}</strong><em>{c.priced?money(contentAmount(c)):"TBD"}</em></div>)}<div className="preview-total"><b>TOTAL</b><strong>{money(invoiceTotal(invoice))}</strong></div></div><div className="preview-footer">Please contact framedbyaman@gmail.com in case of any queries.<br/>Thank you for your time.</div></div></aside>;
 }
 
 function InvoiceComposer({initialNumber,onClose,onCreate}:{initialNumber:string;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {

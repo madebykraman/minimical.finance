@@ -64,13 +64,14 @@ export async function GET(
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { data: invoice, error } = await supabase
+  const { data: rawInvoice, error } = await supabase
     .from("invoices")
     .select("*, clients(name,email,phone), projects(name), invoice_contents(*), payments(*)")
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !invoice) return new NextResponse("Invoice not found", { status: 404 });
+  if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
+  const invoice: any = rawInvoice;
 
   const contents = [...(invoice.invoice_contents ?? [])].sort((a, b) => a.position - b.position) as Line[];
   const total = contents.reduce((sum, c) => sum + (c.priced ? Number(c.amount ?? (c.quantity * (c.rate ?? 0))) : 0), 0);

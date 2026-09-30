@@ -14,6 +14,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=await createClient(); const [{data,error},{data:orgRaw}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
+  await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"receipt_downloaded",p_resource_type:"payment",p_resource_id:paymentId});
   const payload:any=data; const org:any=orgRaw||{}; const payment=(payload.payments||[]).find((p:any)=>p.id===paymentId);
   if(!payment)return new NextResponse("Receipt not found",{status:404});
   const invoice=(payload.invoices||[]).find((i:any)=>i.id===payment.invoice_id);

@@ -165,8 +165,8 @@ export async function GET(
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
 
-  const regularBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans.ttf"));
-  const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans-Bold.ttf"));
+  const regularBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-Regular.ttf"));
+  const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-SemiBold.ttf"));
   const regular = await pdf.embedFont(regularBytes, { subset: true });
   const bold = await pdf.embedFont(boldBytes, { subset: true });
 

@@ -9,8 +9,9 @@ export async function POST(request:NextRequest){
   if(!slug||!token||!password) return NextResponse.json({error:"Portal, access link and password are required."},{status:400});
   const supabase=await createClient();
   const {data:secret,error}=await supabase.rpc("get_client_portal_secret",{p_slug:slug,p_token:token});
-  if(error||!secret?.client_id||!secret?.password_hash) return NextResponse.json({error:"This portal link is invalid, disabled, or has no password configured."},{status:401});
-  if(!verifyPortalPassword(password,secret.password_hash)) return NextResponse.json({error:"Incorrect portal password."},{status:401});
+  const secretAny:any=secret;
+  if(error||!secretAny?.client_id||!secretAny?.password_hash) return NextResponse.json({error:"This portal link is invalid, disabled, or has no password configured."},{status:401});
+  if(!verifyPortalPassword(password,secretAny.password_hash)) return NextResponse.json({error:"Incorrect portal password."},{status:401});
   const sessionToken=randomBytes(32).toString("base64url");
   const expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
   const {data:created,error:createError}=await supabase.rpc("create_client_portal_session",{p_slug:slug,p_token:token,p_session_hash:hashPortalSession(sessionToken),p_expires_at:expires});

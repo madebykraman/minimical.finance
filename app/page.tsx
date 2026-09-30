@@ -374,12 +374,37 @@ function AuthScreen() {
 }
 
 function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
+  const [password,setPassword] = useState("");
+  const [confirm,setConfirm] = useState("");
+  const [message,setMessage] = useState("");
+  const strong = password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./]/.test(password) && !email.toLowerCase().includes(password.toLowerCase());
+
+  async function changePassword(e: FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    if (!strong) return setMessage("Use 12+ characters with upper/lowercase, a number and a symbol. Do not reuse your email.");
+    if (password !== confirm) return setMessage("Passwords do not match.");
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return setMessage(error.message);
+    setPassword(""); setConfirm("");
+    setMessage("Password updated successfully.");
+  }
+
   return <div className="settings-stack">
     <div className="data-panel">
       <div className="data-panel-head"><div><h2>Workspace settings</h2><p>Private configuration for minimical.finance.</p></div></div>
       <div className="settings-row"><div className="settings-icon"><ShieldCheck size={17}/></div><div><b>Single-owner access</b><p>Finance data is restricted to the authenticated workspace owner.</p></div><span className="settings-good">Protected</span></div>
       <div className="settings-row"><div className="settings-icon"><FileText size={17}/></div><div><b>Signed-in account</b><p>{email}</p></div></div>
       <div className="settings-row"><div className="settings-icon"><Receipt size={17}/></div><div><b>Invoice PDFs</b><p>Generated server-side from the stored invoice record.</p></div><span className="settings-good">Live</span></div>
+    </div>
+    <div className="data-panel">
+      <div className="data-panel-head"><div><h2>Change password</h2><p>Use a unique password; the old email-as-password test credential should not remain active.</p></div></div>
+      <form className="password-settings" onSubmit={changePassword}>
+        <label>New password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" placeholder="12+ characters"/></label>
+        <label>Confirm password<input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} autoComplete="new-password" placeholder="Repeat password"/></label>
+        {message && <div className={message.includes("successfully") ? "auth-success" : "auth-message"}>{message}</div>}
+        <button className="primary" type="submit" disabled={!strong || password !== confirm}>Update password</button>
+      </form>
     </div>
     <div className="data-panel">
       <div className="data-panel-head"><div><h2>Session</h2><p>End the current authenticated session on this device.</p></div></div>

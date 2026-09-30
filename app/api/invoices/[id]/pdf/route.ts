@@ -118,6 +118,18 @@ function wrap(text: string, font: any, maxWidth: number, size = FONT_SIZE) {
   return lines;
 }
 
+async function embedLogo(pdf:any,url:string|null|undefined){
+  if(!url) return null;
+  try{
+    const res=await fetch(url,{cache:"no-store"});
+    if(!res.ok)return null;
+    const bytes=new Uint8Array(await res.arrayBuffer());
+    const type=(res.headers.get("content-type")||"").toLowerCase();
+    if(type.includes("png")||url.toLowerCase().includes(".png"))return await pdf.embedPng(bytes);
+    return await pdf.embedJpg(bytes);
+  }catch{return null}
+}
+
 function drawBlock(page: any, lines: string[], x: number, firstY: number, regular: any, bold: any) {
   lines.forEach((line, index) => {
     draw(page, line, x, firstY - index * LEADING, index === 0 ? bold : regular);
@@ -169,8 +181,14 @@ export async function GET(
   const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-SemiBold.ttf"));
   const regular = await pdf.embedFont(regularBytes, { subset: true });
   const bold = await pdf.embedFont(boldBytes, { subset: true });
+  const organizationLogo = await embedLogo(pdf, organization?.logo_path);
+  const clientLogo = await embedLogo(pdf, billingClient?.logo_path);
 
   const page = pdf.addPage([PAGE.width, PAGE.height]);
+
+  // Optional logos live in the existing top whitespace and never move the canonical text geometry.
+  if(organizationLogo){ const d=organizationLogo.scale(Math.min(52/organizationLogo.width,28/organizationLogo.height)); page.drawImage(organizationLogo,{x:X.left,y:790-d.height,width:d.width,height:d.height}); }
+  if(clientLogo){ const d=clientLogo.scale(Math.min(52/clientLogo.width,28/clientLogo.height)); page.drawImage(clientLogo,{x:X.right-d.width,y:790-d.height,width:d.width,height:d.height}); }
 
   // BILLING / PAY-TO BLOCK
   const addressLines = Array.isArray(billingClient.address_lines)

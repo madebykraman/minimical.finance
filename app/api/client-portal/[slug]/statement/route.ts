@@ -4,57 +4,50 @@ import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
+import { hashPortalSession } from "@/lib/portal/auth";
 
-const A4: [number, number]=[595.2756,841.8898];
-const BLACK=rgb(0,0,0);
-const GRAY=rgb(.45,.45,.42);
+const A4:[number,number]=[595.2756,841.8898]; const BLACK=rgb(0,0,0); const MUTED=rgb(.42,.42,.40); const LINE=rgb(.86,.85,.82);
 const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
-
-function periodBounds(period:string){
-  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
-  if(period==="month") return [new Date(y,m,1),new Date(y,m+1,0)];
-  if(period==="quarter"){const q=Math.floor(m/3)*3;return [new Date(y,q,1),new Date(y,q+3,0)]}
-  if(period==="half"){const h=m<6?0:6;return [new Date(y,h,1),new Date(y,h+6,0)]}
-  if(period==="year") return [new Date(y,0,1),new Date(y,12,0)];
-  return [new Date(2000,0,1),new Date(2100,11,31)];
-}
-function fmt(d:string){return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
-function within(d:string,start:Date,end:Date){const x=new Date(d+"T00:00:00");return x>=start&&x<=end;}
+function fyStart(now=new Date()){return new Date(now.getMonth()>=3?now.getFullYear():now.getFullYear()-1,3,1)}
+function bounds(period:string){const now=new Date();const end=new Date(now.getFullYear(),now.getMonth()+1,0);if(period==="month")return [new Date(now.getFullYear(),now.getMonth(),1),end];if(period==="3months")return [new Date(now.getFullYear(),now.getMonth()-2,1),end];if(period==="6months")return [new Date(now.getFullYear(),now.getMonth()-5,1),end];if(period==="fy")return [fyStart(now),new Date(fyStart(now).getFullYear()+1,2,31)];return [new Date(2000,0,1),new Date(2100,11,31)]}
+function d(s:string){return s?new Date(s+"T00:00:00"):new Date(0)}
+function fmt(s:string){return new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}
+function label(period:string){if(period==="month")return "This month";if(period==="3months")return "Last 3 months";if(period==="6months")return "Last 6 months";if(period==="fy"){const s=fyStart();return `FY ${s.getFullYear()}-${String(s.getFullYear()+1).slice(-2)}`;}return "All time"}
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string}>}){
-  const {slug}=await context.params; const token=request.nextUrl.searchParams.get("token"); const period=request.nextUrl.searchParams.get("period")||"all";
-  if(!token)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient();
-  const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_token:token});
-  if(error||!data)return new NextResponse("Portal unavailable",{status:404});
-  const payload:any=data; const [start,end]=periodBounds(period);
-  const invoices=(payload.invoices||[]).filter((i:any)=>within(i.issue_date,start,end));
-  const payments=(payload.payments||[]).filter((p:any)=>!p.payment_date||within(p.payment_date,start,end));
-  const billed=invoices.reduce((s:number,i:any)=>s+Number(i.total||0),0);
-  const paid=invoices.reduce((s:number,i:any)=>s+Number(i.paid||0),0);
-  const open=invoices.reduce((s:number,i:any)=>s+Number(i.balance||0),0);
+  const {slug}=await context.params; const session=request.cookies.get("finos_portal_session")?.value||""; const period=request.nextUrl.searchParams.get("period")||"all";
+  if(!session)return new NextResponse("Unauthorized",{status:401});
+  const supabase=await createClient(); const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)});
+  if(error||!data)return new NextResponse("Portal unavailable",{status:401});
+  const payload:any=data; const [start,end]=bounds(period); const invoices=payload.invoices||[]; const payments=payload.payments||[];
+  const transactions:any[]=[
+    ...invoices.filter((i:any)=>d(i.issue_date)<start).map((i:any)=>({date:i.issue_date,type:"invoice",ref:"#"+i.invoice_number,debit:Number(i.total||0),credit:0})),
+    ...payments.filter((p:any)=>p.payment_date&&d(p.payment_date)<start).map((p:any)=>({date:p.payment_date,type:"payment",ref:p.receipt_number||p.id.slice(0,8),debit:0,credit:Number(p.amount||0)})),
+    ...invoices.filter((i:any)=>d(i.issue_date)>=start&&d(i.issue_date)<=end).map((i:any)=>({date:i.issue_date,type:"invoice",ref:"#"+i.invoice_number,debit:Number(i.total||0),credit:0})),
+    ...payments.filter((p:any)=>p.payment_date&&d(p.payment_date)>=start&&d(p.payment_date)<=end).map((p:any)=>({date:p.payment_date,type:"payment",ref:p.receipt_number||p.id.slice(0,8),debit:0,credit:Number(p.amount||0)}))
+  ].sort((a,b)=>a.date.localeCompare(b.date)||a.type.localeCompare(b.type));
+  const opening=transactions.filter((x:any)=>d(x.date)<start).reduce((s:number,x:any)=>s+x.debit-x.credit,0);
+  const current=transactions.filter((x:any)=>d(x.date)>=start&&d(x.date)<=end); let running=opening;
+  const billed=current.reduce((s:number,x:any)=>s+x.debit,0); const paid=current.reduce((s:number,x:any)=>s+x.credit,0); const closing=opening+billed-paid;
 
-  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
+  const pdf=await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans.ttf")),{subset:true});
   const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","DejaVuSans-Bold.ttf")),{subset:true});
   let page=pdf.addPage(A4); const W=A4[0],H=A4[1];
-  const text=(s:string,x:number,y:number,size=9,font:any=regular,color:any=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
-  const right=(s:string,x:number,y:number,size=9,font:any=regular,color:any=BLACK)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font,color)};
-  page.drawText("minimical.finance",{x:48,y:H-55,size:15,font:bold,color:BLACK});
-  text("ACCOUNT STATEMENT",48,H-76,8,bold,GRAY);
-  text(payload.client.legal_name||payload.client.name,48,H-112,11,bold);
-  if(payload.client.email)text(payload.client.email,48,H-128,8,regular,GRAY);
-  const periodTitle=period==="all"?"All time":period==="month"?"This month":period==="quarter"?"This quarter":period==="half"?"This half":"This year";
-  right(periodTitle,W-48,H-112,9,bold); right(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),W-48,H-128,8,regular,GRAY);
-  const cards=[["BILLED",money(billed)],["PAID",money(paid)],["OPEN",money(open)]];
-  cards.forEach(([label,value],i)=>{const x=48+i*166;page.drawRectangle({x,y:H-188,width:150,height:42,borderWidth:.5,borderColor:rgb(.88,.87,.83)});text(label,x+10,H-163,7,bold,GRAY);text(value,x+10,H-180,11,bold)});
-  let y=H-226; page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=20;
-  text("INVOICE",48,y,7,bold,GRAY);text("DATE",132,y,7,bold,GRAY);text("STATUS",230,y,7,bold,GRAY);right("BILLED",405,y,7,bold,GRAY);right("PAID",470,y,7,bold,GRAY);right("OPEN",547,y,7,bold,GRAY);
-  y-=10;page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.4,color:rgb(.88,.87,.83)});
-  for(const i of invoices){y-=22;if(y<100){page=pdf.addPage(A4);y=H-70;page.drawText("ACCOUNT STATEMENT · CONTINUED",{x:48,y,size:8,font:bold,color:GRAY});y-=28;}text("#"+i.invoice_number,48,y,8,bold);text(fmt(i.issue_date),132,y,8);text(i.balance>0?(i.is_overdue?"OVERDUE":"OPEN"):"PAID",230,y,7,bold);right(money(i.total),405,y,8);right(money(i.paid),470,y,8);right(money(i.balance),547,y,8);page.drawLine({start:{x:48,y:y-7},end:{x:W-48,y:y-7},thickness:.25,color:rgb(.92,.91,.88)})}
-  y-=34;text("PAYMENTS",48,y,8,bold,GRAY);y-=17;
-  for(const p of payments){if(y<65){page=pdf.addPage(A4);y=H-70;page.drawText("PAYMENTS · CONTINUED",{x:48,y,size:8,font:bold,color:GRAY});y-=28;}text(fmt(p.payment_date||new Date().toISOString().slice(0,10)),48,y,8);text(money(p.amount),150,y,8,bold);text(String(p.method||"").replace("_"," "),245,y,8);text(p.reference||"Recorded payment",360,y,8,regular,GRAY);y-=18}
-  text("Generated from minimical.finance · This statement consolidates the account; individual invoice PDFs are supporting documents.",48,38,7,regular,GRAY);
+  const text=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>page.drawText(String(s||""),{x,y,size,font,color});
+  const right=(s:string,x:number,y:number,size=8,font:any=regular,color:any=BLACK)=>{const v=String(s||"");text(v,x-font.widthOfTextAtSize(v,size),y,size,font,color)};
+  const header=()=>{text("FinOS",48,H-52,16,bold);text("ACCOUNT STATEMENT",48,H-69,8,bold,MUTED);text(payload.client.legal_name||payload.client.name,48,H-100,11,bold);text(label(period),W-48-(bold.widthOfTextAtSize(label(period),8)),H-100,8,bold);text(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),W-48-regular.widthOfTextAtSize(new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),8),H-116,8,regular,MUTED);
+    const cards=[["OPENING",money(opening)],["BILLED",money(billed)],["PAID",money(paid)],["CLOSING",money(closing)]];
+    cards.forEach(([k,v],idx)=>{const x=48+idx*124;page.drawRectangle({x,y:H-174,width:112,height:40,borderWidth:.5,borderColor:LINE});text(k,x+8,H-151,6.5,bold,MUTED);text(v,x+8,H-167,10,bold)});};
+  header(); let y=H-208;
+  const drawTableHeader=()=>{page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.6,color:BLACK});y-=18;text("DATE",48,y,6.5,bold,MUTED);text("TYPE",125,y,6.5,bold,MUTED);text("REFERENCE",195,y,6.5,bold,MUTED);right("DEBIT",415,y,6.5,bold,MUTED);right("CREDIT",480,y,6.5,bold,MUTED);right("BALANCE",547,y,6.5,bold,MUTED);y-=10;page.drawLine({start:{x:48,y},end:{x:W-48,y},thickness:.4,color:LINE)};
+  };
+  drawTableHeader();
+  for(const tx of current){if(y<90){page=pdf.addPage(A4);y=H-60;text("FinOS",48,y,14,bold);y-=22;drawTableHeader();}
+    running+=tx.debit-tx.credit;text(fmt(tx.date),48,y,7.5);text(tx.type==="invoice"?"Invoice":"Payment",125,y,7.5,bold);text(tx.ref,195,y,7.5);right(tx.debit?money(tx.debit):"—",415,y,7.5);right(tx.credit?money(tx.credit):"—",480,y,7.5);right(money(running),547,y,7.5);page.drawLine({start:{x:48,y:y-7},end:{x:W-48,y:y-7},thickness:.25,color:LINE});y-=19;
+  }
+  if(!current.length)text("No transactions in this period.",48,y,8,regular,MUTED);
+  text("Statement of account · Invoice charges are debits; recorded payments are credits.",48,42,6.5,regular,MUTED);
   const bytes=await pdf.save();
-  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="${payload.client.name}-Account-Statement.pdf"`,"Cache-Control":"private, no-store"}});
+  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition:`attachment; filename="${String(payload.client.name).replace(/[^a-z0-9]+/gi,"-")}-Account-Statement.pdf"`,"Cache-Control":"private, no-store"}});
 }

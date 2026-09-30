@@ -15,8 +15,8 @@ const X = {
   right: 536.60,
   divider: 419.30,
   metaRight: 520.20,
-  invoiceLabel: 470.43,
-  dateLabel: 470.43,
+  invoiceLabel: 520.20,
+  dateLabel: 520.20,
   descriptionCenter: 240.86,
   amountCenter: 477.95,
 };
@@ -176,7 +176,6 @@ export async function GET(
     ? billingClient.address_lines.map((line: unknown) => safe(line))
     : [];
 
-  draw(page, "BILLED TO:", X.left, Y.billedLabel, regular, FONT_SIZE);
   page.drawText("BILLED TO:", { x: X.left, y: Y.billedLabel, size: FONT_SIZE, font: bold, color: BLACK });
   const billedLines = [
     billingClient.legal_name || billingClient.name || "Client",
@@ -203,9 +202,9 @@ export async function GET(
   );
 
   // RIGHT META BLOCK
-  page.drawText("INVOICE NO:", { x: X.invoiceLabel, y: Y.invoiceLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  drawRight(page, "INVOICE NO:", X.invoiceLabel, Y.invoiceLabel, bold);
   drawRight(page, String(invoice.invoice_number ?? ""), X.metaRight, Y.invoiceNumber, regular);
-  page.drawText("DATE:", { x: X.dateLabel, y: Y.dateLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  drawRight(page, "DATE:", X.dateLabel, Y.dateLabel, bold);
   drawRight(page, formatDate(invoice.issue_date), X.metaRight, Y.dateValue, regular);
 
   // CANONICAL LEGACY TABLE — no card, no fill, no modern invoice treatment.

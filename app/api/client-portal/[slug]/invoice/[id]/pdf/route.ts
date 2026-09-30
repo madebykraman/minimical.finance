@@ -22,6 +22,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
     supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})
   ]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
+  await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"invoice_pdf_downloaded",p_resource_type:"invoice",p_resource_id:id});
   const org:any=orgRaw||{}; const invoice=(data as any).invoices.find((i:any)=>i.id===id);if(!invoice)return new NextResponse("Invoice not found",{status:404});
   const client=(data as any).client;const contents=[...(invoice.contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
   const total=contents.reduce((s:number,i:any)=>s+(i.priced?Number(i.amount??Number(i.quantity||1)*Number(i.rate||0)):0),0);const hasUnpriced=contents.some((i:any)=>!i.priced);

@@ -41,6 +41,13 @@ export type Database = {
             foreignKeyName: "activity_log_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "activity_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -106,6 +113,13 @@ export type Database = {
             foreignKeyName: "documents_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "documents_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -158,6 +172,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_contents_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
           {
             foreignKeyName: "invoice_contents_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -263,6 +284,13 @@ export type Database = {
             foreignKeyName: "payments_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -326,7 +354,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      invoice_financials: {
+        Row: {
+          balance: number | null
+          client_id: string | null
+          days_overdue: number | null
+          due_date: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          is_overdue: boolean | null
+          issue_date: string | null
+          paid: number | null
+          project_id: string | null
+          source_total: number | null
+          status: Database["public"]["Enums"]["invoice_status"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never

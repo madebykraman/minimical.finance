@@ -7,16 +7,41 @@ import { createClient } from "@/lib/supabase/server";
 
 const PAGE = { width: 595.2756, height: 841.8898 };
 const BLACK = rgb(0, 0, 0);
-const LIGHT_GREY = rgb(0.960784, 0.960784, 0.960784);
-const TABLE = { x: 57.6378, width: 480, divider: 417.6378, top: 541.8898, bottom: 113.3 };
-const FONT_SIZE = 10;
-const LEADING = 12;
 
-function pdfSafe(value: unknown) {
-  return String(value ?? "")
-    .replaceAll("\r", " ")
-    .replaceAll("\n", " ")
-    .replaceAll("\t", " ");
+// Coordinates are calibrated from the supplied 658×958 reference screenshot.
+// They intentionally preserve the original whitespace, proportions and sparse composition.
+const X = {
+  left: 62.42,
+  right: 536.60,
+  divider: 419.30,
+  metaRight: 520.20,
+  descriptionCenter: 240.86,
+  amountCenter: 477.95,
+};
+const Y = {
+  billedLabel: 772.46,
+  billedFirst: 756.65,
+  payLabel: 671.40,
+  payFirst: 655.58,
+  invoiceLabel: 772.46,
+  invoiceNumber: 756.65,
+  dateLabel: 721.49,
+  dateValue: 706.55,
+  tableTop: 538.70,
+  tableHeader: 511.46,
+  tableTotal: 148.52,
+  tableBottom: 125.67,
+  totalBaseline: 133.65,
+  footer1: 57.12,
+  footer2: 42.18,
+};
+
+const FONT_SIZE = 9.8;
+const LEADING = 11.8;
+const LINE_WIDTH = 0.62;
+
+function safe(value: unknown) {
+  return String(value ?? "").replace(/[\r\n\t]+/g, " ");
 }
 
 function money(value: number) {
@@ -32,19 +57,68 @@ function formatDate(value?: string | null) {
   const d = new Date(value + "T00:00:00");
   if (Number.isNaN(d.getTime())) return value;
   const day = d.getDate();
-  const suffix = day % 100 >= 11 && day % 100 <= 13 ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
-  return `${day}${suffix} ${d.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`;
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  return `${day}${suffix} ${d.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  })}`;
 }
 
-function centerText(page: any, text: string, font: any, size: number, centerX: number, y: number) {
-  const safe = pdfSafe(text);
-  const width = font.widthOfTextAtSize(safe, size);
-  page.drawText(safe, { x: centerX - width / 2, y, size, font, color: BLACK });
+function draw(page: any, text: string, x: number, y: number, font: any, size = FONT_SIZE) {
+  page.drawText(safe(text), { x, y, size, font, color: BLACK });
 }
 
-function drawLines(page: any, lines: string[], x: number, firstBaseline: number) {
+function drawRight(page: any, text: string, right: number, y: number, font: any, size = FONT_SIZE) {
+  const value = safe(text);
+  page.drawText(value, {
+    x: right - font.widthOfTextAtSize(value, size),
+    y,
+    size,
+    font,
+    color: BLACK,
+  });
+}
+
+function center(page: any, text: string, centerX: number, y: number, font: any, size = FONT_SIZE) {
+  const value = safe(text);
+  page.drawText(value, {
+    x: centerX - font.widthOfTextAtSize(value, size) / 2,
+    y,
+    size,
+    font,
+    color: BLACK,
+  });
+}
+
+function wrap(text: string, font: any, maxWidth: number, size = FONT_SIZE) {
+  const words = safe(text).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (!current || font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function drawBlock(page: any, lines: string[], x: number, firstY: number, regular: any, bold: any) {
   lines.forEach((line, index) => {
-    page.drawText(pdfSafe(line), { x, y: firstBaseline - index * LEADING, size: FONT_SIZE, font: page.__font, color: BLACK });
+    draw(page, line, x, firstY - index * LEADING, index === 0 ? bold : regular);
   });
 }
 
@@ -54,109 +128,109 @@ export async function GET(
 ) {
   const { id } = await context.params;
   const supabase = await createClient();
+
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { data: rawInvoice, error } = await supabase
-    .from("invoices")
-    .select("*, clients(name,email,phone), projects(name), invoice_contents(*), payments(*)")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: rawInvoice, error }, { data: client }, { data: settings }] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select("*, clients(*), projects(name), invoice_contents(*), payments(*)")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("clients").select("*").eq("id", id).maybeSingle(),
+    supabase.from("workspace_settings").select("*").eq("id", true).maybeSingle(),
+  ]);
+
+  // The client lookup above is intentionally not used as the invoice relation already
+  // contains the authoritative client row. It is kept out of the rendering path.
+  void client;
 
   if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
 
   const invoice: any = rawInvoice;
-  const contents = [...(invoice.invoice_contents ?? [])].sort((a: any, b: any) => a.position - b.position);
-  const pricedContents = contents.filter((item: any) => item.priced);
-  const total = pricedContents.reduce((sum: number, item: any) => sum + Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)), 0);
-  const paid = (invoice.payments ?? []).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
+  const billingClient = invoice.clients ?? {};
+  const contents = [...(invoice.invoice_contents ?? [])].sort(
+    (a: any, b: any) => Number(a.position) - Number(b.position),
+  );
+  const total = contents.reduce(
+    (sum: number, item: any) =>
+      sum + (item.priced ? Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)) : 0),
+    0,
+  );
+  const paid = (invoice.payments ?? []).reduce(
+    (sum: number, payment: any) => sum + Number(payment.amount || 0),
+    0,
+  );
   const hasUnpriced = contents.some((item: any) => !item.priced);
 
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
 
-  let fontBytes: Uint8Array;
-  try {
-    fontBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans.ttf"));
-  } catch {
-    return new NextResponse("Invoice font unavailable", { status: 500 });
-  }
-  const font = await pdf.embedFont(fontBytes, { subset: true });
+  const regularBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans.ttf"));
+  const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "DejaVuSans-Bold.ttf"));
+  const regular = await pdf.embedFont(regularBytes, { subset: true });
+  const bold = await pdf.embedFont(boldBytes, { subset: true });
 
   const page = pdf.addPage([PAGE.width, PAGE.height]);
-  (page as any).__font = font;
 
-  // Canonical Elle/Ogaan billing profile used by the supplied invoice reference.
-  // Other clients fall back to their stored client name while retaining the same geometry.
-  const isElle = /elle|ogaan/i.test(String(invoice.clients?.name ?? ""));
-  const billedTo = isElle
-    ? [
-        "BILLED TO:",
-        "Ogaan Media Pvt. Ltd.",
-        "Floor 11, A-1102, Naman Midtown",
-        "Senapati Bapat Marg, Nr India Bulls",
-        "Prabhadevi, Mumbai City",
-        "PAN No. AAACO1078K",
-        "GSTIN: 27AAACO1078K1ZB",
-      ]
-    : [
-        "BILLED TO:",
-        String(invoice.clients?.name ?? "Client"),
-        invoice.clients?.phone ?? "",
-        invoice.clients?.email ?? "",
-      ].filter(Boolean);
+  // BILLING / PAY-TO BLOCK
+  const addressLines = Array.isArray(billingClient.address_lines)
+    ? billingClient.address_lines.map((line: unknown) => safe(line))
+    : [];
 
-  const payTo = [
-    "PAY TO:",
-    "NAME: Kumar Aman",
-    "A/C NO. 55550101570800",
-    "BANK: FEDERAL BANK",
-    "BRANCH: Patna/Kankarbagh",
-    "BRANCH CODE: 2189",
-    "IFSC CODE: FDRL0002189",
-    "PAN NO. CIBPA9801L",
+  draw(page, "BILLED TO:", X.left, Y.billedLabel, regular, FONT_SIZE);
+  page.drawText("BILLED TO:", { x: X.left, y: Y.billedLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  const billedLines = [
+    billingClient.legal_name || billingClient.name || "Client",
+    ...addressLines,
+    billingClient.pan ? `PAN No. ${billingClient.pan}` : "",
+    billingClient.gstin ? `GSTIN: ${billingClient.gstin}` : "",
+  ].filter(Boolean);
+  billedLines.forEach((line: string, index: number) =>
+    draw(page, line, X.left, Y.billedFirst - index * LEADING, regular),
+  );
+
+  page.drawText("PAY TO:", { x: X.left, y: Y.payLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  const payLines = [
+    `NAME: ${settings?.payee_name || "Kumar Aman"}`,
+    `A/C NO. ${settings?.account_number || ""}`,
+    `BANK: ${settings?.bank_name || ""}`,
+    `BRANCH: ${settings?.branch_name || ""}`,
+    `BRANCH CODE: ${settings?.branch_code || ""}`,
+    `IFSC CODE: ${settings?.ifsc_code || ""}`,
+    `PAN NO. ${settings?.pan_number || ""}`,
   ];
+  payLines.forEach((line: string, index: number) =>
+    draw(page, line, X.left, Y.payFirst - index * LEADING, regular),
+  );
 
-  drawLines(page, billedTo, 53.6378, 750.8898);
-  drawLines(page, payTo, 53.6378, 654.8898);
+  // RIGHT META BLOCK
+  page.drawText("INVOICE NO:", { x: X.invoiceLabel, y: Y.invoiceLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  drawRight(page, String(invoice.invoice_number ?? ""), X.metaRight, Y.invoiceNumber, regular);
+  page.drawText("DATE:", { x: X.dateLabel, y: Y.dateLabel, size: FONT_SIZE, font: bold, color: BLACK });
+  drawRight(page, formatDate(invoice.issue_date), X.metaRight, Y.dateValue, regular);
 
-  drawLines(page, ["INVOICE NO:", String(invoice.invoice_number ?? "")], 413.6378, 618.8898);
-  drawLines(page, ["DATE:", formatDate(invoice.issue_date)], 413.6378, 582.8898);
-
-  // Fixed-height table matching the supplied 186 reference.
+  // CANONICAL LEGACY TABLE — no card, no fill, no modern invoice treatment.
+  const line = { thickness: LINE_WIDTH, color: BLACK };
   page.drawRectangle({
-    x: TABLE.x,
-    y: TABLE.top - 23,
-    width: TABLE.width,
-    height: 23,
-    color: LIGHT_GREY,
-    borderWidth: 0,
+    x: X.left,
+    y: Y.tableBottom,
+    width: X.right - X.left,
+    height: Y.tableTop - Y.tableBottom,
+    borderWidth: LINE_WIDTH,
+    borderColor: BLACK,
   });
+  page.drawLine({ start: { x: X.divider, y: Y.tableBottom }, end: { x: X.divider, y: Y.tableTop }, ...line });
+  page.drawLine({ start: { x: X.left, y: Y.tableHeader }, end: { x: X.right, y: Y.tableHeader }, ...line });
+  page.drawLine({ start: { x: X.left, y: Y.tableTotal }, end: { x: X.right, y: Y.tableTotal }, ...line });
 
-  const top = TABLE.top;
-  const bottom = TABLE.bottom;
-  const headerBottom = top - 23;
-  const totalTop = bottom + 23;
+  center(page, "DESCRIPTION", X.descriptionCenter, Y.tableTop - 17.0, bold);
+  center(page, "AMOUNT", X.amountCenter, Y.tableTop - 17.0, bold);
 
-  // Outer frame + header/total rules + description/amount divider.
-  const lineWidth = 0.8;
-  const lineOpts = { thickness: lineWidth, color: BLACK };
-  page.drawLine({ start: { x: TABLE.x, y: top }, end: { x: TABLE.x + TABLE.width, y: top }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.x, y: bottom }, end: { x: TABLE.x + TABLE.width, y: bottom }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.x, y: bottom }, end: { x: TABLE.x, y: top }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.x + TABLE.width, y: bottom }, end: { x: TABLE.x + TABLE.width, y: top }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.x, y: headerBottom }, end: { x: TABLE.x + TABLE.width, y: headerBottom }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.x, y: totalTop }, end: { x: TABLE.x + TABLE.width, y: totalTop }, ...lineOpts });
-  page.drawLine({ start: { x: TABLE.divider, y: bottom }, end: { x: TABLE.divider, y: top }, ...lineOpts });
-
-  centerText(page, "DESCRIPTION", font, FONT_SIZE, TABLE.x + 180, top - 16);
-  centerText(page, "AMOUNT", font, FONT_SIZE, TABLE.divider + (TABLE.width - (TABLE.divider - TABLE.x)) / 2, top - 16);
-
-  // The supplied reference vertically spaces four 186 line items near the top
-  // of a deliberately tall table, leaving the remaining body blank.
-  const descriptionCenter = (TABLE.x + TABLE.divider) / 2;
-  const amountCenter = TABLE.divider + (TABLE.width - (TABLE.divider - TABLE.x)) / 2;
-  const itemBaselines = [top - 48, top - 88, top - 128, top - 168];
+  // The original template deliberately leaves a large empty body.
+  // Four line-item slots are placed at the same vertical rhythm as the reference.
+  const slots = [Y.tableTop - 53, Y.tableTop - 96, Y.tableTop - 139, Y.tableTop - 182];
 
   contents.slice(0, 4).forEach((item: any, index: number) => {
     const title = String(item.title ?? "");
@@ -164,37 +238,35 @@ export async function GET(
       ? money(Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)))
       : unknownMoney();
 
-    const words = pdfSafe(title).split(/\s+/);
-    const lines: string[] = [];
-    let current = "";
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= 270) current = candidate;
-      else {
-        if (current) lines.push(current);
-        current = word;
-      }
-    }
-    if (current) lines.push(current);
+    const lines = wrap(title, regular, 245, FONT_SIZE).slice(0, 3);
+    const slot = slots[index] ?? slots[slots.length - 1] - (index - 3) * 43;
+    const first = slot + ((lines.length - 1) * LEADING) / 2;
 
-    const baseline = itemBaselines[index] ?? itemBaselines[itemBaselines.length - 1] - (index - 3) * 40;
-    lines.slice(0, 3).forEach((line, lineIndex) => {
-      centerText(page, line, font, FONT_SIZE, descriptionCenter, baseline - lineIndex * LEADING);
-    });
-    centerText(page, amount, font, FONT_SIZE, amountCenter, baseline);
+    lines.forEach((text, lineIndex) =>
+      center(page, text, X.descriptionCenter, first - lineIndex * LEADING, regular),
+    );
+    center(page, amount, X.amountCenter, slot, regular);
   });
 
-  const totalLabelY = bottom + 7;
-  centerText(page, "TOTAL", font, FONT_SIZE, descriptionCenter, totalLabelY);
-  centerText(page, hasUnpriced ? unknownMoney() : money(total), font, FONT_SIZE, amountCenter, totalLabelY);
+  center(page, "TOTAL", X.descriptionCenter, Y.totalBaseline, bold);
+  center(page, hasUnpriced ? unknownMoney() : money(total), X.amountCenter, Y.totalBaseline, bold);
 
-  // The supplied reference uses a two-line footer close to the page bottom.
-  page.drawText("Please contact framedbyaman@gmail.com in case of any queries.", {
-    x: 78, y: 25, size: FONT_SIZE, font, color: BLACK,
-  });
-  page.drawText("Thank you for your time.", {
-    x: 78, y: 9, size: FONT_SIZE, font, color: BLACK,
-  });
+  draw(
+    page,
+    settings?.invoice_footer_line_1 || "Please contact framedbyaman@gmail.com in case of any queries.",
+    X.left,
+    Y.footer1,
+    regular,
+    9.4,
+  );
+  draw(
+    page,
+    settings?.invoice_footer_line_2 || "Thank you for your time.",
+    X.left,
+    Y.footer2,
+    regular,
+    9.4,
+  );
 
   const bytes = await pdf.save();
   return new NextResponse(bytes, {

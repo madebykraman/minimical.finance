@@ -6,8 +6,6 @@ import {
   IndianRupee, LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt,
   Search, Settings2, Sparkles, WalletCards, X
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/database.types";
 import {
   calculateStats,
   contentAmount,
@@ -19,8 +17,9 @@ import {
   statusLabel,
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
+import { createClient } from "@/lib/supabase/client";
+import { createInvoice as createInvoiceRecord, listInvoices, logActivity, recordPayment as recordPaymentRecord, saveInvoice as saveInvoiceRecord, setInvoiceStatus } from "@/lib/finance/repository";
 
-const supabase = createClient();
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
@@ -54,86 +53,36 @@ export default function Home() {
 
   async function loadInvoices() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("invoices")
-      .select("*, clients(name), projects(name), invoice_contents(*), payments(*), activity_log(*)")
-      .order("issue_date", { ascending: false });
-    if (error) {
-      console.error(error);
-      setActionError(error.message);
+    const result = await listInvoices();
+    if (result.error) {
+      setActionError(result.error);
       setLoading(false);
       return [] as Invoice[];
     }
-    const mapped = (data ?? []).map(mapInvoice);
     setActionError("");
-    setInvoices(mapped);
-    setSelected(current => current ? (mapped.find(i => i.id === current.id) ?? current) : current);
+    setInvoices(result.data);
+    setSelected(current => current ? (result.data.find(i => i.id === current.id) ?? current) : current);
     setLoading(false);
-    return mapped;
-  }
-
-  async function logActivity(invoiceId: string | null, action: string, metadata: Record<string, unknown> = {}) {
-    const { error } = await supabase.from("activity_log").insert({ invoice_id: invoiceId, action, metadata: metadata as any });
-    if (error) console.warn("Activity log failed:", error.message);
+    return result.data;
   }
 
   async function markStatus(invoice: Invoice, next: Status) {
-    const { error } = await supabase
-      .from("invoices")
-      .update({ status: next, updated_at: new Date().toISOString() })
-      .eq("id", invoice.id);
-    if (error) return setActionError(error.message);
-    await logActivity(invoice.id, "invoice_status_changed", { from: invoice.status, to: next });
+    const error = await setInvoiceStatus(invoice, next);
+    if (error) return setActionError(error);
     await loadInvoices();
   }
 
   async function recordPayment(invoice: Invoice, amount: number, date: string, method: string, reference: string) {
-    if (!Number.isFinite(amount) || amount <= 0) return setActionError("Enter a valid payment amount.");
-    const balance = Math.max(invoiceTotal(invoice) - paidTotal(invoice), 0);
-    if (amount > balance) return setActionError("Payment cannot exceed the current invoice balance.");
-
-    const { error } = await supabase.from("payments").insert({
-      invoice_id: invoice.id,
-      amount,
-      payment_date: date || null,
-      method: method as PaymentMethod,
-      reference: reference || null,
-    });
-    if (error) return setActionError(error.message);
-
-    const nextPaid = paidTotal(invoice) + amount;
-    const nextStatus: Status = nextPaid >= invoiceTotal(invoice) ? "paid" : "partially_paid";
-    const statusUpdate = await supabase.from("invoices").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", invoice.id);
-    if (statusUpdate.error) return setActionError(statusUpdate.error.message);
-    await logActivity(invoice.id, "payment_recorded", { amount, payment_date: date || null, method, reference: reference || null });
+    const error = await recordPaymentRecord(invoice, amount, date, method as PaymentMethod, reference);
+    if (error) return setActionError(error);
     setPaymentFor(null);
     setActionError("");
     await loadInvoices();
   }
 
   async function saveInvoice(next: Invoice) {
-    const { error } = await supabase.from("invoices").update({
-      notes: next.notes ?? null,
-      adjustment_note: next.adjustment ?? null,
-      issue_date: next.date,
-      due_date: next.dueDate ?? null,
-      status: next.status,
-      updated_at: new Date().toISOString(),
-    }).eq("id", next.id);
-    if (error) return alert(error.message);
-
-    const deleted = await supabase.from("invoice_contents").delete().eq("invoice_id", next.id);
-    if (deleted.error) return setActionError(deleted.error.message);
-    const rows = next.contents.map((c, index) => ({
-      invoice_id: next.id, position: index, kind: c.kind, title: c.title,
-      quantity: c.quantity || 1, rate: c.rate ?? null,
-      amount: c.priced ? contentAmount(c) : null, priced: c.priced, note: c.note ?? null,
-    }));
-    if (rows.length) {
-      const inserted = await supabase.from("invoice_contents").insert(rows);
-      if (inserted.error) return setActionError(inserted.error.message);
-    }
-    await logActivity(next.id, "invoice_updated", { content_count: rows.length, total: invoiceTotal(next) });
+    const error = await saveInvoiceRecord(next);
+    if (error) return setActionError(error);
     await loadInvoices();
     setSelected(null);
   }
@@ -141,35 +90,8 @@ export default function Home() {
   async function createInvoice(draft: {
     number: string; client: string; project: string; date: string; dueDate: string; contents: Content[];
   }) {
-    let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).maybeSingle();
-    if (!client) {
-      const result = await supabase.from("clients").insert({ name: draft.client }).select("id").single();
-      if (result.error) return alert(result.error.message);
-      client = result.data;
-    }
-    let { data: project } = await supabase.from("projects").select("id").eq("name", draft.project).eq("client_id", client.id).maybeSingle();
-    if (!project) {
-      const result = await supabase.from("projects").insert({ name: draft.project, client_id: client.id }).select("id").single();
-      if (result.error) return alert(result.error.message);
-      project = result.data;
-    }
-    const result = await supabase.from("invoices").insert({
-      invoice_number: draft.number.trim(), client_id: client.id, project_id: project.id,
-      issue_date: draft.date, due_date: draft.dueDate || null,
-      status: "draft", source_total: draft.contents.reduce((s, c) => s + contentAmount(c), 0),
-    }).select("id").single();
-    if (result.error) return alert(result.error.message);
-
-    const rows = draft.contents.map((c, index) => ({
-      invoice_id: result.data.id, position: index, kind: c.kind, title: c.title,
-      quantity: c.quantity || 1, rate: c.rate ?? null, amount: c.priced ? contentAmount(c) : null,
-      priced: c.priced, note: c.note ?? null,
-    }));
-    if (rows.length) {
-      const inserted = await supabase.from("invoice_contents").insert(rows);
-      if (inserted.error) return setActionError(inserted.error.message);
-    }
-    await logActivity(result.data.id, "invoice_created", { invoice_number: draft.number.trim(), total: draft.contents.reduce((s, c) => s + contentAmount(c), 0) });
+    const result = await createInvoiceRecord(draft);
+    if (result.error) return setActionError(result.error);
     setComposer(false);
     await loadInvoices();
   }

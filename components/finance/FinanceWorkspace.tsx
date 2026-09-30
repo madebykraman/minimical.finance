@@ -383,8 +383,8 @@ function activityLabel(action:string) {
   } as Record<string,string>)[action] ?? action.replaceAll("_"," ");
 }
 
-function Kpi({icon,label,value,note,accent}:{icon:React.ReactNode;label:string;value:string;note:string;accent?:boolean}) {
-  return <div className={"kpi" + (accent ? " accent" : "")}><div className="kpi-icon">{icon}</div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{note}</div></div>;
+function Kpi({icon,label,value,note,detail,accent}:{icon?:React.ReactNode;label:string;value:string;note?:string;detail?:string;accent?:boolean}) {
+  return <div className={"kpi" + (accent ? " accent" : "")}><div className="kpi-icon">{icon ?? <IndianRupee size={15}/>}</div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{detail ?? note ?? ""}</div></div>;
 }
 
 function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;onStatus:(i:Invoice,s:Status)=>void}) {

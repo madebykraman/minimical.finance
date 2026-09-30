@@ -25,7 +25,7 @@ function statusMatch(i:any,s:StatusFilter){if(s==="all")return true;if(s==="paid
 export default function ClientPortalPage({params}:{params:Promise<{slug:string}>}){
   const [slug,setSlug]=useState(""); const [token,setToken]=useState(""); const [data,setData]=useState<PortalData|null>(null);
   const [period,setPeriod]=useState<Period>("all"); const [status,setStatus]=useState<StatusFilter>("all"); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
-  const [password,setPassword]=useState(""); const [loginBusy,setLoginBusy]=useState(false); const [expandedPayment,setExpandedPayment]=useState<string|null>(null);
+  const [password,setPassword]=useState(""); const [loginBusy,setLoginBusy]=useState(false); const [expandedPayment,setExpandedPayment]=useState<string|null>(null); const [profileOpen,setProfileOpen]=useState(false); const [profile,setProfile]=useState<any>({}); const [profileSaving,setProfileSaving]=useState(false); const [profileMessage,setProfileMessage]=useState("");
   useEffect(()=>{params.then(p=>{setSlug(p.slug);setToken(new URLSearchParams(window.location.search).get("token")||"")})},[params]);
   useEffect(()=>{if(slug)load()},[slug]);
   async function load(){

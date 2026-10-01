@@ -4,7 +4,7 @@ import "./globals.css";
 // UI typography and visual primitives are defined by the dark-native product system.
 
 export const metadata: Metadata = {
-  title: "minimical finance",
+  title: "Finance Workspace",
   description: "Private financial workspace.",
 };
 

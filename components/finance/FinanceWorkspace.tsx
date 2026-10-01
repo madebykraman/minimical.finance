@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -69,6 +70,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizationsReady, setOrganizationsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
@@ -154,12 +156,15 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           return;
         }
 
+        // No valid remembered workspace means the user is intentionally in the
+        // global workspace. Do not gate the application behind a second screen.
         setOrganizationId(null);
-        setWorkspaceReady(false);
-        if (stored) {
-          window.localStorage.removeItem(workspaceStorageKey);
-          if (legacy) window.localStorage.removeItem(WORKSPACE_KEY);
+        setWorkspaceReady(true);
+        window.localStorage.setItem(workspaceStorageKey, "all");
+        if (legacy && workspaceStorageKey !== WORKSPACE_KEY) {
+          window.localStorage.removeItem(WORKSPACE_KEY);
         }
+
       });
 
     return () => {
@@ -257,14 +262,16 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
   const selectOrganization = (id: string | null) => {
+    const workspace = id ?? "all";
     setOrganizationId(id);
     setWorkspaceReady(true);
+    setMobileMoreOpen(false);
+
     if (typeof window !== "undefined") {
-      const workspace = id ?? "all";
       window.localStorage.setItem(workspaceStorageKey, workspace);
       const params = new URLSearchParams(window.location.search);
       params.set("organization", workspace);
-      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+      router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
       if (workspaceStorageKey !== WORKSPACE_KEY) {
         window.localStorage.removeItem(WORKSPACE_KEY);
       }
@@ -272,9 +279,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   };
 
   const changeWorkspace = () => {
-    setMobileMoreOpen(false);
-    setWorkspaceReady(false);
+    selectOrganization(null);
   };
+
 
   if (!authReady) {
     return (
@@ -300,8 +307,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     );
   }
 
-  if (!workspaceReady) {
-    return (
+  return (
       <OrganizationWelcome
         organizations={organizations}
         onSelect={id => selectOrganization(id)}
@@ -359,7 +365,14 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         </>
       }
     >
-      {activeView === "overview" && (
+      {activeView === "overview" && !activeOrganization && (
+        <OrganizationWelcome
+          organizations={organizations}
+          onSelect={id => selectOrganization(id)}
+          onAll={() => selectOrganization(null)}
+        />
+      )}
+      {activeView === "overview" && activeOrganization && (
         <Overview
           stats={stats}
           invoices={orgInvoices}
@@ -367,7 +380,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           onOpen={setSelected}
           onNavigate={view => setActiveView(view)}
         />
-      )}
+      )}}
       {activeView === "invoices" && (
         <InvoiceView
           filtered={filtered}

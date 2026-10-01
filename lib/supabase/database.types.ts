@@ -615,7 +615,6 @@ export type Database = {
         }
         Insert: {
           accent_hex?: string
-          accent_hex?: string
           account_number?: string | null
           address_lines?: Json
           bank_name?: string | null
@@ -642,6 +641,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accent_hex?: string
           account_number?: string | null
           address_lines?: Json
           bank_name?: string | null

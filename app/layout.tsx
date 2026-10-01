@@ -4,8 +4,8 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Workspace",
-  description: "Private authenticated workspace.",
+  title: "minimical finance",
+  description: "Private financial workspace.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

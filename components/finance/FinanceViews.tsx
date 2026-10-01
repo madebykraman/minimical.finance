@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
-  CircleAlert, FileText, Filter, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, X, LogOut
+  CircleAlert, FileText, Filter, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut
 } from "lucide-react";
 import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,

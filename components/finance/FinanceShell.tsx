@@ -2,7 +2,6 @@
 
 import type { ReactNode, CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileText, FolderKanban, LayoutDashboard, LogOut,
   MoreHorizontal, Plus, Receipt, RefreshCw, Search, Settings2, WalletCards, X
@@ -20,10 +19,9 @@ const navigation:Array<[FinanceView,typeof LayoutDashboard,string,string]>=[
 export function FinanceShell({activeView,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,mobileMoreOpen,setMobileMoreOpen,children,overlays}:{
  activeView:FinanceView;activeOrganization:WorkspaceOrganization|null;invoiceCount:number;session:WorkspaceSession;query:string;setQuery:(v:string)=>void;actionError:string;clearError:()=>void;onRefresh:()=>void;onSelectWorkspace:(id:string)=>void;organizations:WorkspaceOrganization[];onSignOut:()=>void;onNewInvoice:()=>void;onNewClient:()=>void;onNewProject:()=>void;mobileMoreOpen:boolean;setMobileMoreOpen:(v:boolean)=>void;children:ReactNode;overlays?:ReactNode
 }){
- const router=useRouter(); const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");
+ const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");
  useEffect(()=>{if(!workspaceMenuOpen)return;const key=(e:KeyboardEvent)=>e.key==="Escape"&&setWorkspaceMenuOpen(false);const click=(e:MouseEvent)=>{const t=e.target as Node;if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))setWorkspaceMenuOpen(false)};document.addEventListener("keydown",key);document.addEventListener("mousedown",click);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("mousedown",click)}},[workspaceMenuOpen]);
  const secondary=navigation.filter(([k])=>!["overview","invoices","payments","clients"].includes(k));
- const routeFor=(path:string)=>activeOrganization?.id ? `${path}?organization=${encodeURIComponent(activeOrganization.id)}` : path;
  const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
  const filteredOrgs=activeOrgs.filter(o=>String(o.name||"").toLowerCase().includes(workspaceFilter.trim().toLowerCase()));
  const pageTitle=navigation.find(([key])=>key===activeView)?.[2]||"Overview";
@@ -44,11 +42,11 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
    <nav className="finance-nav">
     <div className="nav-group">
       <span className="nav-group-label">Workspace</span>
-      {navigation.filter(([key])=>["overview","invoices","payments","clients"].includes(key)).map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}
+      {navigation.filter(([key])=>["overview","invoices","payments","clients"].includes(key)).map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}
     </div>
     <div className="nav-group">
       <span className="nav-group-label">Manage</span>
-      {secondary.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span></button>)}
+      {secondary.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}><Icon size={16}/><span>{label}</span></button>)}
     </div>
    </nav>
    <div className="sidebar-bottom">
@@ -74,10 +72,10 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
   </section>
 
   <nav className="mobile-nav" aria-label="Primary navigation">
-   {navigation.filter(([k])=>["overview","invoices","payments","clients"].includes(k)).map(([key,Icon,label,path])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);router.push(routeFor(path))}}><Icon size={17}/><span>{label}</span></button>)}
+   {navigation.filter(([k])=>["overview","invoices","payments","clients"].includes(k)).map(([key,Icon,label,path])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{label}</span></button>)}
    <button className={mobileMoreOpen||!["overview","invoices","payments","clients"].includes(activeView)?"active":""} onClick={()=>setMobileMoreOpen(!mobileMoreOpen)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={17}/><span>More</span></button>
   </nav>
-  {mobileMoreOpen&&<div className="mobile-more-sheet" role="dialog" aria-label="More workspace sections" onMouseDown={()=>setMobileMoreOpen(false)}><div className="mobile-more-panel" onMouseDown={e=>e.stopPropagation()}>{secondary.map(([key,Icon,label,path])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);router.push(routeFor(path))}}><Icon size={17}/><span>{label}</span></button>)}</div></div>}
+  {mobileMoreOpen&&<div className="mobile-more-sheet" role="dialog" aria-label="More workspace sections" onMouseDown={()=>setMobileMoreOpen(false)}><div className="mobile-more-panel" onMouseDown={e=>e.stopPropagation()}>{secondary.map(([key,Icon,label,path])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{label}</span></button>)}</div></div>}
   {overlays}
  </main>;
 }

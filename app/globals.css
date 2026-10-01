@@ -771,3 +771,111 @@ input::placeholder,textarea::placeholder{color:#59626e}
   .workspace-switcher-menu{right:0;width:230px}
   .workspace-landing{margin-top:7vh}
 }
+
+
+/* Final minimal-first pass */
+.data-panel,.settings-section-card,.portal-card,.portal-panel,.client-card,.project-card,.invoice-register,.operations-register,.reports-page>section{
+  border-color:#222831;
+}
+.data-panel-head,.block-head,.operations-intro,.client-card,.project-card{
+  gap:8px;
+}
+.data-panel-head p,.operations-intro p,.client-card p,.project-card p{
+  color:#626b76;font-size:9px;line-height:1.45;
+}
+.data-panel-head h2,.block-head h2{
+  letter-spacing:-.035em;
+}
+.data-panel-head .secondary,.data-panel-head .primary{
+  min-height:32px;height:32px;
+}
+.invoice-register-row,.simple-row,.client-directory-row,.payment-record-row{
+  min-height:48px;
+}
+.invoice-register-row:hover,.simple-row:hover,.client-directory-row:hover,.payment-record-row:hover{
+  background:#11151b;
+}
+.status,.statusPill,.workspace-archived-label{
+  font-size:7px;
+  letter-spacing:.02em;
+}
+.kpi,.compact-kpis .kpi{
+  min-height:86px;
+}
+.kpi-value{font-size:18px;letter-spacing:-.045em}
+.kpi-note{font-size:8px;color:#5e6873}
+.kpi-label{font-size:8px;letter-spacing:.07em}
+.operations-kpis,.overview-minimal-metrics,.compact-kpis{
+  gap:8px;
+}
+.action-row{
+  min-height:46px;
+  padding:0 9px;
+}
+.action-row small,.attention small{
+  font-size:8px;
+  color:#626b76;
+}
+.settings-tabs{
+  gap:2px;
+  padding:3px;
+  background:#0e1115;
+  border-color:#242a32;
+}
+.settings-tabs button{
+  min-height:31px;
+  padding:0 11px;
+  font-size:8px;
+}
+.settings-tabs button.active{
+  background:#1a1f27;
+}
+.settings-section-toggle,.settings-accordion-toggle{
+  min-height:50px;
+}
+.settings-section-toggle small,.settings-accordion-toggle small{
+  font-size:8px;
+  color:#626b76;
+}
+.settings-section-body,.settings-accordion-body{
+  border-top-color:#20262e;
+}
+.form-grid label,.password-settings label{
+  font-size:8px;
+}
+.form-grid input,.form-grid select,.form-grid textarea,.password-settings input{
+  min-height:35px;
+}
+.drawer,.composer{
+  border-color:#2a313b;
+}
+.drawer-head,.drawer-foot{
+  min-height:54px;
+}
+.drawer-body{
+  padding:15px;
+}
+.invoice-document-preview{
+  border-color:#252c35;
+}
+@media(max-width:720px){
+  .top-workspace-switcher{
+    width:min(145px,42vw);
+  }
+  .top-workspace-copy strong{
+    max-width:100%;
+  }
+  .data-panel,.settings-section-card,.portal-card,.portal-panel,.client-card,.project-card{
+    border-radius:10px;
+  }
+  .data-panel-head{
+    align-items:center;
+  }
+  .data-panel-head p,.operations-intro p,.client-card p,.project-card p{
+    display:none;
+  }
+  .workspace-landing{
+    width:100%;
+    margin-top:5vh;
+  }
+}

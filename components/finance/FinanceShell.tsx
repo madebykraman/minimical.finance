@@ -144,7 +144,6 @@ export function FinanceShell({
 
         <header className="topbar">
           <div className="topbar-title">
-            <div className="eyebrow">{activeView.toUpperCase()}</div>
             <h1>{pageLabel[activeView]}</h1>
           </div>
 

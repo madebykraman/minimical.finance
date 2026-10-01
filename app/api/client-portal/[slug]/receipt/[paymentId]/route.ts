@@ -30,7 +30,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const right=(s:string,y:number,size=8,font:any=regular,color:any=rgb(0,0,0))=>{const v=String(s||"");text(v,547-font.widthOfTextAtSize(v,size),y,size,font,color)};
   right(receiptNo,724,9,bold);right(fmt(payment.payment_date),708,8,regular,rgb(.42,.42,.4));
   page.drawRectangle({x:48,y:610,width:499,height:76,borderWidth:.6,borderColor:rgb(.85,.84,.81)});
-  text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,bold);
+  text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,mono);
   text("RECEIVED FROM",48,570,8,bold,rgb(.42,.42,.4));
   text(payload.client.legal_name||payload.client.name,48,548,9,bold);(payload.client.address_lines||[]).slice(0,3).forEach((v:string,i:number)=>text(v,48,534-i*13,7,regular,rgb(.45,.45,.43)));
   text("PAYMENT DETAILS",310,570,8,bold,rgb(.42,.42,.4));

@@ -301,10 +301,8 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
 }
 
 export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
-  const billed=filtered.reduce((sum,i)=>sum+invoiceTotal(i),0);
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0);
   const overdue=filtered.filter(i=>daysOverdue(i)>0);
-  const paid=filtered.filter(i=>statusLabel(i.status)==="Paid").length;
   return <div className="operations-page">
     <section className="register-summary">
       <div><span>RECORDS</span><b>{filtered.length}</b></div>

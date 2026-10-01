@@ -114,7 +114,7 @@ export function SettingsView({email,activeOrganizationId,onSignOut}:{email:strin
   async function changePassword(e:FormEvent){e.preventDefault();if(password.length<12||!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/\d/.test(password)||!/[!@#$%^&*()_+\-={}\[\];':"\\|<>?,./]/.test(password))return setMessage("Use 12+ characters with upper/lowercase, a number and a symbol.");if(password!==confirm)return setMessage("Passwords do not match.");setBusy(true);const {error}=await supabase.auth.updateUser({password});setBusy(false);if(error)return setMessage(error.message);setPassword("");setConfirm("");setMessage("Password updated.");}
   return <div className="settings-page">
     <div className="settings-tabs">{([["organizations","Organisations"],["account","Account"],["workspace","System"],["security","Security"]] as const).map(([key,label])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}>{label}</button>)}</div>
-    {tab==="organizations"&&<OrganizationsSettings/>}
+    {tab==="organizations"&&<OrganizationsSettings activeOrganizationId={activeOrganizationId}/>}
     {tab==="account"&&<AccountIdentitySettings organizationId={activeOrganizationId}/>}
     {tab==="workspace"&&<div className="settings-stack">
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}</section>
@@ -202,7 +202,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
   </div>;
 }
 
-export function OrganizationsSettings(){
+export function OrganizationsSettings({activeOrganizationId}:{activeOrganizationId:string|null}){
   const [orgs,setOrgs]=useState<any[]>([]);
   const [selected,setSelected]=useState<any>(null);
   const [editOpen,setEditOpen]=useState(false);
@@ -217,10 +217,12 @@ export function OrganizationsSettings(){
   ]).then(([orgResult,migrationResult])=>{
     const rows=orgResult.data||[];
     setOrgs(rows);
-    if(rows[0])setSelected(rows[0]);
+    const active=activeOrganizationId ? rows.find((row:any)=>row.id===activeOrganizationId) : null;
+    if(active) setSelected(active);
+    else if(rows[0]) setSelected(rows[0]);
     if(orgResult.error)setMessage(orgResult.error.message);
     if(!migrationResult.error)setMigration(migrationResult.data);
-  })},[]);
+  })},[activeOrganizationId]);
 
   function selectOrg(o:any){setSelected(o);setEditOpen(false);setSection("");setMessage("");}
   function toggle(key:string){setSection(section===key?"":key);}

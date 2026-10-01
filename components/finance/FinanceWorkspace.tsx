@@ -360,7 +360,7 @@ function Overview({stats,invoices,organization,onOpen}:{stats:any;invoices:Invoi
         <div className="eyebrow">FINANCIAL POSITION · {organization?.name||"ORGANISATION"}</div>
         <h2>{money(stats.outstanding)}</h2>
         <p>Outstanding receivables across this organisation.</p>
-        <div className="position-actions"><button className="primary" onClick={()=>onOpen(overdue[0]||open[0])} disabled={!open.length}><CircleAlert size={15}/>Review open balance</button><span><Check size={14}/>{collection}% collected</span></div>
+        <div className="position-actions"><button className="primary" onClick={()=>{const target=overdue[0]||open[0];if(target)onOpen(target)}} disabled={!open.length}><CircleAlert size={15}/>Review open balance</button><span><Check size={14}/>{collection}% collected</span></div>
       </div>
       <div className="position-stats">
         <div><span>Billed</span><b>{money(stats.billed)}</b><small>{invoices.length} invoices</small></div>

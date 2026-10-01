@@ -160,6 +160,7 @@ export async function GET(
   const invoice: any = rawInvoice;
   const billingClient = invoice.clients ?? {};
   const organization = invoice.organizations ?? settings ?? {};
+  const templateKey = organization?.invoice_template_key || "legacy_elle";
   const contents = [...(invoice.invoice_contents ?? [])].sort(
     (a: any, b: any) => Number(a.position) - Number(b.position),
   );
@@ -186,6 +187,13 @@ export async function GET(
 
   const page = pdf.addPage([PAGE.width, PAGE.height]);
 
+  // Organisation templates share the same canonical financial data. Clean mode adds only
+  // organisation identity treatment; legacy mode preserves the supplied reference geometry.
+  if(templateKey==="clean"){
+    const name=String(organization?.name||organization?.legal_name||"");
+    draw(page,name,X.left,805,bold,13);
+    page.drawLine({start:{x:X.left,y:798},end:{x:X.right,y:798},thickness:.7,color:BLACK});
+  }
   // Optional logos live in the existing top whitespace and never move the canonical text geometry.
   if(organizationLogo){ const d=organizationLogo.scale(Math.min(52/organizationLogo.width,28/organizationLogo.height)); page.drawImage(organizationLogo,{x:X.left,y:790-d.height,width:d.width,height:d.height}); }
   if(clientLogo){ const d=clientLogo.scale(Math.min(52/clientLogo.width,28/clientLogo.height)); page.drawImage(clientLogo,{x:X.right-d.width,y:790-d.height,width:d.width,height:d.height}); }
@@ -287,7 +295,7 @@ export async function GET(
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="INV_${invoice.invoice_number}-Kumar Aman-Video Editing.pdf"`,
+      "Content-Disposition": `attachment; filename="INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

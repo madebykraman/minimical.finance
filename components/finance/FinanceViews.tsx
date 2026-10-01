@@ -229,56 +229,28 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   const today=new Date();
   const open=invoices.filter(i=>invoiceBalance(i)>0);
   const overdue=open.filter(i=>daysOverdue(i)>0);
-  const dueSoon=open.filter(i=>i.dueDate && (()=>{const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
-  const unpriced=invoices.filter(i=>i.contents.some(c=>!c.priced));
-  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
-  const collection=stats.billed?Math.round(stats.collected/stats.billed*100):0;
+  const dueSoon=open.filter(i=>i.dueDate&&(()=>{const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
   const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const attention=[
-    ...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,detail:"Overdue "+daysOverdue(i)+" days",value:money(invoiceBalance(i)),invoice:i})),
-    ...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+dateLabel(i.dueDate!),value:money(invoiceBalance(i)),invoice:i})),
-    ...unpriced.map(i=>({tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
-  ].slice(0,4);
-
+  const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),invoice:i}))].slice(0,4);
+  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
   return <div className="overview-minimal">
-    <section className="overview-minimal-head">
-      <div>
-        <div className="eyebrow">OVERVIEW</div>
-        <h2>{organization?.name || "All organisations"}</h2>
-        <p>{open.length} open invoice{open.length===1?"":"s"} · {money(stats.outstanding)} outstanding</p>
-      </div>
-    </section>
-
+    <section className="overview-minimal-head"><h2>{organization?.name||"Overview"}</h2></section>
     <section className="overview-minimal-metrics">
-      <article><span>OUTSTANDING</span><b>{money(stats.outstanding)}</b><small>{open.length} open</small></article>
-      <article><span>COLLECTED</span><b>{money(stats.collected)}</b><small>{collection}% collected</small></article>
-      <article className={overdueValue>0?"attention":""}><span>OVERDUE</span><b>{money(overdueValue)}</b><small>{overdue.length} need attention</small></article>
+      <article><span>Outstanding</span><b>{money(stats.outstanding)}</b></article>
+      <article><span>Collected</span><b>{money(stats.collected)}</b></article>
+      <article className={overdueValue>0?"attention":""}><span>Overdue</span><b>{money(overdueValue)}</b></article>
     </section>
-
-    {attention.length>0 && <section className="data-panel overview-minimal-section">
-      <div className="data-panel-head"><div><h2>Needs attention</h2><p>Action required</p></div><span className="panel-count">{attention.length}</span></div>
-      <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.detail} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={14}/>:a.tone==="warning"?<WalletCards size={14}/>:<IndianRupee size={14}/>}</span><div><b>{a.label}</b><small>{a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={14}/></button>)}</div>
-    </section>}
-
-    <section className="data-panel overview-minimal-section">
-      <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest</p></div><button className="mini-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
-      <div className="invoice-register minimal-register">
-        {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}>
-          <b>#{i.number}</b>
-          <span><strong>{i.client}</strong><small>{i.project || "No project"} · {dateLabel(i.date)}</small></span>
-          <em className={i.status}>{statusLabel(i.status)}</em>
-          <strong>{money(invoiceTotal(i))}</strong>
-          <ChevronRight size={14}/>
-        </button>)}
-        {!recent.length&&<div className="empty-state">No invoices yet.</div>}
-      </div>
+    <section className="overview-split">
+      <section className="data-panel overview-minimal-section">
+        <div className="data-panel-head"><h2>Invoices</h2><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+        <div className="invoice-register minimal-register">{recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!recent.length&&<div className="empty-state">No invoices.</div>}</div>
+      </section>
+      {attention.length>0&&<section className="data-panel overview-minimal-section">
+        <div className="data-panel-head"><h2>Attention</h2><span className="panel-count">{attention.length}</span></div>
+        <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span><div><b>{a.label}</b></div><strong>{a.value}</strong><ChevronRight size={13}/></button>)}</div>
+      </section>}
     </section>
-
-    <div className="overview-minimal-footer">
-      <button onClick={()=>onNavigate("invoices")}>Invoices <ChevronRight size={13}/></button>
-      <button onClick={()=>onNavigate("payments")}>Payments <ChevronRight size={13}/></button>
-      <button onClick={()=>onNavigate("clients")}>Clients <ChevronRight size={13}/></button>
-    </div>
+    <div className="overview-minimal-footer"><button onClick={()=>onNavigate("payments")}>Payments <ChevronRight size={13}/></button><button onClick={()=>onNavigate("clients")}>Clients <ChevronRight size={13}/></button><button onClick={()=>onNavigate("reports")}>Reports <ChevronRight size={13}/></button></div>
   </div>;
 }
 

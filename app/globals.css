@@ -402,17 +402,11 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .invoice-hero-brand>div{display:flex;flex-direction:column;gap:2px}
 .invoice-hero-brand b{color:#e9edf3;font-size:10px}
 .invoice-hero-brand small{color:#65707d;font-size:6px}
-.invoice-hero-mark,.invoice-document-mark{display:grid;place-items:center;background:linear-gradient(145deg,#5a70ff,#7657f6);color:#fff;font-weight:750}
 .invoice-hero-mark{width:30px;height:30px;border-radius:8px;font-size:10px}
 .invoice-hero-amount{text-align:right}
 .invoice-hero-amount span{display:block;color:#66717f;font-size:6px}
 .invoice-hero-amount strong{display:block;margin-top:3px;color:#8f9cff;font:700 22px var(--font-data)}
 .invoice-hero-amount small{color:#4ad0a0;font-size:6px}
-.invoice-document-lines b{font:650 7px var(--font-data)}
-.invoice-document-lines>small{display:block;padding-top:6px;color:#98a2b3;font-size:6px}
-.invoice-document-total{align-items:center;padding-top:10px}
-.invoice-document-total span{color:#667085;font-size:7px}
-.invoice-document-total b{color:#5f45c5;font:700 12px var(--font-data)}
 .invoice-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px}
 .block{min-width:0;margin:15px 0}
 .block-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
@@ -580,9 +574,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
   .drawer-foot .primary,.drawer-foot .secondary{flex:1}
   .invoice-hero{grid-template-columns:1fr}
   .invoice-hero-amount{text-align:left}
-  .invoice-document-preview{padding:13px}
-  .invoice-document-meta{display:grid;grid-template-columns:1fr 1fr}
-  .invoice-document-meta>div:nth-child(3){grid-column:1/-1;align-items:flex-start;text-align:left}
   .drawer-summary{grid-template-columns:1fr 1fr}
   .drawer-summary>div:last-child{grid-column:1/-1}
   .content-row{min-width:0;grid-template-columns:20px minmax(0,1fr) 28px}
@@ -842,7 +833,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .drawer-body{
   padding:15px;
 }
-.invoice-document-preview{
   border-color:#252c35;
 }
 @media(max-width:720px){

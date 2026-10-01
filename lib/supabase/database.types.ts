@@ -397,6 +397,7 @@ export type Database = {
           invoice_id: string | null
           mime_type: string | null
           size_bytes: number | null
+          storage_bucket: string
           visible_to_client: boolean
         }
         Insert: {
@@ -410,6 +411,7 @@ export type Database = {
           invoice_id?: string | null
           mime_type?: string | null
           size_bytes?: number | null
+          storage_bucket?: string
           visible_to_client?: boolean
         }
         Update: {
@@ -423,6 +425,7 @@ export type Database = {
           invoice_id?: string | null
           mime_type?: string | null
           size_bytes?: number | null
+          storage_bucket?: string
           visible_to_client?: boolean
         }
         Relationships: [

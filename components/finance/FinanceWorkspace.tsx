@@ -133,7 +133,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const filtered = useMemo(() => orgInvoices.filter(i => {
     const text = [i.number, i.client, i.project, i.notes, ...i.contents.map(c => c.title)].join(" ").toLowerCase();
     return (status === "all" || i.status === status) && text.includes(query.toLowerCase());
-  }), [invoices, query, status]);
+  }), [orgInvoices, query, status]);
 
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 

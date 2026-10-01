@@ -202,8 +202,16 @@ export async function GET(
     page.drawLine({start:{x:X.left,y:798},end:{x:X.right,y:798},thickness:.7,color:BLACK});
   }
   // Optional logos live in the existing top whitespace and never move the canonical text geometry.
-  if(organizationLogo){ const d=organizationLogo.scale(Math.min(52/organizationLogo.width,28/organizationLogo.height)); page.drawImage(organizationLogo,{x:X.left,y:790-d.height,width:d.width,height:d.height}); }
-  if(clientLogo){ const d=clientLogo.scale(Math.min(52/clientLogo.width,28/clientLogo.height)); page.drawImage(clientLogo,{x:X.right-d.width,y:790-d.height,width:d.width,height:d.height}); }
+  // Logos occupy only the upper breathing room. Their bounding boxes stop above the
+  // canonical billing/meta blocks, so adding a logo cannot move or collide with invoice geometry.
+  if(organizationLogo){
+    const d=organizationLogo.scale(Math.min(52/organizationLogo.width,24/organizationLogo.height));
+    page.drawImage(organizationLogo,{x:X.left,y:806-d.height,width:d.width,height:d.height});
+  }
+  if(clientLogo){
+    const d=clientLogo.scale(Math.min(52/clientLogo.width,24/clientLogo.height));
+    page.drawImage(clientLogo,{x:X.right-d.width,y:806-d.height,width:d.width,height:d.height});
+  }
 
   // BILLING / PAY-TO BLOCK
   const addressLines = Array.isArray(billingClient.address_lines)

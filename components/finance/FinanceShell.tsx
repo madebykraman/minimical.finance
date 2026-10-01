@@ -58,7 +58,21 @@ export function FinanceShell({activeView,onNavigate,activeOrganization,invoiceCo
   <section className="content">
    {actionError&&<div className="global-error" role="alert"><CircleAlert size={14}/><span>{actionError}</span><button onClick={clearError} aria-label="Dismiss error"><X size={14}/></button></div>}
    <header className="topbar">
-    <div className="topbar-mobile-title"><span>{pageTitle}</span></div>
+    <div className="topbar-mobile-title">
+    <div className="mobile-workspace-wrap workspace-switcher-wrap">
+      <button className="mobile-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-expanded={workspaceMenuOpen}>
+        <span className="mobile-workspace-mark">{mark(activeOrganization)}</span>
+        <span className="mobile-workspace-name">{activeOrganization?.name||"Organisation"}</span>
+        <ChevronDown size={13}/>
+      </button>
+      {workspaceMenuOpen&&<div className="workspace-switcher-menu mobile-workspace-menu" role="listbox" aria-label="Organisations">
+        <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
+        {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>{onSelectWorkspace(o.id);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">{mark(o)}</span><strong>{o.name||"Organisation"}</strong>{activeOrganization?.id===o.id&&<Check size={13} className="workspace-check"/>}</button>)}
+        {!filteredOrgs.length&&<div className="workspace-menu-empty">No organisations found.</div>}
+      </div>}
+    </div>
+    <span className="mobile-page-title">{pageTitle}</span>
+   </div>
     <div className="topbar-left"><div className="topbar-page-title"><span className="eyebrow">{pageTitle}</span><strong>{activeOrganization?.name||"Organisation"}</strong></div></div>
     <label className="global-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search" aria-label="Search workspace"/></label>
     <div className="topbar-tools">

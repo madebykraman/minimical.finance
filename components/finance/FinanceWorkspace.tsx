@@ -147,7 +147,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     >
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark">{activeOrganization?.logo_path?<img src={activeOrganization.logo_path} alt=""/>:<Building2 size={17}/>}</div>
+          <div className="brand-mark">{activeOrganization?.logo_path?<img src={activeOrganization.logo_path} alt=""/>:<span className="brand-glyph">m</span>}</div>
           <div className="brand-copy"><strong>{activeOrganization?.name || "Select organisation"}</strong><span>{activeOrganization?.legal_name || "Organisation workspace"}</span></div>
         </div>
         {organizations.filter(o=>!["dissolved","discontinued"].includes(o.status)).length>1&&<label className="org-switcher"><span>Organisation</span><select value={organizationId||""} onChange={e=>{const id=e.target.value;setOrganizationId(id);window.localStorage.setItem("finance.organizationId",id)}}>{organizations.filter(o=>!["dissolved","discontinued"].includes(o.status)).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}

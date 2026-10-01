@@ -249,13 +249,33 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,on
 }
 export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
   const rows=invoices.flatMap(i=>i.payments.map(p=>({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
-  const collected=rows.reduce((s,r)=>s+r.amount,0), outstanding=invoices.reduce((s,i)=>s+invoiceBalance(i),0);
-  return <div className="operations-page">
-    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Collections</span><h2>Payments</h2></div><div className="operations-count"><b>{rows.length}</b><span>recorded</span></div></section>
-    <section className="register-summary"><div><span>COLLECTED</span><b>{money(collected)}</b></div><div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div><div><span>OPEN INVOICES</span><b>{invoices.filter(i=>invoiceBalance(i)>0).length}</b></div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Ledger</h2></div><WalletCards size={15}/></div>
-      {rows.length?<div className="simple-list">{rows.map(r=><div className="simple-row payment-record-row" key={r.id} onClick={()=>onOpenPayment(r.invoice)} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")onOpenPayment(r.invoice)}}><span>{r.payment_date?dateLabel(r.payment_date):"—"}</span><b>#{r.invoice.number} · {r.invoice.client}</b><span>{r.method.replaceAll("_"," ")}</span><strong>{money(r.amount)}</strong><a className="text-action" href={"/api/payments/"+r.id+"/receipt"} onClick={e=>e.stopPropagation()}>Receipt</a></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded.</b><span>Record a payment from an open invoice.</span></div>}
-      {!!invoices.filter(i=>invoiceBalance(i)>0).length&&<div className="payment-shortcuts">{invoices.filter(i=>invoiceBalance(i)>0).slice(0,5).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number}</button>)}</div>}
+  const collected=rows.reduce((sum,row)=>sum+row.amount,0);
+  const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const openInvoices=invoices.filter(i=>invoiceBalance(i)>0);
+  return <div className="operations-page payments-page">
+    <section className="operations-intro compact-page-head">
+      <div><span className="eyebrow">Collections</span><h2>Payments</h2></div>
+      <div className="operations-count"><b>{rows.length}</b><span>recorded</span></div>
+    </section>
+    <section className="register-summary">
+      <div><span>COLLECTED</span><b>{money(collected)}</b></div>
+      <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
+      <div><span>OPEN INVOICES</span><b>{openInvoices.length}</b></div>
+    </section>
+    <section className="data-panel payments-ledger">
+      <div className="data-panel-head"><div><h2>Ledger</h2><span>Recorded money received against invoices.</span></div><WalletCards size={16}/></div>
+      {rows.length ? <div className="payment-ledger-list">{rows.map(row=>
+        <div className="payment-ledger-row" key={row.id} onClick={()=>onOpenPayment(row.invoice)} role="button" tabIndex={0}
+          onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")onOpenPayment(row.invoice)}}>
+          <div className="payment-ledger-main">
+            <b>#{row.invoice.number} · {row.invoice.client}</b>
+            <span>{row.payment_date?dateLabel(row.payment_date):"Date unknown"} · {row.method.replaceAll("_"," ")}</span>
+          </div>
+          <strong>{money(row.amount)}</strong>
+          <a className="text-action payment-receipt-action" href={"/api/payments/"+row.id+"/receipt"} onClick={e=>e.stopPropagation()}>Receipt</a>
+        </div>
+      )}</div> : <div className="empty-state"><WalletCards size={18}/><b>No payments recorded.</b><span>Record a payment from an open invoice.</span></div>}
+      {!!openInvoices.length&&<div className="payment-shortcuts"><div className="payment-shortcuts-label">Record against an open invoice</div>{openInvoices.map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number}</button>)}</div>}
     </section>
   </div>;
 }

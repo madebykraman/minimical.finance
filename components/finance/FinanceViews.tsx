@@ -495,7 +495,17 @@ export function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()
 export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoice;onClose:()=>void;onSave:(i:Invoice)=>void;onPayment:()=>void}) {
   const [draft,setDraft] = useState(invoice);
   const [organizations,setOrganizations]=useState<any[]>([]);
+  const [clients,setClients]=useState<any[]>([]);
+  const [projects,setProjects]=useState<any[]>([]);
   useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").order("name").then(({data})=>setOrganizations(data||[]))},[]);
+  useEffect(()=>{
+    const orgId=draft.organizationId;
+    if(!orgId){setClients([]);setProjects([]);return}
+    Promise.all([
+      supabase.from("clients").select("id,name").is("archived_at",null).eq("organization_id",orgId).order("name"),
+      supabase.from("projects").select("id,name,client_id").eq("organization_id",orgId).neq("status","archived").order("name")
+    ]).then(([c,p])=>{setClients(c.data||[]);setProjects(p.data||[])});
+  },[draft.organizationId]);
   useEffect(() => setDraft(invoice), [invoice]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
@@ -519,8 +529,11 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
         <div><span>Status</span><select className="status-select" value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value as Status}))}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div>
       </div>
       <div className="invoice-meta-grid">
+        <label>Client<select value={draft.clientId ?? ""} onChange={e=>{const id=e.target.value||null;const c=clients.find(x=>x.id===id);setDraft(d=>({...d,clientId:id,client:c?.name||d.client,projectId:null,project:""}))}}><option value="">Select client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label>Project<select value={draft.projectId ?? ""} onChange={e=>{const id=e.target.value||null;const p=projects.find(x=>x.id===id);setDraft(d=>({...d,projectId:id,project:p?.name||d.project}))}}><option value="">Select project</option>{projects.filter(p=>!draft.clientId||p.client_id===draft.clientId).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <label>Issue date<input type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))}/></label>
-        <label>Due date<input type="date" value={draft.dueDate ?? ""} onChange={e=>setDraft(d=>({...d,dueDate:e.target.value || null}))}/></label><label>Billing organisation<select value={draft.organizationId ?? ""} onChange={e=>setDraft(d=>({...d,organizationId:e.target.value||null}))} required>{organizations.map(o=><option key={o.id} value={o.id} disabled={["dissolved","discontinued"].includes(o.status)}>{o.name}{["dissolved","discontinued"].includes(o.status)?" · historical":""}</option>)}</select></label>
+        <label>Due date<input type="date" value={draft.dueDate ?? ""} onChange={e=>setDraft(d=>({...d,dueDate:e.target.value || null}))}/></label>
+        <label className="full-span">Billing organisation<select value={draft.organizationId ?? ""} onChange={e=>setDraft(d=>({...d,organizationId:e.target.value||null}))} required>{organizations.map(o=><option key={o.id} value={o.id} disabled={["dissolved","discontinued"].includes(o.status)}>{o.name}{["dissolved","discontinued"].includes(o.status)?" · historical":""}</option>)}</select></label>
       </div>
       {unpriced > 0 && <div className="integrity warning"><CircleAlert size={17}/><div><b>{unpriced} content item{unpriced > 1 ? "s" : ""} still unpriced</b><span>Visible and retained, but excluded from the financial total until priced.</span></div></div>}
       {draft.sourceTotal != null && draft.sourceTotal !== invoiceTotal(draft) && <div className="integrity warning"><CircleAlert size={17}/><div><b>Source total differs from calculated total</b><span>Recorded source total: {money(draft.sourceTotal)} · calculated from contents: {money(invoiceTotal(draft))}</span></div></div>}

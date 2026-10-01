@@ -938,6 +938,19 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: string
       }
+      save_invoice: {
+        Args: {
+          p_adjustment_note?: string | null
+          p_contents?: Json
+          p_due_date?: string | null
+          p_invoice_id: string
+          p_notes?: string | null
+          p_issue_date?: string | null
+          p_organization_id?: string | null
+          p_status?: "draft" | "sent" | "partially_paid" | "paid" | "void"
+        }
+        Returns: undefined
+      }
       create_client_portal_session: {
         Args: {
           p_expires_at: string

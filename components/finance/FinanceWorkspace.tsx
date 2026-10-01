@@ -187,7 +187,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             <label className="global-search">
               <Search size={15}/>
               <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoices, clients, projects…" aria-label="Search workspace"/>
-              <kbd>⌘ K</kbd>
+              
             </label>
             <div className="top-actions">
             <button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button>

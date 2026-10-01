@@ -2,20 +2,15 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownToLine, ArrowUpRight, BarChart3, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
-  CircleAlert, FileText, Filter, FolderKanban, Upload, KeyRound, IndianRupee, LayoutDashboard, LogOut, Mail,
-  MoreHorizontal, Phone, Plus, Receipt, Search, Settings2, Sparkles, WalletCards, X
+  ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
+  CircleAlert, FileText, Filter, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, X
 } from "lucide-react";
 import {
-  calculateStats, contentAmount, mapInvoice, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
+  contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
 import type { FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
-import {
-  createInvoice as createInvoiceRecord, logActivity, recordPayment as recordPaymentRecord,
-  saveInvoice as saveInvoiceRecord, setInvoiceStatus
-} from "@/lib/finance/repository";
 import { money, dateLabel } from "@/lib/finance/format";
 
 const supabase = createClient();

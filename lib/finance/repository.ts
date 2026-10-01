@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
-import { mapInvoice } from "./domain";
+import { mapInvoice, invoiceTotal, paidTotal } from "./domain";
 import type { Content, Invoice, PaymentMethod, Status } from "./domain";
 
 const supabase = createClient();

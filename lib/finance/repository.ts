@@ -41,6 +41,7 @@ export async function setInvoiceStatus(invoice: Invoice, next: Status) {
 }
 
 export async function saveInvoice(next: Invoice) {
+  if (!next.organizationId) return "Select a billing organisation before saving the invoice.";
   const { error } = await supabase
     .from("invoices")
     .update({
@@ -92,6 +93,8 @@ export async function createInvoice(draft: {
   organizationId?: string | null;
   contents: Content[];
 }) {
+  if (!draft.organizationId) return { id: null, error: "Select a billing organisation before creating an invoice." };
+
   let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).eq("organization_id", draft.organizationId ?? "").maybeSingle();
   if (!client) {
     const result = await supabase.from("clients").insert({ name: draft.client, organization_id: draft.organizationId ?? null }).select("id").single();
@@ -104,12 +107,9 @@ export async function createInvoice(draft: {
     if (result.error) return { id: null, error: result.error.message };
     project = result.data;
   }
-  let number=draft.number.trim();
-  if(draft.organizationId){
-    const allocation=await supabase.rpc("allocate_invoice_number",{p_organization_id:draft.organizationId});
-    if(allocation.error)return {id:null,error:allocation.error.message};
-    number=String(allocation.data||number);
-  }
+  const allocation=await supabase.rpc("allocate_invoice_number",{p_organization_id:draft.organizationId});
+  if(allocation.error)return {id:null,error:allocation.error.message};
+  const number=String(allocation.data||draft.number.trim());
   const total = draft.contents.reduce((sum,c)=>sum+(c.priced?(c.amount??c.quantity*(c.rate??0)):0),0);
   const result=await supabase.from("invoices").insert({
     invoice_number:number,client_id:client.id,project_id:project.id,issue_date:draft.date,due_date:draft.dueDate||null,

@@ -889,6 +889,16 @@ export type Database = {
       }
     }
     Views: {
+      organisation_migration_status: {
+        Row: {
+          assigned_invoice_count: number | null
+          invoice_count: number | null
+          organisation_count: number | null
+          orphaned_organisation_count: number | null
+          unassigned_invoice_count: number | null
+        }
+        Relationships: []
+      }
       invoice_financials: {
         Row: {
           balance: number | null

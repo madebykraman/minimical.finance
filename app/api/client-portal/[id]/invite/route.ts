@@ -19,6 +19,6 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
   const url=request.nextUrl.origin+"/portal/"+client.portal_slug+"?token="+encodeURIComponent(token);
   const subject="Your secure client account";
   const body=[`Hello ${client.name},`,"","Your secure client account is ready. Open the link below and enter the portal password shared with you separately.","",url,"","For security, please do not forward the password with this email."].join("\n");
-  await supabase.rpc("log_client_portal_activity",{p_slug:client.portal_slug,p_session:null,p_action:"invitation_prepared",p_resource_type:"account",p_metadata:{delivery:"mailto",email:client.email}});
+  await supabase.from("client_portal_activity").insert({client_id:id,action:"invitation_prepared",resource_type:"account",metadata:{delivery:"mailto",email:client.email}});
   return NextResponse.json({email:client.email,url,subject,body,mailto:"mailto:"+encodeURIComponent(client.email)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body)});
 }

@@ -5592,3 +5592,9 @@ button,input,select,textarea{font-family:var(--font-ui)!important}
   .overview-kpi{min-height:126px!important}
   .data-panel-head h2{font-size:12px!important}
 }
+
+/* Final font aliases: legacy selectors resolve to the new product typography. */
+:root{
+  --font-geist-sans:var(--font-ui);
+  --font-geist-mono:var(--font-data);
+}

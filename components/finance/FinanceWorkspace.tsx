@@ -384,7 +384,7 @@ function OrganizationWelcome({organizations,onSelect,onAll}:{organizations:any[]
         </div>
 
         <button className="workspace-all-minimal" onClick={onAll}>
-          <span className="workspace-all-minimal-mark"><BarChart3 size={15}/></span>
+          <span className="workspace-all-minimal-mark"><Building2 size={15}/></span>
           <span className="workspace-minimal-name">All organisations</span>
           <ChevronRight size={16}/>
         </button>

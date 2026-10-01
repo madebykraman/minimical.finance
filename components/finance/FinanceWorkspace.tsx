@@ -44,21 +44,13 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [theme, setTheme] = useState<"light"|"dark">("light");
+  const theme = "dark" as const;
   const router = useRouter();
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("minimical-finance-theme") as "light"|"dark"|null;
-    const preferred = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(preferred);
-    document.documentElement.dataset.theme = preferred;
+    document.documentElement.dataset.theme = "dark";
+    document.documentElement.style.colorScheme = "dark";
   }, []);
-
-  function changeTheme(next: "light"|"dark") {
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    window.localStorage.setItem("minimical-finance-theme", next);
-  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -205,7 +197,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         {activeView === "clients" && <ClientsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} />}
         {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} />}
         {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
-        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} activeOrganizationId={organizationId} onSignOut={() => supabase.auth.signOut()} theme={theme} onThemeChange={changeTheme} />}
+        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} activeOrganizationId={organizationId} onSignOut={() => supabase.auth.signOut()} />}
       </section>
 
       <nav className="mobile-nav" aria-label="Primary navigation">
@@ -330,7 +322,7 @@ function AuthScreen() {
   </div></div>;
 }
 
-function SettingsView({email,activeOrganizationId,onSignOut,theme,onThemeChange}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void;theme:"light"|"dark";onThemeChange:(theme:"light"|"dark")=>void}) {
+function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {
   const [tab,setTab]=useState<"account"|"organizations"|"workspace"|"security">("organizations");
   const [open,setOpen]=useState<string>("");
   const [message,setMessage]=useState("");
@@ -342,9 +334,6 @@ function SettingsView({email,activeOrganizationId,onSignOut,theme,onThemeChange}
     {tab==="account"&&<AccountIdentitySettings/>}
     {tab==="workspace"&&<div className="settings-stack">
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}</section>
-      <section className="settings-section-card appearance-card">
-        <div className="appearance-head"><div><b>Appearance</b><small>Choose the visual mode for this workspace.</small></div><div className="appearance-switch" role="group" aria-label="Appearance"><button className={theme==="light"?"active":""} onClick={()=>onThemeChange("light")}>Light</button><button className={theme==="dark"?"active":""} onClick={()=>onThemeChange("dark")}>Dark</button></div></div>
-      </section>
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="access"?"":"access")}><span><b>Access boundary</b><small>Authenticated owner access and database-enforced workspace isolation.</small></span><span>{open==="access"?"Collapse":"Edit"}</span></button>{open==="access"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Workspace access</b><p>Protected by authenticated session and row-level security.</p></div><span className="settings-good">Protected</span></div></div>}</section>
     </div>}
     {tab==="security"&&<div className="settings-stack">
@@ -357,7 +346,7 @@ function AccountIdentitySettings(){
   const [profile,setProfile]=useState<any>({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");const [open,setOpen]=useState(false);
   useEffect(()=>{supabase.from("account_profile").select("*").eq("id",true).maybeSingle().then(({data,error})=>{if(data)setProfile(data);if(error)setMessage(error.message);setLoading(false)})},[]);
   async function save(){setSaving(true);const {error}=await supabase.from("account_profile").upsert({...profile,id:true,updated_at:new Date().toISOString()});setSaving(false);setMessage(error?error.message:"Account master data saved.");}
-  async function upload(file:File){if(file.size>2*1024*1024)return setMessage("Logo must be under 2 MB.");const path="account/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("finos-assets").upload(path,file,{upsert:true,contentType:file.type});if(error)return setMessage(error.message);const {data}=supabase.storage.from("finos-assets").getPublicUrl(path);setProfile((p:any)=>({...p,logo_path:data.publicUrl}));setMessage("Account logo uploaded.");}
+  async function upload(file:File){if(file.size>2*1024*1024)return setMessage("Logo must be under 2 MB.");const path="account/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("minimical-finance-assets").upload(path,file,{upsert:true,contentType:file.type});if(error)return setMessage(error.message);const {data}=supabase.storage.from("finos-assets").getPublicUrl(path);setProfile((p:any)=>({...p,logo_path:data.publicUrl}));setMessage("Account logo uploaded.");}
   if(loading)return <div className="empty-state">Loading account master data…</div>;
   return <div className="settings-stack"><div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Account master data</b><small>Legal identity that sits above all organisations and brands.</small></span><span>{open?"Hide":"Edit"}</span></button>{open&&<div className="settings-section-body"><div className="client-logo-upload">{profile.logo_path?<img src={profile.logo_path} alt="Account logo"/>:<div className="client-logo-placeholder">Logo</div>}<label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f)upload(f)}}/></label></div><div className="form-grid"><label>Legal name<input value={profile.legal_name||""} onChange={e=>setProfile((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Display name<input value={profile.display_name||""} onChange={e=>setProfile((p:any)=>({...p,display_name:e.target.value}))}/></label><label>Email<input value={profile.email||""} onChange={e=>setProfile((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={profile.phone||""} onChange={e=>setProfile((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={profile.pan||""} onChange={e=>setProfile((p:any)=>({...p,pan:e.target.value}))}/></label></div><label>Address lines<textarea value={Array.isArray(profile.address_lines)?profile.address_lines.join("\n"):""} onChange={e=>setProfile((p:any)=>({...p,address_lines:e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean)}))}/></label></div>}</div>{message&&<div className="auth-success">{message}</div>}<button className="primary" onClick={save} disabled={saving}>{saving?"Saving…":"Save account data"}</button></div>;
 }

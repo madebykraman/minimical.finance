@@ -302,7 +302,7 @@ function AuthScreen() {
 
 function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {
   const [tab,setTab]=useState<"account"|"organizations"|"workspace"|"security">("organizations");
-  const [open,setOpen]=useState<string>("identity");
+  const [open,setOpen]=useState<string>("");
   const [message,setMessage]=useState("");
   const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [busy,setBusy]=useState(false);
   async function changePassword(e:FormEvent){e.preventDefault();if(password.length<12||!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/d/.test(password)||!/[!@#$%^&*()_+\-={}\[\];':"\\|<>?,./]/.test(password))return setMessage("Use 12+ characters with upper/lowercase, a number and a symbol.");if(password!==confirm)return setMessage("Passwords do not match.");setBusy(true);const {error}=await supabase.auth.updateUser({password});setBusy(false);if(error)return setMessage(error.message);setPassword("");setConfirm("");setMessage("Password updated.");}
@@ -341,24 +341,50 @@ function Overview({stats,invoices,organization,onOpen}:{stats:any;invoices:Invoi
   const today=new Date();
   const open=invoices.filter(i=>invoiceBalance(i)>0);
   const overdue=open.filter(i=>daysOverdue(i)>0);
-  const unpriced=invoices.filter(i=>i.contents.some(c=>!c.priced));
   const dueSoon=open.filter(i=>{if(!i.dueDate)return false;const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14});
-  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
+  const unpriced=invoices.filter(i=>i.contents.some(c=>!c.priced));
+  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
   const clientMap=new Map<string,{billed:number;open:number;count:number}>();
   invoices.forEach(i=>{const g=clientMap.get(i.client)||{billed:0,open:0,count:0};g.billed+=invoiceTotal(i);g.open+=invoiceBalance(i);g.count++;clientMap.set(i.client,g)});
   const collection=stats.billed?Math.round(stats.collected/stats.billed*100):0;
+  const overdueValue=overdue.reduce((s,i)=>s+invoiceBalance(i),0);
+  const dueSoonValue=dueSoon.reduce((s,i)=>s+invoiceBalance(i),0);
   const actions=[
-    ...overdue.slice(0,3).map(i=>({kind:"Overdue",tone:"danger",label:"#"+i.number+" · "+i.client,detail:daysOverdue(i)+" days overdue",value:money(invoiceBalance(i)),invoice:i})),
-    ...dueSoon.filter(i=>!overdue.includes(i)).slice(0,3).map(i=>({kind:"Due soon",tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+i.dueDate,value:money(invoiceBalance(i)),invoice:i})),
-    ...unpriced.slice(0,3).map(i=>({kind:"Needs pricing",tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
+    ...overdue.map(i=>({kind:"Overdue",tone:"danger",label:"#"+i.number+" · "+i.client,detail:daysOverdue(i)+" days overdue",value:money(invoiceBalance(i)),invoice:i})),
+    ...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({kind:"Due soon",tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+i.dueDate,value:money(invoiceBalance(i)),invoice:i})),
+    ...unpriced.map(i=>({kind:"Needs pricing",tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
   ].slice(0,6);
-  return <div className="overview">
-    <section className="command-hero"><div className="command-hero-copy"><div className="eyebrow">CURRENT POSITION</div><h2>{money(stats.outstanding)}</h2><p>Open receivables for {organization?.name||"this organisation"}.</p><div className="hero-actions"><button className="primary" onClick={()=>overdue[0]&&onOpen(overdue[0])}><CircleAlert size={15}/>Review receivables</button><span className="hero-meta"><Check size={14}/> {collection}% collected</span></div></div><div className="hero-metrics"><div><span>Overdue</span><b>{money(overdue.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div><div><span>Due next 14 days</span><b>{money(dueSoon.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{dueSoon.length} invoice{dueSoon.length===1?"":"s"}</small></div><div><span>Unpriced work</span><b>{unpriced.length}</b><small>Needs a rate before billing</small></div></div></section>
-    <section className="overview-command-grid"><section className="data-panel action-panel"><div className="data-panel-head"><div><h2>Action queue</h2><p>Only work requiring a decision or follow-up.</p></div><ArrowUpRight size={17}/></div>{actions.length?<div className="action-list">{actions.map(a=><button key={a.kind+"-"+a.invoice.id} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.kind==="Overdue"?<CircleAlert size={15}/>:a.kind==="Due soon"?<WalletCards size={15}/>:<IndianRupee size={15}/>}</span><div><b>{a.label}</b><small>{a.kind} · {a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={15}/></button>)}</div>:<div className="empty-state success-empty"><Check size={17}/><div><b>Nothing needs attention</b><span>Receivables are clear and all visible work is priced.</span></div></div>}</section>
-      <section className="data-panel"><div className="data-panel-head"><div><h2>Receivables by client</h2><p>Where the open balance is concentrated.</p></div><Building2 size={17}/></div><div className="receivable-list">{[...clientMap.entries()].filter(([,g])=>g.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6).map(([name,g])=><div className="receivable-row" key={name}><div><b>{name}</b><span>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</span></div><strong>{money(g.open)}</strong></div>)}{!open.length&&<div className="empty-state">No open receivables.</div>}</div></section></section>
-    <section className="data-panel recent-panel"><div className="data-panel-head"><div><h2>Recent activity</h2><p>Latest invoices in this organisation.</p></div><Receipt size={17}/></div><div className="recent-list">{recent.map(i=><button key={i.id} className="recent-row" onClick={()=>onOpen(i)}><div><span className="recent-number">#{i.number}</span><b>{i.client}</b><small>{i.project} · {i.date}</small></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div></button>)}</div></section>
+  return <div className="overview-command">
+    <section className="position-panel">
+      <div className="position-main">
+        <div className="eyebrow">FINANCIAL POSITION · {organization?.name||"ORGANISATION"}</div>
+        <h2>{money(stats.outstanding)}</h2>
+        <p>Outstanding receivables across this organisation.</p>
+        <div className="position-actions"><button className="primary" onClick={()=>onOpen(overdue[0]||open[0])} disabled={!open.length}><CircleAlert size={15}/>Review open balance</button><span><Check size={14}/>{collection}% collected</span></div>
+      </div>
+      <div className="position-stats">
+        <div><span>Billed</span><b>{money(stats.billed)}</b><small>{invoices.length} invoices</small></div>
+        <div><span>Collected</span><b>{money(stats.collected)}</b><small>{collection}% of billed</small></div>
+        <div><span>Overdue</span><b>{money(overdueValue)}</b><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div>
+        <div><span>Next 14 days</span><b>{money(dueSoonValue)}</b><small>{dueSoon.length} due</small></div>
+      </div>
+    </section>
+    <section className="command-grid">
+      <section className="data-panel command-queue"><div className="data-panel-head"><div><h2>Needs attention</h2><p>Decisions and follow-ups, not noise.</p></div><ArrowUpRight size={17}/></div>
+        {actions.length?<div className="action-list">{actions.map(a=><button key={a.kind+"-"+a.invoice.id} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.kind==="Overdue"?<CircleAlert size={15}/>:a.kind==="Due soon"?<WalletCards size={15}/>:<IndianRupee size={15}/>}</span><div><b>{a.label}</b><small>{a.kind} · {a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={15}/></button>)}</div>:<div className="empty-state success-empty"><Check size={17}/><div><b>Nothing requires attention</b><span>Open receivables are clear and all visible work is priced.</span></div></div>}
+      </section>
+      <section className="data-panel command-clients"><div className="data-panel-head"><div><h2>Open by client</h2><p>Where receivables are concentrated.</p></div><Building2 size={17}/></div>
+        <div className="receivable-list">{[...clientMap.entries()].filter(([,g])=>g.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6).map(([name,g])=><div className="receivable-row" key={name}><div><b>{name}</b><span>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</span></div><strong>{money(g.open)}</strong></div>)}{!open.length&&<div className="empty-state">No open receivables.</div>}</div>
+      </section>
+    </section>
+    <section className="data-panel recent-panel"><div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest financial activity for {organization?.name||"this organisation"}.</p></div><Receipt size={17}/></div>
+      <div className="recent-list">{recent.map(i=><button key={i.id} className="recent-row" onClick={()=>onOpen(i)}><div><span className="recent-number">#{i.number}</span><b>{i.client}</b><small>{i.project} · {dateLabel(i.date)}</small></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div><ChevronRight size={15}/></button>)}</div>
+    </section>
+    <section className="position-footnote"><div><WalletCards size={16}/><span><b>Unpriced work</b><small>{unpriced.length} invoice{unpriced.length===1?"":"s"} contain content without a rate.</small></span></div><div><FileText size={16}/><span><b>Accounting boundary</b><small>Everything shown here is scoped to the selected organisation.</small></span></div></section>
   </div>;
 }
+function dateLabel(value:string){return new Date(value+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
+
 function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
   return <><section className="section-head">
     <div><h2>Invoices</h2><p>{filtered.length} records · {filtered.reduce((s,i) => s+i.contents.length,0)} contents</p></div>
@@ -395,7 +421,7 @@ function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:stri
 function ClientPortal({clientId,invoices,onBack,onOpenInvoice,onSaved}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void}) {
   const [client,setClient]=useState<any>(null);const [portalLink,setPortalLink]=useState("");const [tab,setTab]=useState<"overview"|"invoices"|"projects"|"statement"|"settings">("overview");
   const [period,setPeriod]=useState<Period>("all");const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
-  const [portalPassword,setPortalPassword]=useState("");const [passwordSaving,setPasswordSaving]=useState(false);const [openSection,setOpenSection]=useState<"identity"|"portal"|"documents">("identity");
+  const [portalPassword,setPortalPassword]=useState("");const [passwordSaving,setPasswordSaving]=useState(false);const [openSection,setOpenSection]=useState<"identity"|"portal"|"documents"|null>(null);
   const [form,setForm]=useState<any>({});
 
   async function load(){setLoading(true);const {data,error}=await supabase.from("clients").select("id,name,legal_name,email,phone,pan,gstin,address_lines,portal_enabled,portal_slug,portal_message,allow_profile_edit,show_projects,show_documents,logo_path,portal_password_set_at").eq("id",clientId).single();setClient(data);if(error)setMessage(error.message);setLoading(false)}

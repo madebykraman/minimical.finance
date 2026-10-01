@@ -201,3 +201,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .spin{animation:finance-spin .8s linear infinite}
 @keyframes finance-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.spin{animation:none}.state-action-button{transition:none}}
+
+
+/* Organisation picker: searchable, compact, keyboard-friendly. */
+.workspace-menu-search{height:34px;display:flex;align-items:center;gap:7px;margin:6px;padding:0 9px;border:1px solid #29292d;border-radius:7px;background:#111113;color:#66666e}
+.workspace-menu-search:focus-within{border-color:#3a3a40;color:#9b9ba3}
+.workspace-menu-search input{height:100%;min-height:0!important;padding:0!important;border:0!important;background:transparent!important;font-size:8px!important;color:#e7e7e9!important;outline:0!important}
+.workspace-menu-search input::placeholder{color:#5e5e66}
+.workspace-menu-empty{padding:12px 10px;color:#5e5e66;font-size:8px}
+.rail-workspace-copy small{display:none!important}
+.rail-menu{padding:2px 0!important}
+.rail-menu>button{min-height:38px!important;padding:0 9px!important}
+.rail-menu>button:hover{background:#18181b!important}
+.rail-menu>button.selected{background:#17151d!important;color:#fff!important}
+@media(max-width:720px){.workspace-menu-search{margin:7px}.workspace-switcher-menu.rail-menu{top:58px}}

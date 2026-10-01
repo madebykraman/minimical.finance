@@ -944,6 +944,8 @@ export type Database = {
           p_contents?: Json
           p_due_date?: string | null
           p_invoice_id: string
+          p_client_id?: string | null
+          p_project_id?: string | null
           p_notes?: string | null
           p_issue_date?: string | null
           p_organization_id?: string | null

@@ -470,25 +470,72 @@ export function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoi
 }
 
 export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {
-  const [number,setNumber] = useState(initialNumber);
-  const [client,setClient] = useState("");
-  const [project,setProject] = useState("");
-  const [date,setDate] = useState(new Date().toISOString().slice(0,10));
-  const [dueDate,setDueDate] = useState(new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10));
-  const [contents,setContents] = useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
+  const [number]=useState(initialNumber);
+  const [client,setClient]=useState("");
+  const [project,setProject]=useState("");
+  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
+  const [dueDate,setDueDate]=useState(new Date(Date.now()+30*86400000).toISOString().slice(0,10));
+  const [contents,setContents]=useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
+  const [clients,setClients]=useState<any[]>([]);
+  const [projects,setProjects]=useState<any[]>([]);
   const organizationId=initialOrganizationId||"";
-  const total = contents.reduce((s,c) => s + contentAmount(c), 0);
-  const patch = (id:string,p:Partial<Content>) => setContents(v => v.map(c => c.id === id ? {...c,...p} : c));
-  const add = () => setContents(v => [...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
-  return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e => e.stopPropagation()}>
-    <div className="drawer-head"><div><h2>Create invoice</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} readOnly aria-readonly="true" placeholder="Automatic"/></label><label>Client<input required value={client} onChange={e => setClient(e.target.value)} placeholder="Client name"/></label><label>Project<input required value={project} onChange={e => setProject(e.target.value)} placeholder="Project name"/></label><label>Billing organisation<input value={organizationId||"No organisation selected"} readOnly aria-readonly="true"/></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
-      <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Billable, adjustment and unpriced content can coexist.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
-        {contents.map((c,idx) => <div className="composer-row" key={c.id}><span>{idx + 1}</span><input value={c.title} onChange={e => patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input type="number" value={c.quantity ?? ""} onChange={e => patch(c.id,{quantity:Number(e.target.value) || 1})} placeholder="Qty"/><input type="number" value={c.rate ?? ""} onChange={e => patch(c.id,{rate:e.target.value ? Number(e.target.value) : null,priced:!!e.target.value})} placeholder="Rate"/><b>{c.priced && c.rate ? money(contentAmount(c)) : "TBD"}</b></div>)}
-      </div><div className="total-box"><span>Invoice total</span><strong>{money(total)}</strong></div>
+  const total=contents.reduce((sum,c)=>sum+contentAmount(c),0);
+
+  useEffect(()=>{
+    if(!organizationId){setClients([]);setProjects([]);return}
+    Promise.all([
+      supabase.from("clients").select("id,name").is("archived_at",null).eq("organization_id",organizationId).order("name"),
+      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).neq("status","archived").order("name")
+    ]).then(([c,p])=>{setClients(c.data||[]);setProjects(p.data||[])});
+  },[organizationId]);
+
+  const patch=(id:string,p:Partial<Content>)=>setContents(v=>v.map(c=>c.id===id?{...c,...p}:c));
+  const add=()=>setContents(v=>[...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
+  const clientProjects=projects.filter(p=>{const selected=clients.find(c=>c.name===client);return !selected||p.client_id===selected.id});
+  const canCreate=Boolean(number&&organizationId&&client.trim()&&project.trim()&&contents.some(c=>c.title.trim()));
+
+  return <div className="overlay invoice-editor-overlay" onMouseDown={onClose}>
+    <div className="composer invoice-composer" onMouseDown={e=>e.stopPropagation()}>
+      <div className="drawer-head editor-header">
+        <div><span className="eyebrow">NEW INVOICE</span><h2>Create invoice</h2><p>Build the billable record first. The PDF is generated from the saved invoice.</p></div>
+        <button className="icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button>
+      </div>
+      <div className="composer-body editor-body">
+        <section className="editor-section">
+          <div className="editor-section-head"><div><span className="section-kicker">IDENTITY</span><h3>Invoice details</h3></div><span className="editor-number">#{number}</span></div>
+          <div className="form-grid invoice-detail-grid">
+            <label>Client<input list="invoice-client-options" required value={client} onChange={e=>{setClient(e.target.value);setProject("")}} placeholder="Select or enter client"/></label>
+            <label>Project<input list="invoice-project-options" required value={project} onChange={e=>setProject(e.target.value)} placeholder="Select or enter project"/></label>
+            <label>Issue date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+            <label>Due date<input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></label>
+          </div>
+          <datalist id="invoice-client-options">{clients.map(c=><option key={c.id} value={c.name}/>)}</datalist>
+          <datalist id="invoice-project-options">{clientProjects.map(p=><option key={p.id} value={p.name}/>)}</datalist>
+          <div className="editor-org-lock"><Building2 size={15}/><div><span>Billing organisation</span><b>{clients.length>=0&&organizationId ? "Current organisation" : "No organisation selected"}</b></div><span className="editor-readonly">#{number}</span></div>
+        </section>
+
+        <section className="editor-section contents-editor-section">
+          <div className="editor-section-head"><div><span className="section-kicker">LINE ITEMS</span><h3>Contents</h3><p>Every billable deliverable belongs here. Unpriced lines remain visible but are excluded from the total.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
+          <div className="editor-content-head"><span>#</span><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span></span></div>
+          <div className="editor-content-list">{contents.map((c,idx)=>
+            <div className="editor-content-row" key={c.id}>
+              <span className="editor-index">{String(idx+1).padStart(2,"0")}</span>
+              <input value={c.title} onChange={e=>patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/>
+              <input type="number" min="1" value={c.quantity??""} onChange={e=>patch(c.id,{quantity:Number(e.target.value)||1})} placeholder="1" aria-label={"Quantity "+(idx+1)}/>
+              <input type="number" min="0" value={c.rate??""} onChange={e=>patch(c.id,{rate:e.target.value?Number(e.target.value):null,priced:!!e.target.value})} placeholder="Rate" aria-label={"Rate "+(idx+1)}/>
+              <b className={!c.priced?"unpriced":""}>{c.priced&&c.rate!=null?money(contentAmount(c)):"TBD"}</b>
+              <button className="icon-button editor-delete" onClick={()=>setContents(v=>v.filter(x=>x.id!==c.id))} disabled={contents.length===1} aria-label={"Remove line "+(idx+1)}><X size={14}/></button>
+            </div>
+          )}</div>
+          <div className="editor-total"><span>Total</span><strong>{money(total)}</strong></div>
+        </section>
+      </div>
+      <div className="drawer-foot editor-footer">
+        <button className="secondary" onClick={onClose}>Cancel</button>
+        <button className="primary" disabled={!canCreate} onClick={()=>onCreate({number,client,project,date,dueDate,organizationId,contents})}><Check size={16}/>Create draft</button>
+      </div>
     </div>
-    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!number || !organizationId || !client.trim() || !project.trim() || !contents.some(c => c.title.trim())} onClick={() => onCreate({number,client,project,date,dueDate,organizationId,contents})}>Create draft</button></div>
-  </div></div>;
+  </div>;
 }
 
 export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onClose:()=>void;onCreate:(i:Invoice,a:number,d:string,m:string,r:string)=>void}) {

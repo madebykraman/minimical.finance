@@ -23,7 +23,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
   const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
   const page=pdf.addPage([595.2756,841.8898]);const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,payload.client.logo_path);if(orgLogo){const d=orgLogo.scale(Math.min(48/orgLogo.width,24/orgLogo.height));page.drawImage(orgLogo,{x:48,y:794-d.height,width:d.width,height:d.height});}if(clientLogo){const d=clientLogo.scale(Math.min(48/clientLogo.width,24/clientLogo.height));page.drawImage(clientLogo,{x:499-d.width,y:794-d.height,width:d.width,height:d.height});}const text=(s:string,x:number,y:number,size=9,font:any=regular,color:any=rgb(0,0,0))=>page.drawText(String(s||""),{x,y,size,font,color});
-  text("FinOS",48,790,17,bold);text("PAYMENT RECEIPT",48,770,8,bold,rgb(.42,.42,.4));
+  text("Organization",48,790,17,bold);text("PAYMENT RECEIPT",48,770,8,bold,rgb(.42,.42,.4));
   text(payload.client.legal_name||payload.client.name,48,724,11,bold);text(payload.client.email||"",48,708,8,regular,rgb(.42,.42,.4));
   const receiptNo=payment.receipt_number||`RCP-${payment.invoice_number}-${payment.id.slice(0,8)}`;
   const right=(s:string,y:number,size=8,font:any=regular,color:any=rgb(0,0,0))=>{const v=String(s||"");text(v,547-font.widthOfTextAtSize(v,size),y,size,font,color)};
@@ -38,6 +38,6 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   text("PAY TO",48,460,8,bold,rgb(.42,.42,.4));text(org?.payee_name||org?.legal_name||"Kumar Aman",48,442,8,bold);text(org?.bank_name||"",48,428,7,regular,rgb(.45,.45,.43));text(org?.account_number?"A/C "+org.account_number:"",48,416,7,regular,rgb(.45,.45,.43));text(org?.ifsc_code?"IFSC "+org.ifsc_code:"",48,404,7,regular,rgb(.45,.45,.43));
   text("This receipt confirms that the payment above was recorded against the referenced invoice.",48,280,8,regular,rgb(.42,.42,.4));
   text("Thank you for your business.",48,264,8,regular,rgb(.42,.42,.4));
-  text("FinOS · Payment record",48,42,6.5,regular,rgb(.55,.55,.52));
+  text("Organization · Payment record",48,42,6.5,regular,rgb(.55,.55,.52));
   const bytes=await pdf.save();return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition": `attachment; filename="${receiptNo}.pdf"`, "Cache-Control":"private, no-store"}});
 }

@@ -44,7 +44,21 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [theme, setTheme] = useState<"light"|"dark">("light");
   const router = useRouter();
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("minimical-finance-theme") as "light"|"dark"|null;
+    const preferred = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(preferred);
+    document.documentElement.dataset.theme = preferred;
+  }, []);
+
+  function changeTheme(next: "light"|"dark") {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    window.localStorage.setItem("minimical-finance-theme", next);
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -142,8 +156,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
   return (
     <main
-      className="shell"
-      style={{ "--org-accent": activeOrganization?.accent_hex || "#171716" } as any}
+      className={"shell theme-"+theme}
+      style={{ "--org-accent": activeOrganization?.accent_hex || "#2563eb" } as any}
     >
       <aside className="sidebar">
         <div className="brand-lockup">
@@ -191,7 +205,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         {activeView === "clients" && <ClientsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} />}
         {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} />}
         {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
-        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} activeOrganizationId={organizationId} onSignOut={() => supabase.auth.signOut()} />}
+        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} activeOrganizationId={organizationId} onSignOut={() => supabase.auth.signOut()} theme={theme} onThemeChange={changeTheme} />}
       </section>
 
       <nav className="mobile-nav" aria-label="Primary navigation">
@@ -316,7 +330,7 @@ function AuthScreen() {
   </div></div>;
 }
 
-function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {
+function SettingsView({email,activeOrganizationId,onSignOut,theme,onThemeChange}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void;theme:"light"|"dark";onThemeChange:(theme:"light"|"dark")=>void}) {
   const [tab,setTab]=useState<"account"|"organizations"|"workspace"|"security">("organizations");
   const [open,setOpen]=useState<string>("");
   const [message,setMessage]=useState("");
@@ -328,6 +342,9 @@ function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activ
     {tab==="account"&&<AccountIdentitySettings/>}
     {tab==="workspace"&&<div className="settings-stack">
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}</section>
+      <section className="settings-section-card appearance-card">
+        <div className="appearance-head"><div><b>Appearance</b><small>Choose the visual mode for this workspace.</small></div><div className="appearance-switch" role="group" aria-label="Appearance"><button className={theme==="light"?"active":""} onClick={()=>onThemeChange("light")}>Light</button><button className={theme==="dark"?"active":""} onClick={()=>onThemeChange("dark")}>Dark</button></div></div>
+      </section>
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="access"?"":"access")}><span><b>Access boundary</b><small>Authenticated owner access and database-enforced workspace isolation.</small></span><span>{open==="access"?"Collapse":"Edit"}</span></button>{open==="access"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Workspace access</b><p>Protected by authenticated session and row-level security.</p></div><span className="settings-good">Protected</span></div></div>}</section>
     </div>}
     {tab==="security"&&<div className="settings-stack">

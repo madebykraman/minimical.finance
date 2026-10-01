@@ -710,3 +710,64 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .workspace-minimal-name{font-size:10px}
 .workspace-archive-toggle{font-size:7px}
 .data-panel-head p,.block-head p,.operations-intro p,.client-card p,.project-card p{display:none}
+
+
+/* Workspace / hierarchy refinement — minimal-first */
+.topbar{align-items:center;margin-bottom:18px}
+.topbar h1{font-size:26px;letter-spacing:-.055em}
+.topbar-tools{gap:8px}
+.workspace-switcher-wrap{position:relative;min-width:0}
+.top-workspace-switcher{
+  width:190px;height:36px;display:grid;grid-template-columns:25px minmax(0,1fr) 13px;
+  align-items:center;gap:8px;padding:0 9px;border:1px solid #292f39;border-radius:9px;
+  background:#11151a;color:#dfe4eb;text-align:left;
+}
+.top-workspace-switcher:hover{background:#171b21;border-color:#373f4c}
+.top-workspace-mark{width:25px;height:25px;display:grid;place-items:center;overflow:hidden;border-radius:7px;background:#1b2030;color:#9a8fff;font:700 9px var(--font-data)}
+.top-workspace-mark img{width:100%;height:100%;object-fit:contain}
+.top-workspace-copy{min-width:0;display:block}
+.top-workspace-copy strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dfe4eb;font-size:9px;font-weight:650}
+.top-workspace-switcher>svg{color:#65707d;transition:transform .14s}
+.top-workspace-switcher .workspace-chevron-open{transform:rotate(90deg)}
+.workspace-switcher-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:80;width:245px;padding:5px;border:1px solid #2b313a;border-radius:10px;background:#11151a;box-shadow:var(--shadow-2)}
+.workspace-switcher-menu>button{width:100%;min-height:40px;display:grid;grid-template-columns:26px minmax(0,1fr) 14px;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#dce1e8;text-align:left}
+.workspace-switcher-menu>button:hover,.workspace-switcher-menu>button.selected{background:#181d24}
+.workspace-switcher-menu>button.selected{color:#fff}
+.workspace-option-mark{width:24px;height:24px;display:grid;place-items:center;overflow:hidden;border-radius:6px;background:#1d2330;color:#99a3ff;font:700 8px var(--font-data)}
+.workspace-option-mark img{width:100%;height:100%;object-fit:contain}
+.workspace-switcher-menu strong{font-size:9px;font-weight:620}
+.workspace-check{color:#8f82ff;font-size:11px}
+.workspace-menu-manage{display:none!important}
+
+.workspace-landing{
+  width:min(680px,100%);margin:8vh auto 0;padding:0 4px;
+}
+.workspace-landing-head{display:flex;align-items:center;gap:11px;margin-bottom:18px}
+.workspace-landing-head .workspace-gate-mark{width:30px;height:30px;border-radius:8px;font-size:12px}
+.workspace-landing-head .eyebrow{margin:0 0 2px}
+.workspace-landing-head h2{margin:0;color:#f3f5f8;font-size:18px;line-height:1.1;letter-spacing:-.045em;font-weight:680}
+.workspace-landing-list{border-top:1px solid var(--line)}
+.workspace-landing .workspace-minimal-row{min-height:50px;padding:0 5px}
+.workspace-landing .workspace-minimal-row:hover{background:#11151b}
+.workspace-landing .workspace-company-logo{width:28px;height:28px;border-radius:7px}
+.workspace-landing .workspace-minimal-name{font-size:10px;font-weight:600}
+.workspace-landing-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;padding:0 5px;color:#555f6b;font:700 7px var(--font-data);letter-spacing:.09em;text-transform:uppercase}
+.workspace-landing-footer .workspace-archive-toggle{margin:0;font:inherit;letter-spacing:inherit;text-transform:inherit}
+.workspace-landing-footer .workspace-archive-toggle:hover{color:#aeb6c0}
+
+@media(max-width:900px){
+  .topbar{gap:12px}
+  .global-search{width:220px}
+  .top-workspace-switcher{width:165px}
+}
+@media(max-width:720px){
+  .content{padding:18px 15px 76px}
+  .topbar{align-items:center;margin-bottom:16px}
+  .topbar h1{font-size:21px}
+  .topbar-tools{gap:6px}
+  .global-search{display:none}
+  .top-workspace-switcher{width:145px;height:34px}
+  .top-workspace-copy strong{font-size:8px}
+  .workspace-switcher-menu{right:0;width:230px}
+  .workspace-landing{margin-top:7vh}
+}

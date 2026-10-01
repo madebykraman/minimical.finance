@@ -81,3 +81,7 @@ Supabase Dashboard configuration still required for the production auth boundary
 
 
 <!-- FinOS client/account layer verified: 2026-09-30T23:28:17.731Z -->
+
+
+### Wishlist
+- Collapsible live invoice preview (desktop) — intentionally removed from the current product; revisit only as a future optional workflow.

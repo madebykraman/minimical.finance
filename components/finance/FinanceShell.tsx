@@ -103,8 +103,7 @@ export function FinanceShell({
               : <span className="brand-glyph">m</span>}
           </div>
           <div className="brand-copy">
-            <strong>{activeOrganization?.name || "All organisations"}</strong>
-            <span>{activeOrganization?.legal_name || "MINIMICAL FINANCE"}</span>
+            <strong>MINIMICAL FINANCE</strong>
           </div>
         </div>
 
@@ -132,7 +131,7 @@ export function FinanceShell({
               {String(activeOrganization?.name || session.user?.email || "A").slice(0, 1).toUpperCase()}
             </div>
             <div>
-              <b>{activeOrganization?.name || "Workspace"}</b>
+              <b>Account</b>
               <small>{session.user?.email || "Authenticated"}</small>
             </div>
             <MoreHorizontal size={16} />
@@ -181,7 +180,7 @@ export function FinanceShell({
                     onClick={() => { onSelectWorkspace(null); setWorkspaceMenuOpen(false); }}
                   >
                     <span className="workspace-option-mark">A</span>
-                    <span><strong>All organisations</strong><small>All workspace data</small></span>
+                    <span><strong>All organisations</strong></span>
                     {!activeOrganization && <span className="workspace-check">✓</span>}
                   </button>
                   {organizations.filter(o => !["dissolved", "discontinued"].includes(String(o.status))).map(org => (
@@ -195,12 +194,12 @@ export function FinanceShell({
                       <span className="workspace-option-mark">
                         {org.logo_path ? <img src={org.logo_path} alt="" /> : String(org.name || "O").slice(0, 1).toUpperCase()}
                       </span>
-                      <span><strong>{org.name || "Organisation"}</strong><small>{org.legal_name || "Workspace"}</small></span>
+                      <span><strong>{org.name || "Organisation"}</strong></span>
                       {activeOrganization?.id === org.id && <span className="workspace-check">✓</span>}
                     </button>
                   ))}
-                  <button className="workspace-menu-manage" onClick={onChangeWorkspace}>
-                    <span>Manage workspaces</span><ChevronRight size={13} />
+                  <button className="workspace-menu-manage" onClick={onChangeWorkspace} aria-label="Open workspace selection">
+                    <span>Change workspace</span><ChevronRight size={13} />
                   </button>
                 </div>
               )}

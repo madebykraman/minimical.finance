@@ -23,7 +23,7 @@ test("payment transitions are deterministic",()=>{
 test("overdue state respects balance and void status",()=>{
  const today=new Date("2026-10-01T12:00:00");
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"sent"},today),true);
- assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"paid"},today),false);
+ assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"paid",payments:[{...base.payments[0],amount:4000}]},today),false);
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"void"},today),false);
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-10-01",status:"sent"},today),false);
 });

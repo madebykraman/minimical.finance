@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-// UI typography is defined by the product token system in globals.css.
+// UI typography and visual primitives are defined by the dark-native product system.
 
 export const metadata: Metadata = {
   title: "minimical finance",

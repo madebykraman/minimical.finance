@@ -308,15 +308,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }
 
   return (
-      <OrganizationWelcome
-        organizations={organizations}
-        onSelect={id => selectOrganization(id)}
-        onAll={() => selectOrganization(null)}
-      />
-    );
-  }
-
-  return (
     <FinanceShell
       activeView={activeView}
       activeOrganization={activeOrganization}
@@ -380,7 +371,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           onOpen={setSelected}
           onNavigate={view => setActiveView(view)}
         />
-      )}}
+      )}
       {activeView === "invoices" && (
         <InvoiceView
           filtered={filtered}

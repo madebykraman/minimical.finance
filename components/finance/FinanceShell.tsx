@@ -166,7 +166,6 @@ export function FinanceShell({
                   {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : "m"}
                 </span>
                 <span className="top-workspace-copy">
-                  <small>WORKSPACE</small>
                   <strong>{activeOrganization?.name || "All organisations"}</strong>
                 </span>
                 <ChevronRight size={14} className={workspaceMenuOpen ? "workspace-chevron-open" : ""} />
@@ -198,9 +197,6 @@ export function FinanceShell({
                       {activeOrganization?.id === org.id && <span className="workspace-check">✓</span>}
                     </button>
                   ))}
-                  <button className="workspace-menu-manage" onClick={onChangeWorkspace} aria-label="Open workspace selection">
-                    <span>Change workspace</span><ChevronRight size={13} />
-                  </button>
                 </div>
               )}
             </div>

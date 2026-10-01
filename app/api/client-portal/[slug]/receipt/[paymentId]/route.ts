@@ -9,6 +9,7 @@ import { hashPortalSession } from "@/lib/portal/auth";
 async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return null;const b=new Uint8Array(await r.arrayBuffer());const t=(r.headers.get("content-type")||"").toLowerCase();return t.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(b):await pdf.embedJpg(b)}catch{return null}}
 const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
 const fmt=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"}):"—";
+const hexRgb=(hex:string)=>{const h=String(hex||"#171716").replace("#","");const n=parseInt(h.length===6?h:"171716",16);return rgb(((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255)};
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;paymentId:string}>}){
   const {slug,paymentId}=await context.params; const session=request.cookies.get("portal_session")?.value||"";
@@ -19,7 +20,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const payload:any=data; const org:any=orgRaw||{}; const payment=(payload.payments||[]).find((p:any)=>p.id===paymentId);
   if(!payment)return new NextResponse("Receipt not found",{status:404});
   const invoice=(payload.invoices||[]).find((i:any)=>i.id===payment.invoice_id);
-  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
+  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);const accent=hexRgb(org.accent_hex||"#171716");
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
   const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
   const mono=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","GeistMono-Regular.ttf")),{subset:true});
@@ -30,8 +31,8 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const receiptNo=payment.receipt_number||`RCP-${payment.invoice_number}-${payment.id.slice(0,8)}`;
   const right=(s:string,y:number,size=8,font:any=regular,color:any=rgb(0,0,0))=>{const v=String(s||"");text(v,547-font.widthOfTextAtSize(v,size),y,size,font,color)};
   right(receiptNo,724,9,bold);right(fmt(payment.payment_date),708,8,regular,rgb(.42,.42,.4));
-  page.drawRectangle({x:48,y:610,width:499,height:76,borderWidth:.6,borderColor:rgb(.85,.84,.81)});
-  text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,mono);
+  page.drawRectangle({x:48,y:610,width:499,height:76,borderWidth:.8,borderColor:accent});
+  text("AMOUNT RECEIVED",64,658,7,bold,rgb(.42,.42,.4));text(money(payment.amount),64,630,21,mono,accent);
   text("RECEIVED FROM",48,570,8,bold,rgb(.42,.42,.4));
   text(payload.client.legal_name||payload.client.name,48,548,9,bold);(payload.client.address_lines||[]).slice(0,3).forEach((v:string,i:number)=>text(v,48,534-i*13,7,regular,rgb(.45,.45,.43)));
   text("PAYMENT DETAILS",310,570,8,bold,rgb(.42,.42,.4));

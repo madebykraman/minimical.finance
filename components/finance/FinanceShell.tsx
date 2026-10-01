@@ -23,9 +23,10 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
  const router=useRouter(); const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");
  useEffect(()=>{if(!workspaceMenuOpen)return;const key=(e:KeyboardEvent)=>e.key==="Escape"&&setWorkspaceMenuOpen(false);const click=(e:MouseEvent)=>{const t=e.target as Node;if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))setWorkspaceMenuOpen(false)};document.addEventListener("keydown",key);document.addEventListener("mousedown",click);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("mousedown",click)}},[workspaceMenuOpen]);
  const secondary=navigation.filter(([k])=>!["overview","invoices","payments","clients"].includes(k));
- const routeFor=(path:string)=>`${path}?organization=${encodeURIComponent(activeOrganization?.id||"all")}`;
+ const routeFor=(path:string)=>`${path}?organization=${encodeURIComponent(activeOrganization?.id||"")}`;
  const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
  const filteredOrgs=activeOrgs.filter(o=>String(o.name||"").toLowerCase().includes(workspaceFilter.trim().toLowerCase()));
+ const pageTitle=navigation.find(([key])=>key===activeView)?.[2]||"Overview";
  const mark=(org:WorkspaceOrganization|null)=>org?.logo_path?<img src={org.logo_path} alt=""/>:String(org?.name||"A").slice(0,1).toUpperCase();
 
  return <main className="shell" style={{"--org-accent":activeOrganization?.accent_hex||"#7046dd"} as CSSProperties}>
@@ -36,7 +37,6 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
     </button>
     {workspaceMenuOpen&&<div className="workspace-switcher-menu rail-menu" role="listbox" aria-label="Organisations">
       <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
-      <button className={!activeOrganization?"selected":""} onClick={()=>{onSelectWorkspace(null);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">A</span><strong>All organisations</strong>{!activeOrganization&&<Check size={13} className="workspace-check"/>}</button>
       {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>{onSelectWorkspace(o.id);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">{mark(o)}</span><strong>{o.name||"Organisation"}</strong>{activeOrganization?.id===o.id&&<Check size={13} className="workspace-check"/>}</button>)}
       {!filteredOrgs.length&&<div className="workspace-menu-empty">No organisations found.</div>}
     </div>}
@@ -53,7 +53,8 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
   <section className="content">
    {actionError&&<div className="global-error" role="alert"><CircleAlert size={14}/><span>{actionError}</span><button onClick={clearError} aria-label="Dismiss error"><X size={14}/></button></div>}
    <header className="topbar">
-    <div className="topbar-mobile-title"><span>{activeOrganization?.name||"Finance"}</span></div>
+    <div className="topbar-mobile-title"><span>{pageTitle}</span></div>
+    <div className="topbar-left"><div className="topbar-page-title"><span className="eyebrow">{pageTitle}</span><strong>{activeOrganization?.name||"Organisation"}</strong></div></div>
     <label className="global-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search" aria-label="Search workspace"/></label>
     <div className="topbar-tools">
       <button className="icon-button" title="Refresh" onClick={onRefresh} aria-label="Refresh"><RefreshCw size={15}/></button>

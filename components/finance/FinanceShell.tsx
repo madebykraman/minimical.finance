@@ -39,7 +39,7 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
       <button className={!activeOrganization?"selected":""} onClick={()=>{onSelectWorkspace(null);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">A</span><strong>All organisations</strong>{!activeOrganization&&<Check size={13} className="workspace-check"/>}</button>
       {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>{onSelectWorkspace(o.id);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">{mark(o)}</span><strong>{o.name||"Organisation"}</strong>{activeOrganization?.id===o.id&&<Check size={13} className="workspace-check"/>}</button>)}
       {!filteredOrgs.length&&<div className="workspace-menu-empty">No organisations found.</div>}
-    </div>
+    </div>}
    </div>
    <nav>
     {navigation.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}

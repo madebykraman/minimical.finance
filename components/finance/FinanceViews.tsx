@@ -553,6 +553,8 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const [organizationName,setOrganizationName]=useState("");
   const organizationId=initialOrganizationId||"";
   const total=contents.reduce((sum,c)=>sum+contentAmount(c),0);
+  const dirty=Boolean(client||project||contents.some(c=>c.title.trim()||c.rate!=null)||date!==new Date().toISOString().slice(0,10));
+  const requestClose=()=>{if(!dirty||window.confirm("Discard this invoice draft?"))onClose()};
 
   useEffect(()=>{
     if(!organizationId){setClients([]);setProjects([]);return}
@@ -568,7 +570,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const clientProjects=projects.filter(p=>{const selected=clients.find(c=>c.name===client);return !selected||p.client_id===selected.id});
   const canCreate=Boolean(number&&organizationId&&client.trim()&&project.trim()&&contents.some(c=>c.title.trim()));
 
-  return <div className="overlay invoice-editor-overlay" onMouseDown={onClose}>
+  return <div className="overlay invoice-editor-overlay" onMouseDown={requestClose}>
     <div className="composer invoice-composer" onMouseDown={e=>e.stopPropagation()}>
       <div className="drawer-head editor-header">
         <div><span className="eyebrow">NEW INVOICE</span><h2>Create invoice</h2><p>Build the billable record first. The PDF is generated from the saved invoice.</p></div>
@@ -605,7 +607,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
         </section>
       </div>
       <div className="drawer-foot editor-footer">
-        <button className="secondary" onClick={onClose}>Cancel</button>
+        <button className="secondary" onClick={requestClose}>Cancel</button>
         <button className="primary" disabled={!canCreate} onClick={()=>onCreate({number,client,project,date,dueDate,organizationId,contents})}><Check size={16}/>Create draft</button>
       </div>
     </div>

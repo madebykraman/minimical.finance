@@ -4,7 +4,7 @@ import { hashPortalSession } from "@/lib/portal/auth";
 
 export async function GET(request:NextRequest){
   const slug=request.nextUrl.searchParams.get("slug")||"";
-  const session=request.cookies.get("finos_portal_session")?.value||"";
+  const session=request.cookies.get("portal_session")?.value||"";
   if(!slug||!session)return NextResponse.json({error:"Authentication required."},{status:401});
   const supabase=await createClient();
   const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)});

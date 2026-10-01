@@ -249,12 +249,35 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
+  const navigateTo = (view: FinanceView) => {
+    setActiveView(view);
+    setSelectedClientId(null);
+    setSelected(null);
+    setPaymentFor(null);
+    setComposer(false);
+    setMobileMoreOpen(false);
+    setQuery("");
+    setStatus("all");
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (organizationId) params.set("organization", organizationId); else params.delete("organization");
+      const queryString = params.toString();
+      router.push(`/${view}${queryString ? `?${queryString}` : ""}`, { scroll: false });
+    }
+  };
+
   const selectOrganization = (id: string | null) => {
     if (!id) return;
     const workspace = id;
     setOrganizationId(id);
     setWorkspaceReady(true);
     setMobileMoreOpen(false);
+    setSelectedClientId(null);
+    setSelected(null);
+    setPaymentFor(null);
+    setComposer(false);
+    setQuery("");
+    setStatus("all");
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(workspaceStorageKey, workspace);
@@ -295,6 +318,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   return (
     <FinanceShell
       activeView={activeView}
+      onNavigate={navigateTo}
       activeOrganization={activeOrganization}
       invoiceCount={orgInvoices.length}
       session={session}
@@ -346,7 +370,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           invoices={orgInvoices}
           organization={activeOrganization}
           onOpen={setSelected}
-          onNavigate={view => setActiveView(view)}
+          onNavigate={navigateTo}
         />
       )}
       {activeView === "invoices" && (

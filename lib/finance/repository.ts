@@ -35,6 +35,11 @@ export async function logActivity(
 }
 
 export async function setInvoiceStatus(invoice: Invoice, next: Status) {
+  const total = invoiceTotal(invoice);
+  const paid = paidTotal(invoice);
+  if (next === "paid" && paid < total) return "An invoice can only be marked paid after the full balance has been received.";
+  if (next === "partially_paid" && (paid <= 0 || paid >= total)) return "Partially paid requires a payment recorded against a remaining balance.";
+  if (next === "sent" && paid > 0) return "This invoice already has a payment. Its status must remain partially paid or paid.";
   const { error } = await supabase
     .from("invoices")
     .update({ status: next, updated_at: new Date().toISOString() })

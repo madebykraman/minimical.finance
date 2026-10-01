@@ -663,13 +663,20 @@ function ReportsView({invoices}:{invoices:Invoice[]}) {
 }
 function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
   const [projects,setProjects]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
-  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[]);
+  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
   async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").eq("organization_id",organizationId).order("name");setProjects(data||[]);setLoading(false);}
   const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const row=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);fallback.set(key,row)});
   const derived=Array.from(fallback.values()).filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));
-  return <div className="data-panel"><div className="data-panel-head"><div><h2>Projects</h2><p>{projects.length+derived.length} project records · billing and production cost.</p></div></div>
-    {loading?<div className="empty-state">Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
-    {!loading&&!projects.length&&!derived.length&&<div className="empty-state">No projects yet. Create the first project.</div>}
+  const totalBilled=projects.reduce((sum,p)=>sum+invoices.filter(i=>i.projectId===p.id).reduce((s,i)=>s+invoiceTotal(i),0),0)+derived.reduce((sum,p)=>sum+p.billed,0);
+  const totalCost=projects.reduce((sum,p)=>sum+Number(p.actual_cost||0),0);
+  const active=projects.filter(p=>p.status==="active").length+derived.length;
+  return <div className="operations-page">
+    <section className="operations-intro"><div><div className="eyebrow">DELIVERY / PROJECTS</div><h2>Projects</h2><p>Production work connected to revenue, clients and recorded cost.</p></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>project records</span></div></section>
+    <section className="operations-kpis"><Kpi label="Active projects" value={String(active)} detail="Current organisation"/><Kpi label="Project revenue" value={money(totalBilled)} detail="Linked invoice value"/><Kpi label="Recorded cost" value={money(totalCost)} detail="Actual production cost"/><Kpi label="Gross after cost" value={money(totalBilled-totalCost)} detail="Revenue less recorded cost" accent/></section>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2><p>Track billing performance and production cost without leaving the finance workspace.</p></div><FolderKanban size={16}/></div>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
+      {!loading&&!projects.length&&!derived.length&&<div className="empty-state"><FolderKanban size={18}/><b>No projects yet.</b><span>Create a project to connect production work with billing.</span></div>}
+    </section>
     {creating&&<ProjectCreateModal onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
   </div>;
 }

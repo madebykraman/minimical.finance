@@ -132,7 +132,8 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState("");
-  const [open,setOpen]=useState(true);
+  const [identityOpen,setIdentityOpen]=useState(true);
+  const [brandingOpen,setBrandingOpen]=useState(false);
 
   async function load(){
     setLoading(true);
@@ -171,8 +172,8 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
       <div><span className="eyebrow">SELECTED ORGANISATION</span><h2>{organization.name}</h2><p>These fields are the billing identity used by invoices, PDFs, client records and organisation-level settings.</p></div>
     </section>
     <section className="settings-section-card">
-      <button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Organisation identity</b><small>{organization.legal_name||organization.name} · {organization.entity_type||"brand"}</small></span><span>{open?"Collapse":"Edit"}</span></button>
-      {open&&<div className="settings-section-body">
+      <button className="settings-section-toggle" onClick={()=>setIdentityOpen(v=>!v)}><span><b>Organisation identity</b><small>{organization.legal_name||organization.name} · {organization.entity_type||"brand"}</small></span><span>{identityOpen?"Collapse":"Edit"}</span></button>
+      {identityOpen&&<div className="settings-section-body">
         <div className="client-logo-upload"><div className="client-logo-frame">{organization.logo_path?<img src={organization.logo_path} alt="Organisation logo"/>:<div className="client-logo-placeholder">Logo</div>}</div><label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file)}}/></label></div>
         <div className="form-grid">
           <label>Name<input value={organization.name||""} onChange={e=>setOrganization((p:any)=>({...p,name:e.target.value}))}/></label>
@@ -186,8 +187,8 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
       </div>}
     </section>
     <section className="settings-section-card">
-      <button className="settings-section-toggle" onClick={()=>setOpen(open?"":"branding")}><span><b>Branding & documents</b><small>Accent, footer, numbering and invoice template for {organization.name}.</small></span><span>{open==="branding"?"Collapse":"Edit"}</span></button>
-      {open==="branding"&&<div className="settings-section-body"><div className="form-grid">
+      <button className="settings-section-toggle" onClick={()=>setBrandingOpen(v=>!v)}><span><b>Branding & documents</b><small>Accent, footer, numbering and invoice template for {organization.name}.</small></span><span>{brandingOpen?"Collapse":"Edit"}</span></button>
+      {brandingOpen&&<div className="settings-section-body"><div className="form-grid">
         <label>Brand accent<input value={organization.accent_hex||"#7046dd"} onChange={e=>setOrganization((p:any)=>({...p,accent_hex:e.target.value}))}/></label>
         <label>Invoice prefix<input value={organization.invoice_prefix||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label>
         <label>Next invoice number<input type="number" value={organization.next_invoice_number||1} onChange={e=>setOrganization((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label>

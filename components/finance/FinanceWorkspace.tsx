@@ -158,13 +158,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           return;
         }
 
-        // No valid remembered workspace means the user is intentionally in the
-        // global workspace. Do not gate the application behind a second screen.
-        setOrganizationId(null);
+        const firstActive = activeRows[0] ?? null;
+        setOrganizationId(firstActive?.id ?? null);
         setWorkspaceReady(true);
-        window.localStorage.setItem(workspaceStorageKey, "all");
-        if (legacy && workspaceStorageKey !== WORKSPACE_KEY) {
-          window.localStorage.removeItem(WORKSPACE_KEY);
+        if (firstActive) {
+          window.localStorage.setItem(workspaceStorageKey, firstActive.id);
         }
 
       });
@@ -353,12 +351,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         </>
       }
     >
-      {activeView === "overview" && !activeOrganization && (
-        <OrganizationWelcome
-          organizations={organizations}
-          onSelect={id => selectOrganization(id)}
-        />
-      )}
       {activeView === "overview" && activeOrganization && (
         <Overview
           stats={stats}

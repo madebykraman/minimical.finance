@@ -85,3 +85,5 @@ Supabase Dashboard configuration still required for the production auth boundary
 
 ### Wishlist
 - Collapsible live invoice preview (desktop) — intentionally removed from the current product; revisit only as a future optional workflow.
+
+- Private client document storage is now session-gated and signed for portal delivery.

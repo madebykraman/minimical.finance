@@ -130,6 +130,11 @@ async function embedLogo(pdf:any,url:string|null|undefined){
   }catch{return null}
 }
 
+function drawDocIcon(page:any,x:number,y:number,size=7){
+  page.drawRectangle({x,y,width:size,height:size+1,borderColor:BLACK,borderWidth:.45});
+  page.drawLine({start:{x:x+1.6,y:y+size-2},end:{x:x+size-1.4,y:y+size-2},thickness:.4,color:BLACK});
+  page.drawLine({start:{x:x+1.6,y:y+size-4},end:{x:x+size-2,y:y+size-4},thickness:.4,color:BLACK});
+}
 function drawBlock(page: any, lines: string[], x: number, firstY: number, regular: any, bold: any) {
   lines.forEach((line, index) => {
     draw(page, line, x, firstY - index * LEADING, index === 0 ? bold : regular);
@@ -205,6 +210,7 @@ export async function GET(
     ? billingClient.address_lines.map((line: unknown) => safe(line))
     : [];
 
+  drawDocIcon(page,X.left-11,Y.billedLabel-1,7);
   page.drawText("BILLED TO:", { x: X.left, y: Y.billedLabel, size: FONT_SIZE, font: bold, color: BLACK });
   const billedLines = [
     billingClient.legal_name || billingClient.name || "Client",
@@ -216,6 +222,7 @@ export async function GET(
     draw(page, line, X.left, Y.billedFirst - index * LEADING, regular),
   );
 
+  drawDocIcon(page,X.left-11,Y.payLabel-1,7);
   page.drawText("PAY TO:", { x: X.left, y: Y.payLabel, size: FONT_SIZE, font: bold, color: BLACK });
   const payLines = [
     `NAME: ${organization?.payee_name || "Kumar Aman"}`,
@@ -231,8 +238,10 @@ export async function GET(
   );
 
   // RIGHT META BLOCK
+  drawDocIcon(page,X.invoiceLabel-8,Y.invoiceLabel-1,7);
   drawRight(page, "INVOICE NO:", X.invoiceLabel, Y.invoiceLabel, bold);
   drawRight(page, String(invoice.invoice_number ?? ""), X.metaRight, Y.invoiceNumber, regular);
+  drawDocIcon(page,X.dateLabel-8,Y.dateLabel-1,7);
   drawRight(page, "DATE:", X.dateLabel, Y.dateLabel, bold);
   drawRight(page, formatDate(invoice.issue_date), X.metaRight, Y.dateValue, regular);
 

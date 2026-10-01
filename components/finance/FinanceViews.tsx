@@ -108,40 +108,35 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
   const archived = organizations.filter(o => ["dissolved","discontinued"].includes(o.status));
   const [showArchived,setShowArchived]=useState(false);
 
-  return <div className="workspace-gate">
-    <div className="workspace-gate-inner">
-      <div className="workspace-gate-minimal-head">
-        <div className="workspace-gate-mark">m</div>
-        <h1>Choose workspace</h1>
+  return <section className="workspace-landing" aria-label="Organisation workspace selection">
+    <header className="workspace-landing-head">
+      <div className="workspace-gate-mark">m</div>
+      <div>
+        <div className="eyebrow">WORKSPACE</div>
+        <h2>All organisations</h2>
       </div>
+    </header>
 
-      <section className="workspace-gate-minimal">
-        <div className="workspace-gate-minimal-label">WORKSPACES</div>
-        <div className="workspace-minimal-list">
-          {active.map(o => <button key={o.id} className="workspace-minimal-row" onClick={() => onSelect(o.id)}>
-            <span className="workspace-company-logo">{o.logo_path ? <img src={o.logo_path} alt="" /> : String(o.name||"O").slice(0,1).toUpperCase()}</span>
-            <span className="workspace-minimal-name">{o.name}</span>
-            <ChevronRight size={16}/>
-          </button>)}
-          {showArchived && archived.map(o => <button key={o.id} className="workspace-minimal-row archived" onClick={() => onSelect(o.id)}>
-            <span className="workspace-company-logo">{String(o.name||"O").slice(0,1).toUpperCase()}</span>
-            <span className="workspace-minimal-name">{o.name}</span>
-            <span className="workspace-archived-label">Archived</span>
-          </button>)}
-        </div>
-
-        <button className="workspace-all-minimal" onClick={onAll}>
-          <span className="workspace-all-minimal-mark"><Building2 size={15}/></span>
-          <span className="workspace-minimal-name">All organisations</span>
-          <ChevronRight size={16}/>
-        </button>
-      </section>
-
-      {archived.length>0 && <button className="workspace-archive-toggle" onClick={()=>setShowArchived(v=>!v)}>
-        {showArchived ? "Hide archived" : ("Archived · "+archived.length)}
-      </button>}
+    <div className="workspace-landing-list">
+      {active.map(o => <button key={o.id} className="workspace-minimal-row" onClick={() => onSelect(o.id)}>
+        <span className="workspace-company-logo">{o.logo_path ? <img src={o.logo_path} alt="" /> : String(o.name||"O").slice(0,1).toUpperCase()}</span>
+        <span className="workspace-minimal-name">{o.name}</span>
+        <ChevronRight size={16}/>
+      </button>)}
+      {showArchived && archived.map(o => <button key={o.id} className="workspace-minimal-row archived" onClick={() => onSelect(o.id)}>
+        <span className="workspace-company-logo">{String(o.name||"O").slice(0,1).toUpperCase()}</span>
+        <span className="workspace-minimal-name">{o.name}</span>
+        <span className="workspace-archived-label">Archived</span>
+      </button>)}
     </div>
-  </div>;
+
+    <footer className="workspace-landing-footer">
+      <span>{active.length} organisation{active.length === 1 ? "" : "s"}</span>
+      {archived.length>0 && <button className="workspace-archive-toggle" onClick={()=>setShowArchived(v=>!v)}>
+        {showArchived ? "Hide archived" : ("Show archived · "+archived.length)}
+      </button>}
+    </footer>
+  </section>;
 }
 
 export function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {

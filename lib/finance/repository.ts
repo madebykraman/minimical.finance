@@ -7,11 +7,15 @@ import type { Content, Invoice, PaymentMethod, Status } from "./domain";
 
 const supabase = createClient();
 
-export async function listInvoices(): Promise<{ data: Invoice[]; error: string | null }> {
-  const { data, error } = await supabase
+export async function listInvoices(organizationId?: string | null): Promise<{ data: Invoice[]; error: string | null }> {
+  let query = supabase
     .from("invoices")
     .select("*, clients(name), projects(name), invoice_contents(*), payments(*), activity_log(*)")
     .order("issue_date", { ascending: false });
+
+  if (organizationId) query = query.eq("organization_id", organizationId);
+
+  const { data, error } = await query;
 
   return {
     data: (data ?? []).map(mapInvoice),

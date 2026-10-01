@@ -921,6 +921,10 @@ export type Database = {
       }
     }
     Functions: {
+      allocate_invoice_number: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
       create_client_portal_session: {
         Args: {
           p_expires_at: string

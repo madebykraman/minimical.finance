@@ -668,3 +668,24 @@ input::placeholder,textarea::placeholder{color:#59626e}
   .workspace-gate{padding:20px 16px}
   .workspace-gate-inner{width:min(390px,100%)}
 }
+
+
+/* Workspace switcher: compact, persistent, and owned by the product shell. */
+.workspace-switcher-wrap{position:relative;min-width:190px}
+.workspace-switcher-wrap .top-workspace-switcher{width:100%}
+.workspace-switcher-wrap .workspace-chevron-open{transform:rotate(90deg)}
+.workspace-switcher-menu{position:absolute;top:calc(100% + 7px);left:0;width:min(310px,calc(100vw - 24px));z-index:80;padding:5px;border:1px solid var(--line-strong);border-radius:12px;background:#11151b;box-shadow:0 18px 50px rgba(0,0,0,.42);backdrop-filter:blur(16px)}
+.workspace-switcher-menu>button{width:100%;min-height:47px;display:grid;grid-template-columns:27px minmax(0,1fr) 16px;align-items:center;gap:9px;padding:7px;border:0;border-radius:8px;background:transparent;color:var(--text);text-align:left}
+.workspace-switcher-menu>button:hover{background:var(--surface-2)}
+.workspace-switcher-menu>button.selected{background:#1b1a2e}
+.workspace-option-mark{width:26px;height:26px;display:grid;place-items:center;overflow:hidden;border-radius:7px;background:#1d2230;color:#a197ff;font:700 9px var(--font-data)}
+.workspace-option-mark img{width:100%;height:100%;object-fit:contain}
+.workspace-switcher-menu>button>span:nth-child(2){min-width:0;display:flex;flex-direction:column;gap:2px}
+.workspace-switcher-menu strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e6eaf0;font-size:9px;font-weight:650}
+.workspace-switcher-menu small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#626d7b;font-size:7px}
+.workspace-check{color:#8f86ff;font:700 11px var(--font-data);text-align:center}
+.workspace-menu-manage{display:flex!important;grid-template-columns:none!important;justify-content:space-between;border-top:1px solid var(--line)!important;margin-top:4px;padding:9px!important;min-height:39px!important;color:#8993a0!important;font-size:8px!important}
+@media(max-width:720px){
+  .workspace-switcher-wrap{min-width:0;width:100%}
+  .workspace-switcher-menu{position:fixed;top:72px;left:12px;right:12px;width:auto;max-height:calc(100dvh - 150px);overflow:auto}
+}

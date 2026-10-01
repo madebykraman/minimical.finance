@@ -42,45 +42,27 @@ export async function setInvoiceStatus(invoice: Invoice, next: Status) {
 
 export async function saveInvoice(next: Invoice) {
   if (!next.organizationId) return "Select a billing organisation before saving the invoice.";
-  const { error } = await supabase
-    .from("invoices")
-    .update({
-      notes: next.notes ?? null,
-      adjustment_note: next.adjustment ?? null,
-      issue_date: next.date,
-      due_date: next.dueDate ?? null,
-      status: next.status,
-      organization_id: next.organizationId ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", next.id);
 
-  if (error) return error.message;
-
-  const deleted = await supabase.from("invoice_contents").delete().eq("invoice_id", next.id);
-  if (deleted.error) return deleted.error.message;
-
-  const rows = next.contents.map((c, index) => ({
-    invoice_id: next.id,
-    position: index,
-    kind: c.kind,
-    title: c.title,
-    quantity: c.quantity || 1,
-    rate: c.rate ?? null,
-    amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : null,
-    priced: c.priced,
-    note: c.note ?? null,
-  }));
-
-  if (rows.length) {
-    const inserted = await supabase.from("invoice_contents").insert(rows);
-    if (inserted.error) return inserted.error.message;
-  }
-
-  return logActivity(next.id, "invoice_updated", {
-    content_count: rows.length,
-    total: next.contents.reduce((sum, c) => sum + (c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : 0), 0),
+  const { error } = await supabase.rpc("save_invoice", {
+    p_invoice_id: next.id,
+    p_notes: next.notes ?? null,
+    p_adjustment_note: next.adjustment ?? null,
+    p_issue_date: next.date,
+    p_due_date: next.dueDate ?? null,
+    p_status: next.status,
+    p_organization_id: next.organizationId,
+    p_contents: next.contents.map((c) => ({
+      kind: c.kind,
+      title: c.title,
+      quantity: c.quantity || 1,
+      rate: c.rate ?? null,
+      amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : null,
+      priced: c.priced,
+      note: c.note ?? null,
+    })),
   });
+
+  return error?.message ?? null;
 }
 
 // FinOS organisation-aware invoice creation

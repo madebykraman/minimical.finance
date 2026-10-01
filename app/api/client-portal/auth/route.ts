@@ -17,13 +17,13 @@ export async function POST(request:NextRequest){
   const {data:created,error:createError}=await supabase.rpc("create_client_portal_session",{p_slug:slug,p_token:token,p_session_hash:hashPortalSession(sessionToken),p_expires_at:expires});
   if(createError||created!==true) return NextResponse.json({error:"Could not create a portal session."},{status:500});
   const response=NextResponse.json({ok:true});
-  response.cookies.set("finos_portal_session",sessionToken,{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:7*24*60*60});
+  response.cookies.set("portal_session",sessionToken,{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:7*24*60*60});
   return response;
 }
 
 export async function DELETE(){
   const response=NextResponse.json({ok:true});
-  response.cookies.set("finos_portal_session","",{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:0});
+  response.cookies.set("portal_session","",{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:0});
   return response;
 }
 

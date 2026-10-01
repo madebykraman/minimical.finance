@@ -12,3 +12,8 @@ test("organisation invoice assignment is enforced",()=>{
  assert.match(s,/alter table public\.invoices[\s\S]*alter column organization_id set not null/i);
  assert.match(s,/organisation_migration_status/);
 });
+test("portal SECURITY DEFINER functions are not directly executable by workspace users",()=>{
+ const s=readFileSync("supabase/migrations/20261001001500_harden_portal_function_grants.sql","utf8");
+ assert.match(s,/revoke execute on function public\\.log_client_portal_activity[\\s\\S]*from authenticated/i);
+ assert.match(s,/revoke execute on function public\\.update_client_portal_profile[\\s\\S]*from authenticated/i);
+});

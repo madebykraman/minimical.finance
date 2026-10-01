@@ -15,6 +15,7 @@ type WorkspaceOrganization = {
   legal_name?: string | null;
   logo_path?: string | null;
   accent_hex?: string | null;
+  status?: string | null;
 };
 
 type WorkspaceSession = {

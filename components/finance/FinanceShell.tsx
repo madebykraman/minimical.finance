@@ -41,8 +41,15 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
       {!filteredOrgs.length&&<div className="workspace-menu-empty">No organisations found.</div>}
     </div>}
    </div>
-   <nav>
-    {navigation.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}
+   <nav className="finance-nav">
+    <div className="nav-group">
+      <span className="nav-group-label">Workspace</span>
+      {navigation.filter(([key])=>["overview","invoices","payments","clients"].includes(key)).map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}
+    </div>
+    <div className="nav-group">
+      <span className="nav-group-label">Manage</span>
+      {secondary.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span></button>)}
+    </div>
    </nav>
    <div className="sidebar-bottom">
     <button className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3, ChevronRight, CircleAlert, FileText, FolderKanban, LayoutDashboard, LogOut,
@@ -83,7 +83,7 @@ export function FinanceShell({
   const secondaryNavigation = navigation.filter(([key]) => !["overview", "invoices", "payments", "clients"].includes(key));
 
   return (
-    <main className="shell" style={{ "--org-accent": activeOrganization?.accent_hex || "#6d5df5" } as React.CSSProperties}>
+    <main className="shell" style={{ "--org-accent": activeOrganization?.accent_hex || "#6d5df5" } as CSSProperties}>
       <aside className="sidebar">
         <div className="brand-lockup">
           <div className="brand-mark">

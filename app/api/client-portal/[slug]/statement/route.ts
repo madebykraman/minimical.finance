@@ -16,7 +16,7 @@ async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;
 function label(period:string){if(period==="month")return "This month";if(period==="3months")return "Last 3 months";if(period==="6months")return "Last 6 months";if(period==="fy"){const s=fyStart();return `FY ${s.getFullYear()}-${String(s.getFullYear()+1).slice(-2)}`;}return "All time"}
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string}>}){
-  const {slug}=await context.params; const session=request.cookies.get("finos_portal_session")?.value||""; const period=request.nextUrl.searchParams.get("period")||"all";
+  const {slug}=await context.params; const session=request.cookies.get("portal_session")?.value||""; const period=request.nextUrl.searchParams.get("period")||"all";
   if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=await createClient(); const [{data,error},{data:orgData}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});

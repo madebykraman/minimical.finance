@@ -104,3 +104,6 @@ Recommended operational cadence:
 - Retention: keep daily copies for 30 days and monthly snapshots for 12 months.
 
 Recovery verification must include invoice totals, payment balances, organisation assignment, document paths and portal configuration. Never treat a successful JSON download as proof that private storage objects are recoverable.
+
+
+<!-- Build audit branch: CI verification only. -->

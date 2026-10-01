@@ -6,3 +6,11 @@ for (const path of ["app/api/invoices/[id]/pdf/route.ts","app/api/client-portal/
  test("PDF uses Geist: "+path,()=>{const s=readFileSync(path,"utf8");assert.doesNotMatch(s,/DejaVu/i);assert.match(s,/Geist-Regular\.ttf/);});
 }
 test("canonical invoice never truncates contents",()=>{const s=readFileSync("app/api/invoices/[id]/pdf/route.ts","utf8");assert.doesNotMatch(s,/contents\.slice\(0,\s*4\)/);});
+
+test("PDF font preparation is deterministic",()=>{
+ const s=readFileSync("scripts/prepare-pdf-font.mjs","utf8");
+ assert.match(s,/geist/);
+ assert.match(s,/Geist-Regular\.ttf/);
+ assert.match(s,/Geist-SemiBold\.ttf/);
+ assert.match(s,/GeistMono-Regular\.ttf/);
+});

@@ -258,14 +258,18 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,on
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0);
   const overdue=filtered.filter(i=>daysOverdue(i)>0);
   return <div className="operations-page">
+    <section className="operations-intro compact-page-head">
+      <div><h2>Invoices</h2></div>
+      <div className="operations-count"><b>{filtered.length}</b><span>records</span></div>
+    </section>
     <section className="register-summary">
-      <div><span>RECORDS</span><b>{filtered.length}</b></div>
       <div><span>OPEN</span><b>{money(open)}</b></div>
       <div><span>OVERDUE</span><b>{overdue.length}</b></div>
+      <div><span>FILTER</span><b>{status==="all"?"All":statusLabel(status)}</b></div>
     </section>
     <section className="data-panel operations-register">
       <div className="data-panel-head operations-register-head">
-        <div><h2>Invoice register</h2><p>Register</p></div>
+        <div><h2>All invoices</h2></div>
         <div className="filters"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search register…"/></div><div className="filter"><Filter size={14}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       </div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading finance data…</div>:filtered.length?<div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>:<div className="empty-state"><FileText size={18}/><b>No invoices match this register view.</b><span>Try another status or search term.</span></div>}
@@ -279,15 +283,14 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
   const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
   const partial=invoices.filter(i=>paidTotal(i)>0&&invoiceBalance(i)>0).length;
   return <div className="operations-page">
-    <section className="operations-intro">
-      <div><div className="eyebrow">CASH / RECONCILIATION</div><h2>Payments</h2><p>Reconciliation</p></div>
-      <div className="operations-count"><b>{rows.length}</b><span>recorded payments</span></div>
+    <section className="operations-intro compact-page-head">
+      <div><h2>Payments</h2></div>
+      <div className="operations-count"><b>{rows.length}</b><span>recorded</span></div>
     </section>
-    <section className="operations-kpis">
-      <Kpi label="Collected" value={money(collected)} detail="Recorded cash" accent/>
-      <Kpi label="Outstanding" value={money(outstanding)} detail="Across visible invoices"/>
-      <Kpi label="Partially paid" value={String(partial)} detail="Invoices with open balance"/>
-      <Kpi label="Latest collection" value={rows[0]?money(rows[0].amount):"₹0"} detail={rows[0]?.payment_date||"No payment yet"}/>
+    <section className="register-summary">
+      <div><span>COLLECTED</span><b>{money(collected)}</b></div>
+      <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
+      <div><span>PARTIAL</span><b>{partial}</b></div>
     </section>
     <section className="data-panel operations-register">
       <div className="data-panel-head"><div><h2>Payment ledger</h2><p>Ledger</p></div><WalletCards size={16}/></div>
@@ -324,18 +327,17 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
   const open=clientStats.reduce((sum,c)=>sum+c.open,0);
   if(selectedClientId)return <ClientPortal clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
   return <div className="operations-page">
-    <section className="operations-intro">
-      <div><div className="eyebrow">RELATIONSHIPS / CLIENTS</div><h2>Clients</h2><p>Directory</p></div>
-      <div className="operations-count"><b>{clients.length}</b><span>active clients</span></div>
+    <section className="operations-intro compact-page-head">
+      <div><h2>Clients</h2></div>
+      <div className="operations-count"><b>{clients.length}</b><span>active</span></div>
     </section>
-    <section className="operations-kpis">
-      <Kpi label="Active clients" value={String(clients.length)} detail="Current organisation"/>
-      <Kpi label="Client billed" value={money(billed)} detail="Gross invoice value"/>
-      <Kpi label="Client outstanding" value={money(open)} detail="Open receivables" accent/>
-      <Kpi label="Avg. exposure" value={clients.length?money(open/clients.length):"₹0"} detail="Outstanding / client"/>
+    <section className="register-summary">
+      <div><span>BILLED</span><b>{money(billed)}</b></div>
+      <div><span>OUTSTANDING</span><b>{money(open)}</b></div>
+      <div><span>AVG. EXPOSURE</span><b>{clients.length?money(open/clients.length):"₹0"}</b></div>
     </section>
     <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Client directory</h2><p>Client records</p></div><Building2 size={16}/></div>
+      <div className="data-panel-head"><div><h2>Client directory</h2></div></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:clientStats.length?<div className="client-directory">{clientStats.map(({client:c,rows,billed:clientBilled,open:clientOpen})=><button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(clientBilled)}</b><span>billed</span></div><div className="client-meta"><b>{money(clientOpen)}</b><span>outstanding</span></div><ChevronRight size={15}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create the first client to establish a billing workspace.</span></div>}
     </section>
     {creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
@@ -345,7 +347,7 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
 export function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {
   const [form,setForm]=useState({name:"",legal_name:"",email:"",phone:"",pan:"",gstin:"",address:""});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
   async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
-  return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">NEW CLIENT</div><h2>Create client</h2><p>Set the billing identity once; invoices inherit it.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={e=>((e.currentTarget.parentElement?.previousElementSibling?.querySelector("form") as HTMLFormElement|null)?.requestSubmit())} disabled={saving}>{saving?"Creating…":"Create client"}</button></div></div></div>;
+  return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Create client</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={e=>((e.currentTarget.parentElement?.previousElementSibling?.querySelector("form") as HTMLFormElement|null)?.requestSubmit())} disabled={saving}>{saving?"Creating…":"Create client"}</button></div></div></div>;
 }
 
 export function ClientPortal({clientId,invoices,onBack,onOpenInvoice,onSaved,onArchived}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void;onArchived:()=>void}) {
@@ -426,9 +428,16 @@ export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[
   const totalCost=projects.reduce((sum,p)=>sum+Number(p.actual_cost||0),0);
   const active=projects.filter(p=>p.status==="active").length+derived.length;
   return <div className="operations-page">
-    <section className="operations-intro"><div><div className="eyebrow">DELIVERY / PROJECTS</div><h2>Projects</h2><p>Delivery records</p></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>project records</span></div></section>
-    <section className="operations-kpis"><Kpi label="Projects" value={String(active)}/><Kpi label="Revenue" value={money(totalBilled)}/><Kpi label="Recorded cost" value={money(totalCost)} accent/></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2><p>Project records</p></div><FolderKanban size={16}/></div>
+    <section className="operations-intro compact-page-head">
+      <div><h2>Projects</h2></div>
+      <div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div>
+    </section>
+    <section className="register-summary">
+      <div><span>ACTIVE</span><b>{active}</b></div>
+      <div><span>REVENUE</span><b>{money(totalBilled)}</b></div>
+      <div><span>RECORDED COST</span><b>{money(totalCost)}</b></div>
+    </section>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2></div></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
       {!loading&&!projects.length&&!derived.length&&<div className="empty-state"><FolderKanban size={18}/><b>No projects yet.</b><span>Create a project to connect production work with billing.</span></div>}
     </section>
@@ -444,14 +453,14 @@ export function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[
 export function ProjectEditModal({project,onClose,onSaved}:{project:any;onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:project.name||"",status:project.status||"active",description:project.description||"",budget_cost:String(project.budget_cost||0),actual_cost:String(project.actual_cost||0)});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
  async function save(e:FormEvent){e.preventDefault();setSaving(true);const {error}=await supabase.from("projects").update({name:form.name.trim(),status:form.status,description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,updated_at:new Date().toISOString()}).eq("id",project.id);setSaving(false);if(error)setMessage(error.message);else onSaved()}
- return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">PROJECT</div><h2>Edit project</h2><p>{project.name}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><form className="composer-body form-grid" onSubmit={save}><label>Name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={saving}>{saving?"Saving…":"Save project"}</button></div></form></div></div>;
+ return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Edit project</h2><span className="drawer-context">{project.name}</span></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><form className="composer-body form-grid" onSubmit={save}><label>Name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={saving}>{saving?"Saving…":"Save project"}</button></div></form></div></div>;
 }
 
 export function ProjectCreateModal({onClose,onSaved}:{onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:"",client_id:"",organization_id:"",status:"active",description:"",budget_cost:"0",actual_cost:"0"});const [clients,setClients]=useState<any[]>([]);const [orgs,setOrgs]=useState<any[]>([]);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
  useEffect(()=>{Promise.all([supabase.from("clients").select("id,name").is("archived_at",null).order("name"),supabase.from("organizations").select("id,name").order("name")]).then(([a,b])=>{setClients(a.data||[]);setOrgs(b.data||[])})},[]);
  async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Project name is required.");setSaving(true);const {error}=await supabase.from("projects").insert({...form,name:form.name.trim(),description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,client_id:form.client_id||null,organization_id:form.organization_id||null});setSaving(false);if(error)setMessage(error.message);else onSaved()}
- return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">NEW PROJECT</div><h2>Create project</h2><p>Track revenue and production cost together.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="form-grid" onSubmit={save}><label>Project name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Client<select value={form.client_id} onChange={e=>setForm((f:any)=>({...f,client_id:e.target.value}))}><option value="">Unassigned</option>{clients.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Organisation<select value={form.organization_id} onChange={e=>setForm((f:any)=>({...f,organization_id:e.target.value}))}><option value="">Unassigned</option>{orgs.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{const formEl=document.querySelector(".composer form") as HTMLFormElement|null;formEl?.requestSubmit()}} disabled={saving}>{saving?"Creating…":"Create project"}</button></div></div></div>;
+ return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Create project</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="form-grid" onSubmit={save}><label>Project name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Client<select value={form.client_id} onChange={e=>setForm((f:any)=>({...f,client_id:e.target.value}))}><option value="">Unassigned</option>{clients.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Organisation<select value={form.organization_id} onChange={e=>setForm((f:any)=>({...f,organization_id:e.target.value}))}><option value="">Unassigned</option>{orgs.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{const formEl=document.querySelector(".composer form") as HTMLFormElement|null;formEl?.requestSubmit()}} disabled={saving}>{saving?"Creating…":"Create project"}</button></div></div></div>;
 }
 
 export function activityLabel(action:string) {
@@ -464,7 +473,11 @@ export function activityLabel(action:string) {
 }
 
 export function Kpi({icon,label,value,note,detail,accent}:{icon?:ReactNode;label:string;value:string;note?:string;detail?:string;accent?:boolean}) {
-  return <div className={"kpi" + (accent ? " accent" : "")}><div className="kpi-icon">{icon ?? <IndianRupee size={15}/>}</div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{detail ?? note ?? ""}</div></div>;
+  return <div className={"kpi" + (accent ? " accent" : "")}>
+    <div className="kpi-top"><span className="kpi-label">{label}</span>{icon&&<span className="kpi-icon">{icon}</span>}</div>
+    <div className="kpi-value">{value}</div>
+    {(detail||note)&&<div className="kpi-note">{detail ?? note}</div>}
+  </div>;
 }
 
 export function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()=>void;onStatus:(i:Invoice,s:Status)=>void}) {
@@ -502,11 +515,16 @@ export function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoi
   return <div className="overlay" onMouseDown={onClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
-      <section className="invoice-hero">
-        <div className="invoice-hero-brand"><span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span><div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"Organisation"}</b><small>Invoice workspace</small></div></div>
-        <div className="invoice-hero-amount"><span>Invoice total</span><strong>{money(invoiceTotal(draft))}</strong><small>{draft.status==="paid"?"Fully settled":draft.status==="partially_paid"?"Partially collected":"Balance "+money(Math.max(invoiceTotal(draft)-paidTotal(draft),0))}</small></div>
-      </section>
-      <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
+      <div className="invoice-drawer-lockup">
+        <span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span>
+        <div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"Organisation"}</b><span>#{draft.number}</span></div>
+        <strong>{money(invoiceTotal(draft))}</strong>
+      </div>
+      <div className="drawer-summary compact-summary">
+        <div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div>
+        <div><span>Balance</span><strong>{money(Math.max(invoiceTotal(draft)-paidTotal(draft),0))}</strong></div>
+        <div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div>
+      </div>
       <div className="invoice-meta-grid">
         <label>Issue date<input type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))}/></label>
         <label>Due date<input type="date" value={draft.dueDate ?? ""} onChange={e=>setDraft(d=>({...d,dueDate:e.target.value || null}))}/></label><label>Billing organisation<select value={draft.organizationId ?? ""} onChange={e=>setDraft(d=>({...d,organizationId:e.target.value||null}))} required>{organizations.map(o=><option key={o.id} value={o.id} disabled={["dissolved","discontinued"].includes(o.status)}>{o.name}{["dissolved","discontinued"].includes(o.status)?" · historical":""}</option>)}</select></label>
@@ -544,7 +562,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const patch = (id:string,p:Partial<Content>) => setContents(v => v.map(c => c.id === id ? {...c,...p} : c));
   const add = () => setContents(v => [...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e => e.stopPropagation()}>
-    <div className="drawer-head"><div><div className="eyebrow">NEW INVOICE</div><h2>Create invoice</h2><p>Build it from the actual contents.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
+    <div className="drawer-head"><div><h2>Create invoice</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="Automatic"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Billing organisation<select value={organizationId} onChange={e=>setOrganizationId(e.target.value)}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Billable, adjustment and unpriced content can coexist.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
         {contents.map((c,idx) => <div className="composer-row" key={c.id}><span>{idx + 1}</span><input value={c.title} onChange={e => patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input type="number" value={c.quantity ?? ""} onChange={e => patch(c.id,{quantity:Number(e.target.value) || 1})} placeholder="Qty"/><input type="number" value={c.rate ?? ""} onChange={e => patch(c.id,{rate:e.target.value ? Number(e.target.value) : null,priced:!!e.target.value})} placeholder="Rate"/><b>{c.priced && c.rate ? money(contentAmount(c)) : "TBD"}</b></div>)}
@@ -561,7 +579,7 @@ export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onCl
   const [reference,setReference] = useState("");
   const balance = Math.max(invoiceTotal(invoice)-paidTotal(invoice),0);
   return <div className="overlay" onMouseDown={onClose}><div className="payment-composer" onMouseDown={e=>e.stopPropagation()}>
-    <div className="drawer-head"><div><div className="eyebrow">PAYMENT / #{invoice.number}</div><h2>Record payment</h2><p>{invoice.client} · {money(balance)} currently outstanding</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
+    <div className="drawer-head"><div><h2>Record payment</h2><span className="drawer-context">{invoice.client} · {money(balance)} outstanding</span></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="payment-form">
       <label>Amount<input type="number" min="1" max={balance} value={amount} onChange={e=>setAmount(e.target.value)}/></label>
       <label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>

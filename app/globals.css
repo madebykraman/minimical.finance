@@ -189,3 +189,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .client-directory-row .client-meta:nth-of-type(2),.client-directory-row .client-meta:nth-of-type(3){display:none!important}
   .project-card{grid-template-columns:30px minmax(0,1fr) auto!important}
 }
+
+
+/* Copied/adapted interaction surface for DownloadButton. */
+.state-action-button{height:32px;display:inline-flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #29292d;border-radius:7px;background:#141416;color:#aaaab1;font:600 8px var(--font-sans);cursor:pointer;transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.state-action-button:hover{background:#19191c;border-color:#35353a;color:#eee;transform:translateY(-1px)}
+.state-action-button:active{transform:translateY(0)}
+.state-action-button.is-loading{color:#888890;cursor:wait}
+.state-action-button.is-done{color:#69d9b0;border-color:#2d5e4e;background:#111d19}
+.state-action-icon{width:14px;height:14px;display:grid;place-items:center}
+.spin{animation:finance-spin .8s linear infinite}
+@keyframes finance-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}.state-action-button{transition:none}}

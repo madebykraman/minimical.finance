@@ -6,7 +6,7 @@ import {
   BarChart3, ChevronRight, CircleAlert, FileText, FolderKanban, LayoutDashboard, LogOut,
   MoreHorizontal, Plus, Receipt, RefreshCw, Search, Settings2, WalletCards, X
 } from "lucide-react";
-import type { FinanceView } from "./FinanceWorkspace";
+import type { FinanceView } from "@/lib/finance/types";
 
 type WorkspaceOrganization = {
   id: string;

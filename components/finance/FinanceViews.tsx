@@ -313,8 +313,6 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   </div>;
 }
 
-export function dateLabel(value:string){return new Date(value+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
-
 export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
   const billed=filtered.reduce((sum,i)=>sum+invoiceTotal(i),0);
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0);

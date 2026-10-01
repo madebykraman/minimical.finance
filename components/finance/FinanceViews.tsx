@@ -103,7 +103,7 @@ export function AuthScreen() {
   </div></div>;
 }
 
-export function OrganizationWelcome({organizations,onSelect,onAll}:{organizations:any[];onSelect:(id:string)=>void;onAll:()=>void}) {
+export function OrganizationWelcome({organizations,onSelect}:{organizations:any[];onSelect:(id:string)=>void}) {
   const active = organizations.filter(o => !["dissolved","discontinued"].includes(o.status));
   const archived = organizations.filter(o => ["dissolved","discontinued"].includes(o.status));
   const [showArchived,setShowArchived]=useState(false);
@@ -113,7 +113,7 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
       <div className="workspace-gate-mark">m</div>
       <div>
         <div className="eyebrow">WORKSPACE</div>
-        <h2>All organisations</h2>
+        <h2>Organisations</h2>
       </div>
     </header>
 
@@ -274,12 +274,12 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
     </section>
 
     {attention.length>0 && <section className="data-panel overview-minimal-section">
-      <div className="data-panel-head"><div><h2>Needs attention</h2><p>Only items that need action.</p></div><span className="panel-count">{attention.length}</span></div>
+      <div className="data-panel-head"><div><h2>Needs attention</h2><p>Action required</p></div><span className="panel-count">{attention.length}</span></div>
       <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.detail} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={14}/>:a.tone==="warning"?<WalletCards size={14}/>:<IndianRupee size={14}/>}</span><div><b>{a.label}</b><small>{a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={14}/></button>)}</div>
     </section>}
 
     <section className="data-panel overview-minimal-section">
-      <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest activity.</p></div><button className="mini-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+      <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest</p></div><button className="mini-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
       <div className="invoice-register minimal-register">
         {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}>
           <b>#{i.number}</b>
@@ -315,7 +315,7 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,on
     </section>
     <section className="data-panel operations-register">
       <div className="data-panel-head operations-register-head">
-        <div><h2>Invoice register</h2><p>Invoice number, client, project, dates, amount and settlement state.</p></div>
+        <div><h2>Invoice register</h2><p>Register</p></div>
         <div className="filters"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search register…"/></div><div className="filter"><Filter size={14}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       </div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading finance data…</div>:filtered.length?<div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>:<div className="empty-state"><FileText size={18}/><b>No invoices match this register view.</b><span>Try another status or search term.</span></div>}
@@ -330,7 +330,7 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
   const partial=invoices.filter(i=>paidTotal(i)>0&&invoiceBalance(i)>0).length;
   return <div className="operations-page">
     <section className="operations-intro">
-      <div><div className="eyebrow">CASH / RECONCILIATION</div><h2>Payments</h2><p>Recorded collections, linked invoices and the cash still to reconcile.</p></div>
+      <div><div className="eyebrow">CASH / RECONCILIATION</div><h2>Payments</h2><p>Reconciliation</p></div>
       <div className="operations-count"><b>{rows.length}</b><span>recorded payments</span></div>
     </section>
     <section className="operations-kpis">
@@ -340,7 +340,7 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
       <Kpi label="Latest collection" value={rows[0]?money(rows[0].amount):"₹0"} detail={rows[0]?.payment_date||"No payment yet"}/>
     </section>
     <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Payment ledger</h2><p>Every payment remains linked to its invoice and client.</p></div><WalletCards size={16}/></div>
+      <div className="data-panel-head"><div><h2>Payment ledger</h2><p>Ledger</p></div><WalletCards size={16}/></div>
       {rows.length?<div className="simple-table"><div className="simple-row simple-head"><span>Date</span><span>Invoice</span><span>Client</span><span>Method</span><span>Amount</span></div>{rows.map(r=><div className="simple-row payment-record-row" key={r.id} onClick={()=>onOpenPayment(r.invoice)} role="button" tabIndex={0}><span>{r.payment_date ? new Date(r.payment_date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</span><span>#{r.invoice.number}</span><span>{r.invoice.client}</span><span>{r.method.replaceAll("_"," ")}</span><strong>{money(r.amount)}</strong></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded yet.</b><span>Record a payment from any open invoice.</span></div>}
       <div className="payment-shortcuts">{invoices.filter(i=>invoiceBalance(i)>0).slice(0,6).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number} · {money(invoiceBalance(i))} open</button>)}</div>
     </section>
@@ -375,7 +375,7 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
   if(selectedClientId)return <ClientPortal clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
   return <div className="operations-page">
     <section className="operations-intro">
-      <div><div className="eyebrow">RELATIONSHIPS / CLIENTS</div><h2>Clients</h2><p>Every client is a financial workspace: billing identity, invoices, projects, statements and portal access.</p></div>
+      <div><div className="eyebrow">RELATIONSHIPS / CLIENTS</div><h2>Clients</h2><p>Directory</p></div>
       <div className="operations-count"><b>{clients.length}</b><span>active clients</span></div>
     </section>
     <section className="operations-kpis">
@@ -385,7 +385,7 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
       <Kpi label="Avg. exposure" value={clients.length?money(open/clients.length):"₹0"} detail="Outstanding / client"/>
     </section>
     <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Client directory</h2><p>Open a client to manage identity, billing, projects and portal access.</p></div><Building2 size={16}/></div>
+      <div className="data-panel-head"><div><h2>Client directory</h2><p>Client records</p></div><Building2 size={16}/></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:clientStats.length?<div className="client-directory">{clientStats.map(({client:c,rows,billed:clientBilled,open:clientOpen})=><button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(clientBilled)}</b><span>billed</span></div><div className="client-meta"><b>{money(clientOpen)}</b><span>outstanding</span></div><ChevronRight size={15}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create the first client to establish a billing workspace.</span></div>}
     </section>
     {creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
@@ -476,9 +476,9 @@ export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[
   const totalCost=projects.reduce((sum,p)=>sum+Number(p.actual_cost||0),0);
   const active=projects.filter(p=>p.status==="active").length+derived.length;
   return <div className="operations-page">
-    <section className="operations-intro"><div><div className="eyebrow">DELIVERY / PROJECTS</div><h2>Projects</h2><p>Production work connected to revenue, clients and recorded cost.</p></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>project records</span></div></section>
+    <section className="operations-intro"><div><div className="eyebrow">DELIVERY / PROJECTS</div><h2>Projects</h2><p>Delivery records</p></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>project records</span></div></section>
     <section className="operations-kpis"><Kpi label="Active projects" value={String(active)} detail="Current organisation"/><Kpi label="Project revenue" value={money(totalBilled)} detail="Linked invoice value"/><Kpi label="Recorded cost" value={money(totalCost)} detail="Actual production cost"/><Kpi label="Gross after cost" value={money(totalBilled-totalCost)} detail="Revenue less recorded cost" accent/></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2><p>Track billing performance and production cost without leaving the finance workspace.</p></div><FolderKanban size={16}/></div>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2><p>Project records</p></div><FolderKanban size={16}/></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
       {!loading&&!projects.length&&!derived.length&&<div className="empty-state"><FolderKanban size={18}/><b>No projects yet.</b><span>Create a project to connect production work with billing.</span></div>}
     </section>

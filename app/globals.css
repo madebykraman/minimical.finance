@@ -689,3 +689,24 @@ input::placeholder,textarea::placeholder{color:#59626e}
   .workspace-switcher-wrap{min-width:0;width:100%}
   .workspace-switcher-menu{position:fixed;top:72px;left:12px;right:12px;width:auto;max-height:calc(100dvh - 150px);overflow:auto}
 }
+
+
+/* Final minimal pass: hierarchy over copy. */
+.brand-copy strong{font-size:10px;letter-spacing:.08em}
+.profile{grid-template-columns:30px minmax(0,1fr)}
+.profile>svg{display:none}
+.top-workspace-switcher{min-width:205px;grid-template-columns:28px minmax(0,1fr) 14px}
+.top-workspace-copy strong{font-size:10px}
+.top-workspace-copy small{display:none}
+.workspace-switcher-menu{width:270px}
+.workspace-switcher-menu small{display:none}
+.workspace-switcher-menu>button{min-height:42px}
+.workspace-menu-manage{font-size:7px!important}
+.workspace-gate-inner{width:min(420px,100%)}
+.workspace-gate-minimal-head{margin-bottom:20px}
+.workspace-gate-minimal-head h1{font-size:17px;font-weight:650}
+.workspace-gate-mark{width:30px;height:30px;border-radius:8px;font-size:12px}
+.workspace-minimal-row,.workspace-all-minimal{min-height:48px}
+.workspace-minimal-name{font-size:10px}
+.workspace-archive-toggle{font-size:7px}
+.data-panel-head p,.block-head p,.operations-intro p,.client-card p,.project-card p{display:none}

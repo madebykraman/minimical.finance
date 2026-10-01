@@ -81,6 +81,10 @@ export function FinanceShell({
 }) {
   const router = useRouter();
   const secondaryNavigation = navigation.filter(([key]) => !["overview", "invoices", "payments", "clients"].includes(key));
+  const routeFor = (path: string) => {
+    const workspace = activeOrganization?.id || "all";
+    return `${path}?organization=${encodeURIComponent(workspace)}`;
+  };
 
   return (
     <main className="shell" style={{ "--org-accent": activeOrganization?.accent_hex || "#6d5df5" } as CSSProperties}>
@@ -109,7 +113,7 @@ export function FinanceShell({
             <button
               key={key}
               className={"nav-item " + (activeView === key ? "active" : "")}
-              onClick={() => router.push(path)}
+              onClick={() => router.push(routeFor(path))}
             >
               <Icon size={17} />
               <span>{label}</span>
@@ -146,12 +150,22 @@ export function FinanceShell({
         )}
 
         <header className="topbar">
-          <div>
-            <div className="eyebrow">{activeOrganization?.name || "ALL ORGANISATIONS"} / {activeView.toUpperCase()}</div>
+          <div className="topbar-title">
+            <div className="eyebrow">{activeView.toUpperCase()}</div>
             <h1>{pageLabel[activeView]}</h1>
           </div>
 
           <div className="topbar-tools">
+            <button className="top-workspace-switcher" onClick={onChangeWorkspace} aria-label="Switch organisation">
+              <span className="top-workspace-mark">
+                {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : "m"}
+              </span>
+              <span className="top-workspace-copy">
+                <small>WORKSPACE</small>
+                <strong>{activeOrganization?.name || "All organisations"}</strong>
+              </span>
+              <ChevronRight size={14} />
+            </button>
             <label className="global-search">
               <Search size={15} />
               <input
@@ -194,7 +208,7 @@ export function FinanceShell({
           <button
             key={key}
             className={activeView === key ? "active" : ""}
-            onClick={() => { setMobileMoreOpen(false); router.push(path); }}
+            onClick={() => { setMobileMoreOpen(false); router.push(routeFor(path)); }}
           >
             <Icon size={17} />
             <span>{label}</span>

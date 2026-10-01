@@ -221,7 +221,16 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     const result = await createInvoiceRecord(draft);
     if (result.error) return setActionError(result.error);
     setComposer(false);
-    await loadInvoices();
+    if (organizationId) {
+      setOrganizations(rows =>
+        rows.map(org =>
+          org.id === organizationId
+            ? { ...org, next_invoice_number: (org.next_invoice_number ?? 1) + 1 }
+            : org,
+        ),
+      );
+    }
+    await loadInvoices(organizationId);
   }
 
   const activeOrganization = useMemo(

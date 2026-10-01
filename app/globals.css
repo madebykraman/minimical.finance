@@ -322,3 +322,219 @@ code,kbd,.mono,.eyebrow,.status,.row-index,.kpi-value,.invoice-right>strong,.row
 @media(max-width:720px){.portal-project-detail{grid-template-columns:1fr}.portal-project-detail p{grid-column:auto}}
 
 .project-actions,.client-danger-actions{display:flex;gap:6px;align-items:center;margin-top:8px}.mini-action{font-size:9px!important;padding:6px 8px!important}.danger-button{border-color:#d8b4b4!important;color:#8b3030!important}.document-manager-list{margin-top:12px;border-top:1px solid var(--line)}.document-manager-row{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.document-manager-row>div{display:flex;flex-direction:column;gap:3px}.document-manager-row span{font-size:8px;color:var(--muted)}.document-manager-row>div:last-child{flex-direction:row}.client-danger-actions{justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+
+/* minimical finance — visual refinement layer
+   Keep this layer intentionally semantic: geometry, hierarchy, state and responsive behaviour.
+*/
+:root{
+  --surface-0:#f5f4f0;
+  --surface-1:#ffffff;
+  --surface-2:#faf9f6;
+  --surface-3:#f2f1ec;
+  --text-1:#151513;
+  --text-2:#5f5e58;
+  --text-3:#96948c;
+  --hairline:#e3e1da;
+  --hairline-strong:#cfcdc4;
+  --elevation-1:0 1px 2px rgba(20,20,18,.025),0 5px 18px rgba(20,20,18,.025);
+  --elevation-2:0 18px 50px rgba(20,20,18,.11);
+}
+html{background:var(--surface-0);text-rendering:optimizeLegibility}
+body{background:var(--surface-0);color:var(--text-1)}
+button,input,select,textarea{color:inherit}
+button:disabled{transform:none!important}
+
+/* Shell */
+.sidebar{
+  background:rgba(249,248,244,.88);
+  border-right-color:var(--hairline);
+  box-shadow:1px 0 0 rgba(255,255,255,.7);
+}
+.brand-lockup{border-bottom-color:var(--hairline)}
+.brand-mark{box-shadow:0 1px 2px rgba(0,0,0,.025)}
+.org-switcher select{
+  width:100%;
+  padding:0 30px 0 10px;
+  border:1px solid var(--hairline);
+  color:var(--text-2);
+  font-size:10px;
+}
+.nav-item{color:#77766f}
+.nav-item:hover{background:#efeee9;color:var(--text-1)}
+.nav-item.active{
+  background:var(--text-1);
+  color:#fff;
+  box-shadow:none;
+}
+.nav-item.active svg{opacity:.95}
+.profile{border-top-color:var(--hairline)}
+.content{padding-top:32px}
+
+/* Type hierarchy */
+.topbar h1{font-size:30px;line-height:1.02;letter-spacing:-.055em}
+.topbar p{max-width:620px;color:var(--text-3)}
+.eyebrow{font-weight:600}
+
+/* Controls */
+.icon-button,.secondary,.primary{
+  min-height:38px;
+  border-radius:9px;
+  font-weight:520;
+}
+.icon-button,.secondary{
+  background:var(--surface-1);
+  border-color:var(--hairline);
+  color:var(--text-2);
+}
+.primary{
+  background:var(--text-1);
+  border-color:var(--text-1);
+}
+.icon-button:hover,.secondary:hover{
+  background:var(--surface-2);
+  border-color:var(--hairline-strong);
+  box-shadow:none;
+}
+.primary:hover{
+  background:#262622;
+  box-shadow:0 6px 16px rgba(20,20,18,.10);
+}
+.icon-button:focus-visible,.secondary:focus-visible,.primary:focus-visible{
+  outline:2px solid color-mix(in srgb,var(--org-accent) 48%,#aaa89f);
+  outline-offset:2px;
+}
+
+/* Overview / panels */
+.position-panel,.data-panel,.invoice-list,.settings-section-card{
+  box-shadow:var(--elevation-1);
+}
+.position-panel{border-radius:15px}
+.position-main h2{font-size:46px}
+.position-actions .primary{min-height:38px}
+.data-panel,.settings-section-card{border-color:var(--hairline)}
+.data-panel-head{background:rgba(250,249,246,.55)}
+.kpi{
+  background:var(--surface-1);
+  border-color:var(--hairline);
+  box-shadow:var(--elevation-1);
+}
+.kpi:after{background:#f7f6f2}
+.kpi-icon{background:var(--surface-3)}
+.kpi-value{letter-spacing:-.06em}
+
+/* Lists: quiet, editorial, scan-friendly */
+.invoice-list{background:var(--surface-1);border-color:var(--hairline)}
+.invoice-card{
+  min-height:82px;
+  border-bottom-color:var(--hairline);
+}
+.invoice-card:hover{background:#fafaf7;transform:none}
+.invoice-id{background:var(--surface-2);border-color:var(--hairline)}
+.content-chips span{background:var(--surface-2);border-color:var(--hairline)}
+.status{letter-spacing:.01em}
+.status.paid{box-shadow:inset 0 0 0 1px rgba(23,106,71,.06)}
+.warning-pill{font-weight:520}
+
+/* Drawers / modals */
+.overlay{background:rgba(15,15,13,.27);backdrop-filter:blur(4px)}
+.drawer,.composer,.payment-composer{
+  border-color:var(--hairline);
+  box-shadow:var(--elevation-2);
+}
+.drawer-head,.drawer-foot{border-color:var(--hairline)}
+.drawer-head h2{letter-spacing:-.055em}
+.drawer-summary{box-shadow:none}
+.drawer-summary>div{background:var(--surface-2)}
+.drawer-foot{background:rgba(255,255,255,.92)}
+.content-table,.payment-list{border-color:var(--hairline)}
+.content-row,.composer-row{border-bottom-color:var(--hairline)}
+.content-row:hover,.composer-row:hover{background:#fafaf7}
+.total-box,.payment-total{background:var(--surface-3);border-color:var(--hairline)}
+
+/* Forms */
+.form-grid input,.form-grid select,.form-grid textarea,
+.payment-form input,.payment-form select,
+.invoice-meta-grid input,.invoice-meta-grid select,
+.notes-block textarea{
+  border-color:var(--hairline);
+  box-shadow:none;
+}
+.form-grid input:hover,.form-grid select:hover,.form-grid textarea:hover,
+.payment-form input:hover,.payment-form select:hover,
+.invoice-meta-grid input:hover,.invoice-meta-grid select:hover{
+  border-color:var(--hairline-strong);
+}
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus,
+.payment-form input:focus,.payment-form select:focus,
+.invoice-meta-grid input:focus,.invoice-meta-grid select:focus{
+  border-color:color-mix(in srgb,var(--org-accent) 40%,var(--hairline-strong));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--org-accent) 7%,transparent);
+}
+
+/* Tables / directories */
+.simple-row{border-bottom-color:var(--hairline)}
+.simple-head{background:var(--surface-2);color:var(--text-3)}
+.client-directory-row{border-bottom-color:var(--hairline)}
+.client-directory-row:hover{background:#fafaf7}
+
+/* Settings */
+.settings-tabs{background:#eeede8;border-color:var(--hairline)}
+.settings-tabs button.active{box-shadow:0 1px 5px rgba(0,0,0,.06)}
+.settings-section-body{background:#fcfbf8}
+.settings-good{font-weight:600}
+
+/* Empty / feedback states */
+.empty-state{
+  background:var(--surface-2);
+  border-color:var(--hairline-strong);
+  color:var(--text-3);
+}
+.global-error{box-shadow:var(--elevation-1)}
+.success-empty{box-shadow:none}
+
+/* Portal surfaces */
+.portal-card,.portal-panel,.portal-table,.portal-header{
+  border-color:var(--hairline);
+}
+
+/* Mobile: retain hierarchy instead of shrinking desktop */
+@media(max-width:720px){
+  .content{padding-top:16px}
+  .topbar h1{font-size:27px}
+  .topbar p{font-size:10px}
+  .top-actions{gap:6px}
+  .top-actions .primary{min-height:42px}
+  .kpis{gap:8px}
+  .kpi{min-height:118px}
+  .kpi-value{font-size:19px}
+  .position-main h2{font-size:35px}
+  .position-main{padding:21px 18px}
+  .position-stats>div{padding:14px}
+  .invoice-card{padding:12px 10px}
+  .invoice-id{width:46px;height:46px}
+  .invoice-main{gap:11px}
+  .invoice-main h3{font-size:11px}
+  .invoice-main p{font-size:9px}
+  .invoice-right>strong{font-size:10px}
+  .mobile-nav{
+    border-top-color:var(--hairline);
+    box-shadow:0 -8px 30px rgba(20,20,18,.05);
+  }
+  .mobile-nav button.active{box-shadow:none}
+  .mobile-more-panel{box-shadow:0 20px 60px rgba(0,0,0,.16)}
+}
+
+/* Dense desktop breakpoint: prevent cards from becoming cramped */
+@media(min-width:721px) and (max-width:1180px){
+  .content{padding-left:28px;padding-right:28px}
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .position-panel{grid-template-columns:1fr}
+  .position-stats{border-left:0;border-top:1px solid var(--hairline)}
+}
+
+/* Motion should communicate state, not decoration */
+@media(prefers-reduced-motion:no-preference){
+  .nav-item,.primary,.secondary,.icon-button,.invoice-card,.action-row,.recent-row,.client-directory-row,.org-card{
+    transition:background-color .14s ease,border-color .14s ease,box-shadow .14s ease,transform .14s ease,color .14s ease;
+  }
+}

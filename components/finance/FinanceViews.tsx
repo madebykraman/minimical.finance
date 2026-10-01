@@ -232,26 +232,63 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   const overdue=open.filter(i=>daysOverdue(i)>0);
   const dueSoon=open.filter(i=>i.dueDate&&(()=>{const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
   const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),invoice:i}))].slice(0,4);
   const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
+  const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),meta:daysOverdue(i)+"d overdue",invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),meta:"Due soon",invoice:i}))].slice(0,5);
+  const collection=stats.total>0?Math.round((stats.collected/stats.total)*100):0;
   return <div className="overview-minimal">
-    <section className="overview-minimal-head"><h2>{organization?.name||"Overview"}</h2></section>
-    <section className="overview-minimal-metrics">
-      <article><span>Outstanding</span><b>{money(stats.outstanding)}</b></article>
-      <article><span>Collected</span><b>{money(stats.collected)}</b></article>
-      <article className={overdueValue>0?"attention":""}><span>Overdue</span><b>{money(overdueValue)}</b></article>
+    <header className="overview-minimal-head">
+      <div><span className="eyebrow">Workspace</span><h2>{organization?.name||"Organisation"}</h2></div>
+      <button className="secondary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Invoices</button>
+    </header>
+
+    <section className="overview-position">
+      <div><span>Outstanding</span><strong>{money(stats.outstanding)}</strong><small>{overdue.length} overdue invoice{overdue.length===1?"":"s"}</small></div>
+      <div className="overview-position-facts">
+        <div><span>Collected</span><b>{money(stats.collected)}</b></div>
+        <div><span>Overdue</span><b>{money(overdueValue)}</b></div>
+        <div><span>Collection</span><b>{collection}%</b></div>
+      </div>
+      <button className="primary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Open invoices</button>
     </section>
-    <section className="overview-split">
-      <section className="data-panel overview-minimal-section">
-        <div className="data-panel-head"><h2>Invoices</h2><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
-        <div className="invoice-register minimal-register">{recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!recent.length&&<div className="empty-state">No invoices.</div>}</div>
+
+    <div className="overview-grid">
+      <section className="data-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">Receivables</span><h2>Recent invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+        <div className="invoice-register minimal-register">
+          {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}>
+            <b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/>
+          </button>)}
+          {!recent.length&&<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><button className="text-action" onClick={()=>onNavigate("invoices")}>Open invoices</button></div>}
+        </div>
       </section>
-      {attention.length>0&&<section className="data-panel overview-minimal-section">
-        <div className="data-panel-head"><h2>Attention</h2><span className="panel-count">{attention.length}</span></div>
-        <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span><div><b>{a.label}</b></div><strong>{a.value}</strong><ChevronRight size={13}/></button>)}</div>
-      </section>}
+
+      <section className="data-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">Action queue</span><h2>Needs attention</h2></div><span className="panel-count">{attention.length}</span></div>
+        {attention.length?<div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}>
+          <span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span>
+          <div><b>{a.label}</b><small>{a.meta}</small></div><strong>{a.value}</strong><ChevronRight size={13}/>
+        </button>)}</div>:<div className="empty-state"><ShieldCheck size={18}/><b>No payment issues need attention.</b></div>}
+      </section>
+    </div>
+
+    <section className="overview-grid overview-secondary">
+      <section className="data-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">Workspace</span><h2>Go to</h2></div></div>
+        <div className="action-list">
+          <button className="action-row" onClick={()=>onNavigate("payments")}><span className="action-icon"><WalletCards size={13}/></span><div><b>Payments</b><small>Recorded collections and reconciliation</small></div><ChevronRight size={13}/></button>
+          <button className="action-row" onClick={()=>onNavigate("clients")}><span className="action-icon"><Building2 size={13}/></span><div><b>Clients</b><small>Billing relationships and client workspaces</small></div><ChevronRight size={13}/></button>
+          <button className="action-row" onClick={()=>onNavigate("projects")}><span className="action-icon"><FolderKanban size={13}/></span><div><b>Projects</b><small>Work grouped against billing</small></div><ChevronRight size={13}/></button>
+        </div>
+      </section>
+      <section className="data-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">Context</span><h2>Organisation</h2></div></div>
+        <div className="organisation-summary">
+          <div className="organisation-summary-mark">{organization?.logo_path?<img src={organization.logo_path} alt=""/>:String(organization?.name||"O").slice(0,1).toUpperCase()}</div>
+          <div><strong>{organization?.name}</strong><span>{organization?.legal_name||"Billing identity"}</span></div>
+          <button className="secondary" onClick={()=>onNavigate("settings")}><Settings2 size={13}/>Settings</button>
+        </div>
+      </section>
     </section>
-    <div className="overview-minimal-footer"><button onClick={()=>onNavigate("payments")}>Payments <ChevronRight size={13}/></button><button onClick={()=>onNavigate("clients")}>Clients <ChevronRight size={13}/></button><button onClick={()=>onNavigate("reports")}>Reports <ChevronRight size={13}/></button></div>
   </div>;
 }
 

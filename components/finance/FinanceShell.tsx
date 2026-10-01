@@ -20,23 +20,26 @@ const navigation:Array<[FinanceView,typeof LayoutDashboard,string,string]>=[
 export function FinanceShell({activeView,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,mobileMoreOpen,setMobileMoreOpen,children,overlays}:{
  activeView:FinanceView;activeOrganization:WorkspaceOrganization|null;invoiceCount:number;session:WorkspaceSession;query:string;setQuery:(v:string)=>void;actionError:string;clearError:()=>void;onRefresh:()=>void;onSelectWorkspace:(id:string|null)=>void;organizations:WorkspaceOrganization[];onSignOut:()=>void;onNewInvoice:()=>void;onNewClient:()=>void;onNewProject:()=>void;mobileMoreOpen:boolean;setMobileMoreOpen:(v:boolean)=>void;children:ReactNode;overlays?:ReactNode
 }){
- const router=useRouter(); const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false);
+ const router=useRouter(); const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");
  useEffect(()=>{if(!workspaceMenuOpen)return;const key=(e:KeyboardEvent)=>e.key==="Escape"&&setWorkspaceMenuOpen(false);const click=(e:MouseEvent)=>{const t=e.target as Node;if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))setWorkspaceMenuOpen(false)};document.addEventListener("keydown",key);document.addEventListener("mousedown",click);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("mousedown",click)}},[workspaceMenuOpen]);
  const secondary=navigation.filter(([k])=>!["overview","invoices","payments","clients"].includes(k));
  const routeFor=(path:string)=>`${path}?organization=${encodeURIComponent(activeOrganization?.id||"all")}`;
  const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
+ const filteredOrgs=activeOrgs.filter(o=>String(o.name||"").toLowerCase().includes(workspaceFilter.trim().toLowerCase()));
  const mark=(org:WorkspaceOrganization|null)=>org?.logo_path?<img src={org.logo_path} alt=""/>:String(org?.name||"A").slice(0,1).toUpperCase();
 
  return <main className="shell" style={{"--org-accent":activeOrganization?.accent_hex||"#7046dd"} as CSSProperties}>
   <aside className="sidebar">
    <div className="rail-workspace workspace-switcher-wrap">
     <button className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-expanded={workspaceMenuOpen}>
-      <span className="rail-workspace-mark">{mark(activeOrganization)}</span><span className="rail-workspace-copy"><b>{activeOrganization?.name||"All organisations"}</b><small>Workspace</small></span><ChevronDown size={14}/>
+      <span className="rail-workspace-mark">{mark(activeOrganization)}</span><span className="rail-workspace-copy"><b>{activeOrganization?.name||"All organisations"}</b></span><ChevronDown size={14}/>
     </button>
     {workspaceMenuOpen&&<div className="workspace-switcher-menu rail-menu" role="listbox" aria-label="Organisations">
-      <button className={!activeOrganization?"selected":""} onClick={()=>{onSelectWorkspace(null);setWorkspaceMenuOpen(false)}}><span className="workspace-option-mark">A</span><strong>All organisations</strong>{!activeOrganization&&<Check size={13} className="workspace-check"/>}</button>
-      {activeOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>{onSelectWorkspace(o.id);setWorkspaceMenuOpen(false)}}><span className="workspace-option-mark">{mark(o)}</span><strong>{o.name||"Organisation"}</strong>{activeOrganization?.id===o.id&&<Check size={13} className="workspace-check"/>}</button>)}
-    </div>}
+      <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
+      <button className={!activeOrganization?"selected":""} onClick={()=>{onSelectWorkspace(null);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">A</span><strong>All organisations</strong>{!activeOrganization&&<Check size={13} className="workspace-check"/>}</button>
+      {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>{onSelectWorkspace(o.id);setWorkspaceMenuOpen(false);setWorkspaceFilter("")}}><span className="workspace-option-mark">{mark(o)}</span><strong>{o.name||"Organisation"}</strong>{activeOrganization?.id===o.id&&<Check size={13} className="workspace-check"/>}</button>)}
+      {!filteredOrgs.length&&<div className="workspace-menu-empty">No organisations found.</div>}
+    </div>
    </div>
    <nav>
     {navigation.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}

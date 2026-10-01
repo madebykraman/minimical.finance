@@ -437,7 +437,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
   const add = (kind:ContentKind = "service") => setDraft(d => ({...d,contents:[...d.contents,{id:crypto.randomUUID(),title:kind === "note" ? "Note" : "New content",kind,quantity:1,priced:kind === "note"}]}));
   const remove = (id:string) => setDraft(d => ({...d,contents:d.contents.filter(c => c.id !== id)}));
-  return <div className="overlay" onMouseDown={requestClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
+  return <div className="overlay invoice-edit-overlay" onMouseDown={requestClose}><aside className="drawer invoice-edit-drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={requestClose} aria-label="Close invoice editor"><X size={18}/></button></div>
     <div className="drawer-body">
       <div className="invoice-drawer-lockup">

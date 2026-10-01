@@ -136,25 +136,13 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           ? window.localStorage.getItem(WORKSPACE_KEY)
           : null;
         const stored = urlWorkspace ?? namespaced ?? legacy;
-        const urlMatchesActive = !urlWorkspace || urlWorkspace === "all" || activeRows.some(o => o.id === urlWorkspace);
+        const urlMatchesActive = !urlWorkspace || activeRows.some(o => o.id === urlWorkspace);
         const resolvedStored = urlMatchesActive ? stored : (namespaced ?? legacy);
-
-        if (resolvedStored === "all") {
-          setOrganizationId(null);
-          setWorkspaceReady(true);
-          if (legacy && !namespaced && session.user?.id) {
-            window.localStorage.setItem(workspaceStorageKey, "all");
-          }
-          return;
-        }
-
         const remembered = activeRows.find(o => o.id === resolvedStored);
         if (remembered) {
           setOrganizationId(remembered.id);
           setWorkspaceReady(true);
-          if (legacy && !namespaced && session.user?.id) {
-            window.localStorage.setItem(workspaceStorageKey, remembered.id);
-          }
+          if (legacy && !namespaced && session.user?.id) window.localStorage.setItem(workspaceStorageKey, remembered.id);
           return;
         }
 
@@ -262,7 +250,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
   const selectOrganization = (id: string | null) => {
-    const workspace = id ?? "all";
+    if (!id) return;
+    const workspace = id;
     setOrganizationId(id);
     setWorkspaceReady(true);
     setMobileMoreOpen(false);

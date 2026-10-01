@@ -407,3 +407,26 @@ input:focus,select:focus,textarea:focus{border-color:#4a4162;box-shadow:0 0 0 3p
     .payment-total { margin:0 14px 14px; }
   }
 }
+
+@layer product {
+  .invoice-edit-overlay { align-items:center; justify-content:center; }
+  .invoice-edit-drawer { width:min(820px,calc(100vw - 48px)); height:min(900px,calc(100dvh - 48px)); border:1px solid var(--line-strong); border-radius:13px; box-shadow:0 24px 90px rgba(0,0,0,.55); }
+  .invoice-edit-drawer .drawer-head { min-height:76px; }
+  .invoice-edit-drawer .drawer-body { background:#0d0d0f; }
+  .invoice-edit-drawer .block { border:1px solid var(--line); border-radius:11px; background:#101012; overflow:hidden; margin:0 0 12px; }
+  .invoice-edit-drawer .block-head { min-height:60px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  .invoice-edit-drawer .block-head h3 { font-size:13px; }
+  .invoice-edit-drawer .block-head p { font-size:9px; }
+  .invoice-edit-drawer .content-table { display:grid; }
+  .invoice-edit-drawer .content-row { min-height:56px; border-top:1px solid var(--line); padding:7px 12px; }
+  .invoice-edit-drawer .payments-block .payment-list>div { padding:0 13px; }
+  .invoice-edit-drawer .activity-block .activity-list { padding:5px 13px; }
+  @media(max-width:720px){
+    .invoice-edit-overlay { align-items:stretch; }
+    .invoice-edit-drawer { width:100vw; height:100dvh; max-height:none; border:0; border-radius:0; box-shadow:none; }
+    .invoice-edit-drawer .drawer-body { padding:10px; }
+    .invoice-edit-drawer .drawer-head { min-height:68px; }
+    .invoice-edit-drawer .block { border-radius:10px; margin-bottom:10px; }
+    .invoice-edit-drawer .block-head { min-height:56px; padding:11px 12px; }
+  }
+}

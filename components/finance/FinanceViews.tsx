@@ -150,7 +150,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
     setSaving(true);
     const {error}=await supabase.from("organizations").update({...organization,updated_at:new Date().toISOString()}).eq("id",organization.id);
     setSaving(false);
-    setMessage(error?error.message:"Organisation identity saved.");
+    setMessage(error?error.message:"Organisation identity saved.");if(!error)window.dispatchEvent(new Event("finance:organization-updated"));
   }
   async function upload(file:File){
     if(!organization)return;
@@ -232,14 +232,14 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
     const {error}=await supabase.from("organizations").update({...selected,updated_at:new Date().toISOString()}).eq("id",selected.id);
     setSaving(false);
     setMessage(error?error.message:"Organisation saved.");
-    if(!error)setOrgs(v=>v.map(o=>o.id===selected.id?selected:o));
+    if(!error){setOrgs(v=>v.map(o=>o.id===selected.id?selected:o));window.dispatchEvent(new Event("finance:organization-updated"));}
   }
   async function create(){
     const name=window.prompt("Organisation / brand name");
     if(!name?.trim())return;
     const {data,error}=await supabase.from("organizations").insert({name:name.trim(),legal_name:name.trim(),entity_type:"brand"}).select("*").single();
     if(error){setMessage(error.message);return}
-    setOrgs(v=>[...v,data]);setSelected(data);setEditOpen(true);setSection("identity");
+    setOrgs(v=>[...v,data]);setSelected(data);setEditOpen(true);setSection("identity");window.dispatchEvent(new Event("finance:organization-updated"));
   }
 
   return <div className="settings-stack">

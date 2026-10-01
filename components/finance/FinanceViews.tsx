@@ -279,7 +279,7 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
 }
 export function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
   const [clients,setClients]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
-  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");setClients(data||[]);setLoading(false)}
+  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId||"").order("name");setClients(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[organizationId]);
   const stats=clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0),open=rows.reduce((s,i)=>s+invoiceBalance(i),0);return {c,rows,billed,open}});
   if(selectedClientId)return <ClientWorkspace clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;

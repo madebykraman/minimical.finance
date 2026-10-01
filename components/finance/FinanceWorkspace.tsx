@@ -357,7 +357,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         <OrganizationWelcome
           organizations={organizations}
           onSelect={id => selectOrganization(id)}
-          onAll={() => selectOrganization(null)}
         />
       )}
       {activeView === "overview" && activeOrganization && (

@@ -234,7 +234,7 @@ export async function GET(
   drawDocIcon(page,X.left-11,Y.payLabel-1,7);
   page.drawText("PAY TO:", { x: X.left, y: Y.payLabel, size: FONT_SIZE, font: bold, color: BLACK });
   const payLines = [
-    `NAME: ${organization?.payee_name || "Kumar Aman"}`,
+    `NAME: ${organization?.payee_name || organization?.legal_name || organization?.name || ""}`,
     `A/C NO. ${organization?.account_number || ""}`,
     `BANK: ${organization?.bank_name || ""}`,
     `BRANCH: ${organization?.branch_name || ""}`,
@@ -296,7 +296,7 @@ export async function GET(
 
   draw(
     page,
-    organization?.invoice_footer_line_1 || "Please contact framedbyaman@gmail.com in case of any queries.",
+    organization?.invoice_footer_line_1 || "Please contact us in case of any queries.",
     X.left,
     Y.footer1,
     regular,
@@ -304,7 +304,7 @@ export async function GET(
   );
   draw(
     page,
-    organization?.invoice_footer_line_2 || "Thank you for your time.",
+    organization?.invoice_footer_line_2 || "Thank you.",
     X.left,
     Y.footer2,
     regular,

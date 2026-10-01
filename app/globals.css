@@ -276,3 +276,10 @@ input:focus,select:focus,textarea:focus{border-color:#4a4162;box-shadow:0 0 0 3p
 .nav-group-label{padding:0 9px 6px;color:#4f4f58;font:600 8px var(--font-data);letter-spacing:.1em;text-transform:uppercase}
 @media(max-width:720px){.finance-nav{display:none}}
 }
+@layer product {
+.mobile-more-sheet{position:fixed;inset:0;z-index:71;background:rgba(3,3,5,.48);backdrop-filter:blur(5px)}
+.mobile-more-panel{position:absolute;right:10px;bottom:74px;width:min(220px,calc(100vw - 20px));padding:6px;border:1px solid #2b2b34;border-radius:11px;background:#111114;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.mobile-more-panel button{width:100%;min-height:40px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:#b8b8c0;display:flex;align-items:center;gap:9px;text-align:left;font-size:11px}
+.mobile-more-panel button:hover,.mobile-more-panel button.active{background:#1b1822;color:#fff}
+@media(min-width:721px){.mobile-more-sheet{display:none!important}}
+}

@@ -236,7 +236,7 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
   const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,meta:daysOverdue(i)+"d overdue",invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,meta:"Due soon",invoice:i}))].slice(0,5);
   const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const collection=stats.total>0?Math.round(stats.collected/stats.total*100):0;
+  const collection=stats.billed>0?Math.round(stats.collected/stats.billed*100):0;
   return <div className="overview-minimal">
     <header className="overview-minimal-head"><div><span className="eyebrow">Financial position</span><h2>{organization?.name}</h2></div><button className="primary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Invoices</button></header>
     <section className="overview-position">

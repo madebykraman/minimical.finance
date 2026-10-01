@@ -68,3 +68,124 @@
 .workspace-landing-footer{margin-top:10px}
 @media(max-width:900px){.page-frame{padding:0 20px 50px}.topbar{padding:0 20px}.overview-split{grid-template-columns:1fr}.sidebar{width:190px}.shell{grid-template-columns:190px minmax(0,1fr)}}
 @media(max-width:720px){.page-frame{padding:0 12px 72px}.topbar{height:58px;padding:0 12px}.topbar-mobile-title{display:block;font-size:10px;font-weight:600;max-width:45vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar-tools{gap:5px}.overview-minimal{padding-top:20px}.overview-minimal-head h2{font-size:22px}.overview-minimal-metrics{grid-template-columns:1fr 1fr}.overview-minimal-metrics article{min-height:92px}.overview-minimal-metrics b{font-size:17px;margin-top:10px}.overview-split{display:flex;flex-direction:column}.operations-page,.settings-page,.client-portal{padding-top:20px}.operations-intro h2{font-size:22px}.workspace-landing{margin-top:10vh;width:100%}.workspace-switcher-menu.rail-menu{position:fixed;left:12px;right:12px;top:58px;width:auto}.rail-workspace-copy small{display:none}}
+
+
+/* 2026 minimal-first refinement: borrowed interaction discipline from useLayouts/OpenSource UI/Uiverse, normalized to the finance token system. */
+:root{
+  --surface-0:#0a0a0b;
+  --surface-1:#0d0d0f;
+  --surface-2:#111113;
+  --surface-3:#141416;
+  --line:#202023;
+  --line-strong:#29292d;
+  --text:#f3f3f1;
+  --muted:#77777f;
+  --quiet:#5f5f67;
+  --accent:#7046dd;
+}
+
+/* The page should read like an operations console, not a collection of cards. */
+.page-frame{padding-top:0}
+.data-panel,.settings-section-card,.kpi,.overview-minimal-metrics article{box-shadow:none!important}
+.data-panel{border-color:var(--line)!important;background:var(--surface-2)!important}
+.data-panel-head{min-height:48px!important;padding:0 14px!important}
+.data-panel-head h2{font-size:10px!important;font-weight:650!important;letter-spacing:-.01em!important}
+.data-panel-head p{display:none!important}
+
+.compact-page-head{min-height:34px!important;margin:0!important;padding:0!important;align-items:center!important}
+.compact-page-head h2{margin:0!important;font-size:22px!important;font-weight:650!important;letter-spacing:-.045em!important}
+.operations-page{gap:8px!important}
+.operations-count{font-size:8px!important}
+.operations-count b{font-size:10px!important}
+
+/* Shared compact fact strip. One glance, no KPI wall. */
+.register-summary{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px!important;background:var(--line)!important;border:1px solid var(--line)!important;border-radius:9px!important;overflow:hidden!important}
+.register-summary>div{min-height:54px!important;padding:10px 12px!important;background:var(--surface-2)!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:4px!important}
+.register-summary span{font:700 7px var(--font-data)!important;letter-spacing:.08em!important;color:var(--quiet)!important}
+.register-summary b{font:650 12px var(--font-data)!important;color:#ededf0!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Kpi remains reusable for reports, but no longer creates a visual wall. */
+.operations-kpis{gap:1px!important;background:var(--line)!important;border:1px solid var(--line)!important;border-radius:9px!important;overflow:hidden!important}
+.kpi{min-height:64px!important;border:0!important;border-radius:0!important;background:var(--surface-2)!important;padding:10px 12px!important}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kpi-icon{display:none!important}
+.kpi-label{font-size:7px!important;color:var(--quiet)!important;letter-spacing:.08em!important}
+.kpi-value{font-size:14px!important;margin-top:7px!important}
+.kpi-note{font-size:7px!important;color:#626269!important;margin-top:2px!important}
+
+/* Invoice rows: ID, counterparty, amount, state. Everything else remains in the drawer. */
+.invoice-card{min-height:58px!important;padding:8px 12px!important;border-color:#232326!important;background:transparent!important}
+.invoice-card:hover{background:#151517!important}
+.invoice-main{gap:10px!important}
+.invoice-id{min-width:54px!important}
+.invoice-id span{display:none!important}
+.invoice-id strong{font-size:9px!important;color:#a993ff!important}
+.invoice-main h3{font-size:9px!important}
+.invoice-main p{display:none!important}
+.invoice-middle{display:none!important}
+.invoice-right{min-width:130px!important}
+.invoice-right>div{display:flex!important;align-items:baseline!important;gap:5px!important}
+.invoice-right>div strong{font-size:10px!important}
+.invoice-amount-label{display:none!important}
+.status{font-size:7px!important;padding:3px 6px!important}
+
+/* Client/project directories use one dominant row instead of card grids. */
+.client-directory{background:var(--surface-2)!important}
+.client-directory-row{min-height:54px!important;padding:7px 12px!important;border-bottom-color:#232326!important}
+.client-directory-row .client-main b{font-size:9px!important}
+.client-directory-row .client-main span{display:none!important}
+.client-meta b{font-size:8px!important}
+.client-meta span{font-size:6px!important}
+.client-grid{grid-template-columns:1fr!important;padding:0!important;gap:0!important;background:var(--surface-2)!important}
+.project-card{display:grid!important;grid-template-columns:30px minmax(0,1fr) auto!important;align-items:center!important;gap:9px!important;min-height:56px!important;border:0!important;border-bottom:1px solid #232326!important;border-radius:0!important;background:transparent!important;padding:8px 12px!important}
+.project-card:hover{background:#151517!important}
+.project-card>strong{font:650 9px var(--font-data)!important}
+.project-card>small,.project-card .client-invoices{display:none!important}
+.project-card>div:nth-child(2) p{display:none!important}
+.project-actions{grid-column:3!important;grid-row:1!important}
+.project-actions .mini-action{font-size:7px!important;padding:4px 6px!important}
+
+/* Drawer: identity first, details below. */
+.invoice-drawer-lockup{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:9px;padding:2px 0 13px;border-bottom:1px solid #252528}
+.invoice-drawer-lockup>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.invoice-drawer-lockup>div b{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.invoice-drawer-lockup>div span{font:7px var(--font-data);color:var(--quiet)}
+.invoice-drawer-lockup>strong{font:650 15px var(--font-data);color:#ededf0}
+.compact-summary{margin-top:10px!important}
+.compact-summary>div{padding:9px!important}
+.compact-summary strong{font-size:10px!important}
+.drawer-context{display:block;color:#686870;font-size:8px;margin-top:3px}
+.drawer-head p,.drawer-head .eyebrow{display:none!important}
+
+/* Progressive disclosure: descriptions stay available in DOM but do not compete with the first glance. */
+.settings-section-toggle small,.settings-accordion-toggle small{display:none!important}
+.settings-section-toggle{min-height:50px!important}
+.settings-section-body{padding:12px!important}
+.settings-accordion-toggle{min-height:46px!important}
+.settings-accordion-body{padding:12px!important}
+.org-grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))!important;padding:7px!important;gap:6px!important}
+.org-card{min-height:52px!important;border-radius:7px!important}
+.org-card small{display:none!important}
+
+/* Minimal, tactile interaction language: lift only 1px; no glow/glass. */
+.primary,.secondary,.icon-button,.nav-item,.workspace-minimal-row,.org-card,.settings-section-toggle,.settings-accordion-toggle,.client-directory-row,.project-card,.action-row,.invoice-register-row{transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.primary:hover,.secondary:hover{transform:translateY(-1px)}
+.primary:active,.secondary:active{transform:translateY(0)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:1px solid #8f73ed!important;outline-offset:2px!important}
+
+/* Search should feel like an instrument, not a full-width form. */
+.global-search{border-color:#252528!important;background:#111113!important;height:34px!important}
+.global-search input{font-size:9px!important}
+
+@media(max-width:720px){
+  .register-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .register-summary>div{min-height:50px!important;padding:8px!important}
+  .register-summary b{font-size:10px!important}
+  .compact-page-head h2{font-size:20px!important}
+  .invoice-right{min-width:105px!important}
+  .invoice-card{grid-template-columns:minmax(0,1fr) auto!important}
+  .invoice-right>div{display:none!important}
+  .client-directory-row{grid-template-columns:30px minmax(0,1fr) 75px 14px!important}
+  .client-directory-row .client-meta:nth-of-type(2),.client-directory-row .client-meta:nth-of-type(3){display:none!important}
+  .project-card{grid-template-columns:30px minmax(0,1fr) auto!important}
+}

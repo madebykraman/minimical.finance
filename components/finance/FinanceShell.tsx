@@ -52,7 +52,6 @@ export function FinanceShell({
   actionError,
   clearError,
   onRefresh,
-  onChangeWorkspace,
   onSelectWorkspace,
   organizations,
   onSignOut,
@@ -73,7 +72,6 @@ export function FinanceShell({
   actionError: string;
   clearError: () => void;
   onRefresh: () => void;
-  onChangeWorkspace: () => void;
   onSelectWorkspace: (id: string | null) => void;
   organizations: WorkspaceOrganization[];
   onSignOut: () => void;

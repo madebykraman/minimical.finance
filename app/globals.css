@@ -123,17 +123,10 @@ a{color:inherit}
 .workspace-gate-minimal{padding:0 2px}
 .workspace-gate-minimal-label{margin:0 0 8px;color:#555f6b;font:700 7px var(--font-data);letter-spacing:.15em}
 .workspace-minimal-list{border-top:1px solid var(--line)}
-.workspace-minimal-row,.workspace-all-minimal{width:100%;min-height:54px;display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:11px;padding:0 4px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
-.workspace-minimal-row:hover,.workspace-all-minimal:hover{background:#11151b}
-.workspace-company-logo,.workspace-all-minimal-mark{width:30px;height:30px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#171b21;color:#8d9cff;font-size:10px;font-weight:700}
 .workspace-company-logo img{width:100%;height:100%;object-fit:contain}
 .workspace-minimal-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600}
-.workspace-minimal-row svg,.workspace-all-minimal svg{color:#586270}
 .workspace-minimal-row.archived{opacity:.58}
 .workspace-archived-label{color:#646e7b;font:7px var(--font-data);text-transform:uppercase;letter-spacing:.08em}
-.workspace-all-minimal{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:#101419}
-.workspace-all-minimal:hover{border-color:#343c48}
-.workspace-all-minimal-mark{border:0;background:#1a2030}
 .workspace-archive-toggle{margin:12px 4px 0;border:0;background:transparent;color:#737d8a;font-size:9px}
 .workspace-archive-toggle:hover{color:#aeb6c0}
 
@@ -634,7 +627,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .workspace-gate-minimal-label{display:none}
 .workspace-minimal-list{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .workspace-minimal-row{min-height:50px}
-.workspace-all-minimal{margin-top:10px;min-height:50px}
 .workspace-archive-toggle{margin-top:9px;font-size:8px}
 @media(max-width:720px){
   .topbar{margin-bottom:13px}
@@ -684,7 +676,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .workspace-gate-minimal-head{margin-bottom:20px}
 .workspace-gate-minimal-head h1{font-size:17px;font-weight:650}
 .workspace-gate-mark{width:30px;height:30px;border-radius:8px;font-size:12px}
-.workspace-minimal-row,.workspace-all-minimal{min-height:48px}
 .workspace-minimal-name{font-size:10px}
 .workspace-archive-toggle{font-size:7px}
 .data-panel-head p,.block-head p,.operations-intro p,.client-card p,.project-card p{display:none}

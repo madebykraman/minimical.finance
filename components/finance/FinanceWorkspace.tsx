@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CircleAlert, RefreshCw, X
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createInvoice as createInvoiceRecord,
@@ -14,11 +12,9 @@ import {
 } from "@/lib/finance/repository";
 import {
   calculateStats,
-  invoiceTotal,
 } from "@/lib/finance/domain";
 import type { Content, Invoice, PaymentMethod, Status } from "@/lib/finance/domain";
 import type { FinanceView } from "@/lib/finance/types";
-import { money } from "@/lib/finance/format";
 import { FinanceShell } from "./FinanceShell";
 import {
   AuthScreen,
@@ -354,14 +350,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         </>
       }
     >
-      {actionError && !loading && (
-        <div className="workspace-inline-status" aria-live="polite">
-          <CircleAlert size={14} />
-          <span>Some workspace data needs attention.</span>
-          <button onClick={() => setActionError("")}><X size={13} /></button>
-        </div>
-      )}
-
       {activeView === "overview" && (
         <Overview
           stats={stats}

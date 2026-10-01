@@ -266,3 +266,84 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .portal-invoice-item>strong{font-size:10px!important}
 .portal-profile-toggle h2{font-size:10px!important}
 
+
+
+/* Product layout layer — information hierarchy before density. */
+.shell{grid-template-columns:238px minmax(0,1fr)!important}
+.sidebar{width:238px!important;padding:20px 13px 14px!important}
+.content{padding:28px 34px 60px!important}
+.topbar{max-width:1280px!important;margin:0 auto 28px!important;min-height:42px!important}
+.topbar-left{display:flex!important;align-items:center!important;min-width:0!important;flex:1!important}
+.topbar-page-title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.topbar-page-title .eyebrow{font-size:8px!important}
+.topbar-page-title strong{font-size:13px!important;font-weight:620!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail-workspace-trigger{min-height:48px!important;padding:0 8px!important;border:0!important;background:transparent!important;color:#eee!important}
+.rail-workspace-mark{width:32px!important;height:32px!important;border-radius:8px!important}
+.rail-workspace-copy b{font-size:11px!important}
+.sidebar nav{margin-top:18px!important}
+.nav-item{min-height:38px!important;font-size:10px!important}
+.page-frame{max-width:1280px!important;margin:0 auto!important}
+.overview-minimal{gap:14px!important}
+.overview-minimal-head{display:flex!important;align-items:end!important;justify-content:space-between!important;padding:0 2px 2px!important}
+.overview-minimal-head>div{display:flex!important;flex-direction:column!important;gap:3px!important}
+.overview-minimal-head .eyebrow{display:block!important}
+.overview-minimal-head h2{font-size:25px!important;letter-spacing:-.045em!important}
+.overview-position{display:grid!important;grid-template-columns:minmax(210px,1fr) minmax(280px,1.4fr) auto!important;align-items:center!important;gap:24px!important;padding:20px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface-2)!important}
+.overview-position>div:first-child{display:flex!important;flex-direction:column!important;gap:5px!important}
+.overview-position span{font:700 8px var(--font-data)!important;letter-spacing:.07em!important;color:var(--quiet)!important;text-transform:uppercase!important}
+.overview-position strong{font:650 25px var(--font-data)!important;letter-spacing:-.05em!important}
+.overview-position small{font-size:8px!important;color:#707078!important}
+.overview-position-facts{display:flex!important;align-items:center!important;gap:28px!important}
+.overview-position-facts>div{display:flex!important;flex-direction:column!important;gap:3px!important}
+.overview-position-facts b{font:650 12px var(--font-data)!important;color:#d8d8dc!important}
+.overview-grid{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(330px,1fr)!important;gap:12px!important}
+.overview-secondary{grid-template-columns:1fr 1fr!important}
+.data-panel{border-radius:10px!important}
+.data-panel-head{min-height:54px!important;padding:0 16px!important}
+.data-panel-head h2{font-size:12px!important}
+.data-panel-head .eyebrow{display:block!important;margin-bottom:2px!important}
+.invoice-register-row{min-height:58px!important;grid-template-columns:70px minmax(0,1fr) 92px 110px 14px!important;padding:0 16px!important}
+.invoice-register-row>b{font-size:10px!important}
+.invoice-register-row>span strong{font-size:10px!important}
+.invoice-register-row>span small{display:block!important;margin-top:3px!important;color:#66666e!important;font-size:8px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.invoice-register-row>strong{font-size:10px!important}
+.action-row{min-height:58px!important;padding:0 14px!important;grid-template-columns:30px minmax(0,1fr) auto 14px!important}
+.action-row b{font-size:9px!important}
+.action-row small{display:block!important;margin-top:3px!important;color:#66666e!important;font-size:8px!important}
+.action-icon{width:30px!important;height:30px!important}
+.organisation-summary{min-height:86px;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px 16px}
+.organisation-summary-mark{width:40px;height:40px;display:grid;place-items:center;overflow:hidden;border-radius:9px;background:#202025;color:#a996ff;font:700 11px var(--font-data)}
+.organisation-summary-mark img{width:100%;height:100%;object-fit:contain}
+.organisation-summary strong{display:block;font-size:11px}
+.organisation-summary span{display:block;margin-top:3px;color:#66666e;font-size:8px}
+.register-summary{border-radius:10px!important}
+.register-summary>div{min-height:62px!important}
+.register-summary span{font-size:8px!important}
+.register-summary b{font-size:13px!important}
+.operations-page{gap:12px!important}
+.compact-page-head h2{font-size:24px!important}
+.operations-count b{font-size:11px!important}
+.invoice-card{min-height:62px!important}
+.client-directory-row{min-height:62px!important}
+.project-card{min-height:62px!important}
+.settings-page{gap:10px!important}
+.settings-section-toggle{min-height:58px!important;padding:12px 15px!important}
+.settings-section-toggle b{font-size:10px!important}
+.auth-card{width:min(400px,100%)!important}
+@media(max-width:900px){
+ .shell{grid-template-columns:190px minmax(0,1fr)!important}.sidebar{width:190px!important}.content{padding:22px 20px 52px!important}
+ .overview-position{grid-template-columns:1fr!important}.overview-position-facts{justify-content:flex-start}.overview-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:720px){
+ .content{padding:14px 12px 78px!important}.topbar{margin-bottom:18px!important}
+ .topbar-left{display:none!important}.overview-minimal-head h2{font-size:22px!important}
+ .overview-position{padding:15px!important;gap:14px!important}.overview-position-facts{gap:20px!important;flex-wrap:wrap}
+ .overview-position strong{font-size:21px!important}
+ .overview-grid,.overview-secondary{grid-template-columns:1fr!important}
+ .invoice-register-row{grid-template-columns:58px minmax(0,1fr) 82px 14px!important;padding:0 10px!important}
+ .invoice-register-row>em{display:none!important}
+ .invoice-register-row>strong{font-size:9px!important}
+ .action-row{padding:0 10px!important}
+ .organisation-summary{grid-template-columns:36px minmax(0,1fr) auto;padding:12px 10px}
+ .organisation-summary-mark{width:36px;height:36px}
+}

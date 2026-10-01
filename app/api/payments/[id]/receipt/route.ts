@@ -36,7 +36,7 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
   y-=34;
   text("AMOUNT RECEIVED",x,y,bold,9);y-=20;text(money(Number(payment.amount||0)),x,y,mono,20);
   y-=42;
-  const facts=[["Invoice",`#${safe(invoice.invoice_number||invoice.number)}`],["Payment date",dateLabel(payment.payment_date)],["Method",String(payment.method||"").replaceAll("_"," ")],["Reference",payment.reference||payment.transaction_reference||"—"]];
+  const facts=[["Invoice",`#${safe(invoice.invoice_number||invoice.number)}`],["Payment date",dateLabel(payment.payment_date)],["Method",String(payment.method||"").replaceAll("_"," ")],["Reference",payment.reference||"—"]];
   facts.forEach(([label,value])=>{text(label,x,y,bold,8);text(String(value),180,y,regular,9);y-=22;});
   y-=18;page.drawLine({start:{x,y},end:{x:533,y},thickness:.7,color:black});y-=24;
   text(`Invoice total: ${money(Number(invoice.total_amount||0))}`,x,y,regular,9);y-=16;

@@ -115,7 +115,7 @@ export function SettingsView({email,activeOrganizationId,onSignOut}:{email:strin
   return <div className="settings-page">
     <div className="settings-tabs">{([["organizations","Organisations"],["account","Account"],["workspace","System"],["security","Security"]] as const).map(([key,label])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}>{label}</button>)}</div>
     {tab==="organizations"&&<OrganizationsSettings/>}
-    {tab==="account"&&<AccountIdentitySettings/>}
+    {tab==="account"&&<AccountIdentitySettings organizationId={activeOrganizationId}/>}
     {tab==="workspace"&&<div className="settings-stack">
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}</section>
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="access"?"":"access")}><span><b>Access boundary</b><small>Authenticated owner access and database-enforced workspace isolation.</small></span><span>{open==="access"?"Collapse":"Edit"}</span></button>{open==="access"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Workspace access</b><p>Protected by authenticated session and row-level security.</p></div><span className="settings-good">Protected</span></div></div>}</section>
@@ -127,13 +127,78 @@ export function SettingsView({email,activeOrganizationId,onSignOut}:{email:strin
   </div>;
 }
 
-export function AccountIdentitySettings(){
-  const [profile,setProfile]=useState<any>({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");const [open,setOpen]=useState(false);
-  useEffect(()=>{supabase.from("account_profile").select("*").eq("id",true).maybeSingle().then(({data,error})=>{if(data)setProfile(data);if(error)setMessage(error.message);setLoading(false)})},[]);
-  async function save(){setSaving(true);const {error}=await supabase.from("account_profile").upsert({...profile,id:true,updated_at:new Date().toISOString()});setSaving(false);setMessage(error?error.message:"Account master data saved.");}
-  async function upload(file:File){if(file.size>2*1024*1024)return setMessage("Logo must be under 2 MB.");const path="account/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("minimical-finance-assets").upload(path,file,{upsert:true,contentType:file.type});if(error)return setMessage(error.message);const {data}=supabase.storage.from("minimical-finance-assets").getPublicUrl(path);setProfile((p:any)=>({...p,logo_path:data.publicUrl}));setMessage("Account logo uploaded.");}
-  if(loading)return <div className="empty-state">Loading account master data…</div>;
-  return <div className="settings-stack"><div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Account master data</b><small>Legal identity that sits above all organisations and brands.</small></span><span>{open?"Hide":"Edit"}</span></button>{open&&<div className="settings-section-body"><div className="client-logo-upload">{profile.logo_path?<img src={profile.logo_path} alt="Account logo"/>:<div className="client-logo-placeholder">Logo</div>}<label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f)upload(f)}}/></label></div><div className="form-grid"><label>Legal name<input value={profile.legal_name||""} onChange={e=>setProfile((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Display name<input value={profile.display_name||""} onChange={e=>setProfile((p:any)=>({...p,display_name:e.target.value}))}/></label><label>Email<input value={profile.email||""} onChange={e=>setProfile((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={profile.phone||""} onChange={e=>setProfile((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={profile.pan||""} onChange={e=>setProfile((p:any)=>({...p,pan:e.target.value}))}/></label></div><label>Address lines<textarea value={Array.isArray(profile.address_lines)?profile.address_lines.join("\n"):""} onChange={e=>setProfile((p:any)=>({...p,address_lines:e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean)}))}/></label></div>}</div>{message&&<div className="auth-success">{message}</div>}<button className="primary" onClick={save} disabled={saving}>{saving?"Saving…":"Save account data"}</button></div>;
+export function AccountIdentitySettings({organizationId}:{organizationId:string|null}){
+  const [organization,setOrganization]=useState<any>(null);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [message,setMessage]=useState("");
+  const [open,setOpen]=useState(true);
+
+  async function load(){
+    setLoading(true);
+    if(!organizationId){setOrganization(null);setLoading(false);return}
+    const {data,error}=await supabase.from("organizations").select("*").eq("id",organizationId).maybeSingle();
+    if(error)setMessage(error.message);
+    setOrganization(data||null);
+    setLoading(false);
+  }
+  useEffect(()=>{void load()},[organizationId]);
+
+  async function save(){
+    if(!organization)return;
+    setSaving(true);
+    const {error}=await supabase.from("organizations").update({...organization,updated_at:new Date().toISOString()}).eq("id",organization.id);
+    setSaving(false);
+    setMessage(error?error.message:"Organisation identity saved.");
+  }
+  async function upload(file:File){
+    if(!organization)return;
+    if(file.size>2*1024*1024){setMessage("Logo must be under 2 MB.");return}
+    const path="organizations/"+organization.id+"/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
+    const {error}=await supabase.storage.from("minimical-finance-assets").upload(path,file,{upsert:true,contentType:file.type});
+    if(error){setMessage(error.message);return}
+    const {data}=supabase.storage.from("minimical-finance-assets").getPublicUrl(path);
+    setOrganization((p:any)=>({...p,logo_path:data.publicUrl}));
+    setMessage("Logo uploaded. Save the organisation to persist the identity.");
+  }
+
+  if(loading)return <div className="empty-state">Loading selected organisation…</div>;
+  if(!organization)return <div className="empty-state"><Building2 size={18}/><b>No organisation selected.</b><span>Select a billing organisation before editing its identity.</span></div>;
+
+  return <div className="settings-stack selected-org-settings">
+    <section className="settings-context-card">
+      <div className="settings-context-mark">{organization.logo_path?<img src={organization.logo_path} alt=""/>:String(organization.name||"?").slice(0,1).toUpperCase()}</div>
+      <div><span className="eyebrow">SELECTED ORGANISATION</span><h2>{organization.name}</h2><p>These fields are the billing identity used by invoices, PDFs, client records and organisation-level settings.</p></div>
+    </section>
+    <section className="settings-section-card">
+      <button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Organisation identity</b><small>{organization.legal_name||organization.name} · {organization.entity_type||"brand"}</small></span><span>{open?"Collapse":"Edit"}</span></button>
+      {open&&<div className="settings-section-body">
+        <div className="client-logo-upload"><div className="client-logo-frame">{organization.logo_path?<img src={organization.logo_path} alt="Organisation logo"/>:<div className="client-logo-placeholder">Logo</div>}</div><label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file)}}/></label></div>
+        <div className="form-grid">
+          <label>Name<input value={organization.name||""} onChange={e=>setOrganization((p:any)=>({...p,name:e.target.value}))}/></label>
+          <label>Legal name<input value={organization.legal_name||""} onChange={e=>setOrganization((p:any)=>({...p,legal_name:e.target.value}))}/></label>
+          <label>Email<input value={organization.email||""} onChange={e=>setOrganization((p:any)=>({...p,email:e.target.value}))}/></label>
+          <label>Phone<input value={organization.phone||""} onChange={e=>setOrganization((p:any)=>({...p,phone:e.target.value}))}/></label>
+          <label>PAN<input value={organization.pan||""} onChange={e=>setOrganization((p:any)=>({...p,pan:e.target.value}))}/></label>
+          <label>GSTIN<input value={organization.gstin||""} onChange={e=>setOrganization((p:any)=>({...p,gstin:e.target.value}))}/></label>
+          <label className="full-span">Address lines<textarea value={Array.isArray(organization.address_lines)?organization.address_lines.join("\n"):""} onChange={e=>setOrganization((p:any)=>({...p,address_lines:e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean)}))}/></label>
+        </div>
+      </div>}
+    </section>
+    <section className="settings-section-card">
+      <button className="settings-section-toggle" onClick={()=>setOpen(open?"":"branding")}><span><b>Branding & documents</b><small>Accent, footer, numbering and invoice template for {organization.name}.</small></span><span>{open==="branding"?"Collapse":"Edit"}</span></button>
+      {open==="branding"&&<div className="settings-section-body"><div className="form-grid">
+        <label>Brand accent<input value={organization.accent_hex||"#7046dd"} onChange={e=>setOrganization((p:any)=>({...p,accent_hex:e.target.value}))}/></label>
+        <label>Invoice prefix<input value={organization.invoice_prefix||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label>
+        <label>Next invoice number<input type="number" value={organization.next_invoice_number||1} onChange={e=>setOrganization((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label>
+        <label>Invoice template<select value={organization.invoice_template_key||"legacy_elle"} onChange={e=>setOrganization((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Legacy template</option><option value="clean">Workspace Clean</option></select></label>
+        <label className="full-span">Footer line 1<input value={organization.invoice_footer_line_1||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label>
+        <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label>
+      </div></div>}
+    </section>
+    {message&&<div className="auth-success">{message}</div>}
+    <div className="settings-savebar"><span>Changes apply to the selected organisation only.</span><button className="primary" onClick={save} disabled={saving}>{saving?"Saving…":"Save organisation"}</button></div>
+  </div>;
 }
 
 export function OrganizationsSettings(){

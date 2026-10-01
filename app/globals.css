@@ -824,8 +824,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .drawer-body{
   padding:15px;
 }
-  border-color:#252c35;
-}
 @media(max-width:720px){
   .top-workspace-switcher{
     width:min(145px,42vw);

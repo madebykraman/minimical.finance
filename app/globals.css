@@ -611,3 +611,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(prefers-reduced-motion:no-preference){.kpi,.position-panel,.data-panel,.project-card,.client-directory-row{transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease,background-color .18s ease}.kpi:hover{box-shadow:0 14px 34px rgba(26,24,21,.055);transform:translateY(-1px)}}
 @media(max-width:1100px){.brand-lockup:after{display:none}}
 @media(max-width:720px){.position-panel{border-radius:13px}.position-main h2{letter-spacing:-.065em}.kpi{border-radius:12px}.invoice-card:before{top:9px;bottom:9px}}
+
+.brand-mark>img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.brand-glyph{font:700 18px var(--font-geist-sans),sans-serif;letter-spacing:-.08em;transform:translateY(-1px)}

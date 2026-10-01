@@ -198,8 +198,9 @@ export async function GET(
   // organisation identity treatment; legacy mode preserves the supplied reference geometry.
   if(templateKey==="clean"){
     const name=String(organization?.name||organization?.legal_name||"");
-    draw(page,name,X.left,805,bold,13);
-    page.drawLine({start:{x:X.left,y:798},end:{x:X.right,y:798},thickness:.7,color:BLACK});
+    const identityX=X.left+62;
+    draw(page,name,identityX,805,bold,13);
+    page.drawLine({start:{x:identityX,y:798},end:{x:X.right,y:798},thickness:.7,color:BLACK});
   }
   // Optional logos live in the existing top whitespace and never move the canonical text geometry.
   // Logos occupy only the upper breathing room. Their bounding boxes stop above the

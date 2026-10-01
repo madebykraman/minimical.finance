@@ -10,7 +10,7 @@ import {
   calculateStats, contentAmount, mapInvoice, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
-import type { FinanceView } from "./FinanceWorkspace";
+import type { FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   createInvoice as createInvoiceRecord, logActivity, recordPayment as recordPaymentRecord,

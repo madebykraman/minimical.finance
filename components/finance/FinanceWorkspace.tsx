@@ -497,30 +497,53 @@ function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;inv
 function dateLabel(value:string){return new Date(value+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
 
 function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
-  return <><section className="section-head">
-    <div><h2>Invoices</h2><p>{filtered.length} records · {filtered.reduce((s,i) => s+i.contents.length,0)} contents</p></div>
-    <div className="filters"><div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoices, clients, contents..."/></div><div className="filter"><Filter size={15}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
-  </section>
-  {loading ? <div className="empty-state">Loading finance data…</div> : <div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>}
-</>;
+  const billed=filtered.reduce((sum,i)=>sum+invoiceTotal(i),0);
+  const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const overdue=filtered.filter(i=>daysOverdue(i)>0);
+  const paid=filtered.filter(i=>statusLabel(i.status)==="Paid").length;
+  return <div className="operations-page">
+    <section className="operations-intro">
+      <div><div className="eyebrow">BILLING / REGISTER</div><h2>Invoices</h2><p>A financial register for everything issued, collected and still open.</p></div>
+      <div className="operations-count"><b>{filtered.length}</b><span>visible records</span></div>
+    </section>
+    <section className="operations-kpis">
+      <Kpi label="Visible billed" value={money(billed)} detail={filtered.length+" invoices"}/>
+      <Kpi label="Open balance" value={money(open)} detail="Current receivables" accent/>
+      <Kpi label="Overdue" value={money(overdue.reduce((s,i)=>s+invoiceBalance(i),0))} detail={overdue.length+" overdue"}/>
+      <Kpi label="Paid records" value={String(paid)} detail="Fully settled invoices"/>
+    </section>
+    <section className="data-panel operations-register">
+      <div className="data-panel-head operations-register-head">
+        <div><h2>Invoice register</h2><p>Search by invoice, client, project or content. Filter by settlement state.</p></div>
+        <div className="filters"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search register…"/></div><div className="filter"><Filter size={14}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
+      </div>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading finance data…</div>:filtered.length?<div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>:<div className="empty-state"><FileText size={18}/><b>No invoices match this register view.</b><span>Try another status or search term.</span></div>}
+    </section>
+  </div>;
 }
 
 function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
   const rows = invoices.flatMap(i => i.payments.map(p => ({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
-  return <div className="data-panel"><div className="data-panel-head"><div><h2>Payments</h2><p>{rows.length} recorded payments · {money(rows.reduce((s,r)=>s+r.amount,0))} collected</p></div></div>
-    {rows.length ? <div className="simple-table"><div className="simple-row simple-head"><span>Date</span><span>Invoice</span><span>Client</span><span>Method</span><span>Amount</span></div>{rows.map(r=><div className="simple-row" key={r.id}><span>{r.payment_date ? new Date(r.payment_date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</span><span>#{r.invoice.number}</span><span>{r.invoice.client}</span><span>{r.method}</span><strong>{money(r.amount)}</strong></div>)}</div> : <div className="empty-state">No payments recorded yet.</div>}
-    <div className="payment-shortcuts">{invoices.filter(i=>paidTotal(i)<invoiceTotal(i)).slice(0,6).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record payment · #{i.number}</button>)}</div>
+  const collected=rows.reduce((sum,r)=>sum+r.amount,0);
+  const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const partial=invoices.filter(i=>paidTotal(i)>0&&invoiceBalance(i)>0).length;
+  return <div className="operations-page">
+    <section className="operations-intro">
+      <div><div className="eyebrow">CASH / RECONCILIATION</div><h2>Payments</h2><p>Recorded collections, linked invoices and the cash still to reconcile.</p></div>
+      <div className="operations-count"><b>{rows.length}</b><span>recorded payments</span></div>
+    </section>
+    <section className="operations-kpis">
+      <Kpi label="Collected" value={money(collected)} detail="Recorded cash" accent/>
+      <Kpi label="Outstanding" value={money(outstanding)} detail="Across visible invoices"/>
+      <Kpi label="Partially paid" value={String(partial)} detail="Invoices with open balance"/>
+      <Kpi label="Latest collection" value={rows[0]?money(rows[0].amount):"₹0"} detail={rows[0]?.payment_date||"No payment yet"}/>
+    </section>
+    <section className="data-panel operations-register">
+      <div className="data-panel-head"><div><h2>Payment ledger</h2><p>Every payment remains linked to its invoice and client.</p></div><WalletCards size={16}/></div>
+      {rows.length?<div className="simple-table"><div className="simple-row simple-head"><span>Date</span><span>Invoice</span><span>Client</span><span>Method</span><span>Amount</span></div>{rows.map(r=><button className="simple-row payment-record-row" key={r.id} onClick={()=>onOpenPayment(r.invoice)}><span>{r.payment_date ? new Date(r.payment_date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</span><span>#{r.invoice.number}</span><span>{r.invoice.client}</span><span>{r.method.replaceAll("_"," ")}</span><strong>{money(r.amount)}</strong></button>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded yet.</b><span>Record a payment from any open invoice.</span></div>}
+      <div className="payment-shortcuts">{invoices.filter(i=>invoiceBalance(i)>0).slice(0,6).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number} · {money(invoiceBalance(i))} open</button>)}</div>
+    </section>
   </div>;
-}
-
-function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
-  const [clients,setClients]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
-  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[]);
-  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");setClients(data||[]);setLoading(false);}
-  if(selectedClientId)return <ClientPortal clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
-  return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>Each client is a workspace: billing identity, invoices, projects, statements and portal controls.</p></div></div>
-    {loading?<div className="empty-state">Loading clients…</div>:<div className="client-directory">{clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0);const paid=rows.reduce((s,i)=>s+paidTotal(i),0);return <button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(billed)}</b><span>billed</span></div><div className="client-meta"><b>{money(Math.max(billed-paid,0))}</b><span>outstanding</span></div><ChevronRight size={15}/></button>})}</div>}
-    {!loading&&!clients.length&&<div className="empty-state">No clients yet. Create the first client.</div>}{creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}</div>;
 }
 
 function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {

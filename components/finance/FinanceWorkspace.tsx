@@ -389,7 +389,7 @@ function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;inv
   const overdue=open.filter(i=>daysOverdue(i)>0);
   const dueSoon=open.filter(i=>{if(!i.dueDate)return false;const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14});
   const unpriced=invoices.filter(i=>i.contents.some(c=>!c.priced));
-  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
+  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
   const clientMap=new Map<string,{billed:number;open:number;count:number}>();
   invoices.forEach(i=>{const g=clientMap.get(i.client)||{billed:0,open:0,count:0};g.billed+=invoiceTotal(i);g.open+=invoiceBalance(i);g.count++;clientMap.set(i.client,g)});
   const collection=stats.billed?Math.round(stats.collected/stats.billed*100):0;
@@ -400,22 +400,44 @@ function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;inv
     ...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({kind:"Due soon",tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+i.dueDate,value:money(invoiceBalance(i)),invoice:i})),
     ...unpriced.map(i=>({kind:"Needs pricing",tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
   ].slice(0,6);
+  const chart=recent.slice().reverse();
+  const chartMax=Math.max(...chart.map(i=>invoiceTotal(i)),1);
   return <div className="overview-command">
-    <section className="position-panel">
-      <div className="position-main">
+    <section className="dashboard-hero">
+      <div className="dashboard-balance">
         <div className="eyebrow">FINANCIAL POSITION · {organization?.name||"ORGANISATION"}</div>
-        <h2>{money(stats.outstanding)}</h2>
+        <div className="balance-line"><h2>{money(stats.outstanding)}</h2><span className="balance-pulse"><i/>Open</span></div>
         <p>Outstanding receivables across this organisation.</p>
         <div className="position-actions"><button className="primary" onClick={()=>{const target=overdue[0]||open[0];if(target)onOpen(target)}} disabled={!open.length}><CircleAlert size={15}/>Review open balance</button><span><Check size={14}/>{collection}% collected</span></div>
       </div>
-      <div className="position-stats">
-        <div><span>Billed</span><b>{money(stats.billed)}</b><small>{invoices.length} invoices</small></div>
-        <div><span>Collected</span><b>{money(stats.collected)}</b><small>{collection}% of billed</small></div>
-        <div><span>Overdue</span><b>{money(overdueValue)}</b><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div>
-        <div><span>Next 14 days</span><b>{money(dueSoonValue)}</b><small>{dueSoon.length} due</small></div>
+      <div className="dashboard-metrics">
+        <div><span>Billed</span><strong>{money(stats.billed)}</strong><small>{invoices.length} invoices</small></div>
+        <div><span>Collected</span><strong>{money(stats.collected)}</strong><small>{collection}% of billed</small></div>
+        <div className="metric-danger"><span>Overdue</span><strong>{money(overdueValue)}</strong><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div>
+        <div className="metric-mint"><span>Next 14 days</span><strong>{money(dueSoonValue)}</strong><small>{dueSoon.length} due</small></div>
       </div>
+      <div className="dashboard-glow"/>
     </section>
-    <section className="command-grid">
+
+    <section className="dashboard-command-grid">
+      <section className="data-panel dashboard-chart">
+        <div className="data-panel-head"><div><h2>Recent billing</h2><p>Invoice value across the latest activity.</p></div><button className="mini-action" onClick={()=>onNavigate("reports")}>View reports <ArrowUpRight size={12}/></button></div>
+        <div className="billing-chart">
+          {chart.length ? chart.map(i=><button className="billing-bar" key={i.id} onClick={()=>onOpen(i)} title={"#"+i.number+" · "+money(invoiceTotal(i))}>
+            <div className="billing-bar-track"><span style={{height:Math.max(12,Math.round(invoiceTotal(i)/chartMax*100))+"%"}}/></div>
+            <b>{money(invoiceTotal(i)).replace("₹","₹")}</b><small>#{i.number}</small>
+          </button>) : <div className="empty-state">No invoice activity yet.</div>}
+        </div>
+      </section>
+      <section className="data-panel dashboard-cash-card">
+        <div className="cash-card-top"><span>Collection rate</span><MoreHorizontal size={16}/></div>
+        <strong>{collection}%</strong>
+        <div className="cash-ring" style={{"--progress":collection+"%"} as any}><div><b>{money(stats.collected)}</b><small>collected</small></div></div>
+        <p>{collection>=80?"Strong collection position.":"Keep attention on outstanding receivables."}</p>
+      </section>
+    </section>
+
+    <section className="dashboard-command-grid lower">
       <section className="data-panel command-queue"><div className="data-panel-head"><div><h2>Needs attention</h2><p>Decisions and follow-ups, not noise.</p></div><ArrowUpRight size={17}/></div>
         {actions.length?<div className="action-list">{actions.map(a=><button key={a.kind+"-"+a.invoice.id} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.kind==="Overdue"?<CircleAlert size={15}/>:a.kind==="Due soon"?<WalletCards size={15}/>:<IndianRupee size={15}/>}</span><div><b>{a.label}</b><small>{a.kind} · {a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={15}/></button>)}</div>:<div className="empty-state success-empty"><Check size={17}/><div><b>Nothing requires attention</b><span>Open receivables are clear and all visible work is priced.</span></div></div>}
       </section>
@@ -423,9 +445,12 @@ function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;inv
         <div className="receivable-list">{[...clientMap.entries()].filter(([,g])=>g.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6).map(([name,g])=><div className="receivable-row" key={name}><div><b>{name}</b><span>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</span></div><strong>{money(g.open)}</strong></div>)}{!open.length&&<div className="empty-state">No open receivables.</div>}</div>
       </section>
     </section>
-    <section className="data-panel recent-panel"><div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest financial activity for {organization?.name||"this organisation"}.</p></div><Receipt size={17}/></div>
+
+    <section className="data-panel recent-panel">
+      <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest financial activity for {organization?.name||"this organisation"}.</p></div><Receipt size={17}/></div>
       <div className="recent-list">{recent.map(i=><button key={i.id} className="recent-row" onClick={()=>onOpen(i)}><div><span className="recent-number">#{i.number}</span><b>{i.client}</b><small>{i.project} · {dateLabel(i.date)}</small></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div><ChevronRight size={15}/></button>)}</div>
     </section>
+
     <section className="workspace-launcher">
       <button className="workspace-tile tile-invoice" onClick={()=>onNavigate("invoices")}><span className="workspace-tile-icon"><FileText size={18}/></span><span><b>Invoices</b><small>Issue, review and collect</small></span><ChevronRight size={16}/></button>
       <button className="workspace-tile tile-payment" onClick={()=>onNavigate("payments")}><span className="workspace-tile-icon"><WalletCards size={18}/></span><span><b>Payments</b><small>Track recorded cash</small></span><ChevronRight size={16}/></button>

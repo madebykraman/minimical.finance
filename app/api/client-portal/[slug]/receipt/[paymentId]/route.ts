@@ -11,7 +11,7 @@ const money=(n:number)=>`₹${Math.round(n||0).toLocaleString("en-IN")}`;
 const fmt=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"}):"—";
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;paymentId:string}>}){
-  const {slug,paymentId}=await context.params; const session=request.cookies.get("finos_portal_session")?.value||"";
+  const {slug,paymentId}=await context.params; const session=request.cookies.get("portal_session")?.value||"";
   if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=await createClient(); const [{data,error},{data:orgRaw}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});

@@ -16,6 +16,8 @@ import { DownloadButton } from "@/components/finance/DownloadButton";
 
 const supabase = createClient();
 
+type Period = "month" | "quarter" | "half" | "year" | "all";
+
 export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

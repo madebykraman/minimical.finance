@@ -42,7 +42,6 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
     {navigation.map(([key,Icon,label,path])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>router.push(routeFor(path))}><Icon size={16}/><span>{label}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}</button>)}
    </nav>
    <div className="sidebar-bottom">
-    <button className="nav-item" onClick={()=>router.push(routeFor("/settings"))}><Settings2 size={16}/><span>Settings</span></button>
     <button className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>
     <div className="profile"><div className="avatar">{String(session.user?.email||"A").slice(0,1).toUpperCase()}</div><div><b>Account</b><small>{session.user?.email||"Authenticated"}</small></div></div>
    </div>

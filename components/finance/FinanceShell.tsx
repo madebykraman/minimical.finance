@@ -203,7 +203,7 @@ export function FinanceShell({
               <input
                 value={query}
                 onChange={event => setQuery(event.target.value)}
-                placeholder="Search invoices, clients, projects…"
+                placeholder="Search…"
                 aria-label="Search workspace"
               />
             </label>

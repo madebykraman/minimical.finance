@@ -618,3 +618,36 @@ input:focus,select:focus,textarea:focus{border-color:#4a4162;box-shadow:0 0 0 3p
   .client-financials b{font:600 10px var(--font-data);white-space:nowrap}
   .client-financials span{font-size:7px;color:#686870;text-transform:uppercase;letter-spacing:.05em}
 }
+
+@media(max-width:720px){
+  .organisations-panel .data-panel-head{align-items:flex-start;gap:10px}
+  .organisations-panel .data-panel-head>div{min-width:0}
+  .organisations-panel .data-panel-head p{font-size:10px;line-height:1.45}
+  .organisations-panel .data-panel-head .secondary{flex:0 0 auto;min-width:108px;min-height:40px;white-space:nowrap}
+  .client-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .client-tabs::-webkit-scrollbar{display:none}
+  .client-tabs button{flex:0 0 auto;min-height:40px;padding:0 13px;font-size:10px}
+  .period-strip{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+  .period-strip::-webkit-scrollbar{display:none}
+  .period-strip button{flex:0 0 auto;min-height:38px;padding:0 12px;font-size:9px}
+  .client-portal-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+  .client-title-lockup{min-width:0}
+  .client-title-lockup h2{font-size:21px}
+  .client-title-lockup p{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .client-portal-head>.secondary{min-height:38px}
+  .client-dashboard .overview-grid{grid-template-columns:1fr}
+  .reports-page .compact-page-head h2{font-size:30px}
+  .report-toolbar{display:grid;gap:8px}
+  .report-toolbar .period-strip{width:100%}
+  .report-filters select{width:100%;min-height:42px}
+  .compact-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .compact-kpis .kpi{min-height:82px}
+  .client-grid{display:grid;grid-template-columns:1fr;gap:8px}
+  .project-card{min-height:88px;padding:12px;grid-template-columns:38px minmax(0,1fr) auto}
+  .project-card h3{font-size:13px}
+  .project-card p{font-size:9px}
+  .project-card>strong{font:600 11px var(--font-data)}
+  .project-card>small{grid-column:2/-1;font-size:9px}
+  .project-actions{grid-column:2/-1;display:flex;gap:6px}
+  .project-actions button{min-height:32px}
+}

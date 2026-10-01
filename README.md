@@ -86,3 +86,21 @@ Supabase Dashboard configuration still required for the production auth boundary
 ### Wishlist
 
 - Private client document storage is now session-gated and signed for portal delivery.
+
+
+## Backup / recovery strategy
+
+FinOS has two backup layers.
+
+1. Database backup: use the authenticated Settings → Workspace defaults → Data export action. The export is a versioned JSON envelope containing clients, projects, invoices, invoice contents, payments, documents metadata, organisations, invoice activity, project activity and client-portal activity. It includes a SHA-256 checksum in the manifest and response header.
+
+2. Storage backup: the JSON export intentionally contains storage metadata and paths, not the private file bytes. The finos-documents and finos-assets buckets therefore require a separate scheduled Supabase Storage/object backup. Keep at least one off-site copy.
+
+Recommended operational cadence:
+- Daily: database JSON export.
+- Daily/continuous: private storage object backup.
+- Weekly: verify a restore into a non-production Supabase project.
+- Before schema migrations: export database + storage snapshot.
+- Retention: keep daily copies for 30 days and monthly snapshots for 12 months.
+
+Recovery verification must include invoice totals, payment balances, organisation assignment, document paths and portal configuration. Never treat a successful JSON download as proof that private storage objects are recoverable.

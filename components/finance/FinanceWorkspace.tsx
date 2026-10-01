@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -70,7 +69,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizationsReady, setOrganizationsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
@@ -126,7 +124,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         setOrganizations(rows);
         setOrganizationsReady(true);
 
-        const urlWorkspace = searchParams.get("organization");
+        const urlWorkspace = typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("organization")
+          : null;
         const namespaced = typeof window !== "undefined"
           ? window.localStorage.getItem(workspaceStorageKey)
           : null;
@@ -166,7 +166,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       // The Supabase request is intentionally allowed to settle; state writes are guarded by the
       // current workspace/session lifecycle in the next effect pass.
     };
-  }, [session?.user?.id, authReady, workspaceStorageKey, searchParams]);
+  }, [session?.user?.id, authReady, workspaceStorageKey]);
 
   useEffect(() => {
     if (!session || !organizationsReady || !workspaceReady) return;

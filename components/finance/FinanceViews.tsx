@@ -108,7 +108,7 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
   const archived = organizations.filter(o => ["dissolved","discontinued"].includes(o.status));
   const [showArchived,setShowArchived]=useState(false);
 
-  return <main className="workspace-gate">
+  return <div className="workspace-gate">
     <div className="workspace-gate-inner">
       <div className="workspace-gate-minimal-head">
         <div className="workspace-gate-mark">m</div>
@@ -141,7 +141,7 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
         {showArchived ? "Hide archived" : ("Archived · "+archived.length)}
       </button>}
     </div>
-  </main>;
+  </div>;
 }
 
 export function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {

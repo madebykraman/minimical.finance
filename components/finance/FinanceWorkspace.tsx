@@ -112,7 +112,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
     setOrganizationsReady(false);
     setWorkspaceReady(false);
-    loadInvoices();
 
     supabase
       .from("organizations")
@@ -167,9 +166,14 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     if (nextView !== activeView) setActiveView(nextView);
   }, [initialView, session, organizationsReady, workspaceReady]);
 
-  async function loadInvoices() {
+  useEffect(() => {
+    if (!session || !workspaceReady || !organizationId) return;
+    void loadInvoices(organizationId);
+  }, [session?.user?.id, workspaceReady, organizationId]);
+
+  async function loadInvoices(activeOrganizationId = organizationId) {
     setLoading(true);
-    const result = await listInvoices();
+    const result = await listInvoices(activeOrganizationId);
 
     if (result.error) {
       setActionError(result.error);
@@ -271,6 +275,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     const workspace = id;
     setOrganizationId(id);
     setWorkspaceReady(true);
+    setInvoices([]);
+    setLoading(true);
     setMobileMoreOpen(false);
     setSelectedClientId(null);
     setSelected(null);

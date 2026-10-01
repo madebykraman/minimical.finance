@@ -151,3 +151,9 @@ export const calculateStats = (invoices: Invoice[], today = new Date()): Finance
     rate: billed ? Math.round((collected / billed) * 1000) / 10 : 0,
   };
 };
+
+export type PaymentTransition = "no_payment"|"partial"|"paid";
+export const paymentTransition = (total:number, paid:number): PaymentTransition => {
+  if (total <= 0 || paid <= 0) return "no_payment";
+  return paid >= total ? "paid" : "partial";
+};

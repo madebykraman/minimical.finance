@@ -619,3 +619,54 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .topbar-meta i{width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 3px color-mix(in srgb,var(--mint) 10%,transparent)}
 .topbar-meta b{font-weight:500;color:var(--hairline-strong)}
 @media(max-width:720px){.topbar-meta{margin-top:8px}.topbar-meta i{width:5px;height:5px}}
+
+/* -------------------------------------------------------------------------- */
+/* Final polish — finance-specific hierarchy                                  */
+/* -------------------------------------------------------------------------- */
+.invoice-card{isolation:isolate}
+.invoice-card:after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.72);opacity:.7}
+.invoice-right .status{position:relative;z-index:2}
+.invoice-right .chevron{color:var(--text-3);transition:transform .14s ease,color .14s ease}
+.invoice-card:hover .invoice-right .chevron{color:var(--brand-accent);transform:translateX(2px)}
+.content-chips span{transition:background-color .14s ease,border-color .14s ease}
+.invoice-card:hover .content-chips span{border-color:color-mix(in srgb,var(--brand-accent) 10%,var(--hairline));background:color-mix(in srgb,var(--brand-accent) 3%,white)}
+
+.drawer-summary{border:1px solid var(--hairline-soft);background:var(--surface-2);overflow:hidden}
+.drawer-summary>div{border-right:1px solid var(--hairline-soft);position:relative}
+.drawer-summary>div:last-child{border-right:0}
+.drawer-summary>div:first-child:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand-accent)}
+.drawer-summary>div:nth-child(2) strong{color:var(--mint)}
+.drawer-summary>div:nth-child(3) .status-select{font-weight:650}
+.total-box,.payment-total{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--brand-accent) 7%,white),var(--surface-3));
+  border-color:color-mix(in srgb,var(--brand-accent) 12%,var(--hairline));
+}
+.total-box strong,.payment-total strong{color:var(--brand-accent)}
+.payment-total strong{font-variant-numeric:tabular-nums}
+.payment-form label,.form-grid label,.invoice-meta-grid label{color:var(--text-2)}
+.optional{color:var(--text-3);font-weight:500}
+
+@media(max-width:720px){
+  .invoice-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px 10px;border-radius:0}
+  .invoice-main{min-width:0}
+  .invoice-main>div:last-child{min-width:0}
+  .invoice-main h3,.invoice-main p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .invoice-middle{grid-column:1/-1;min-width:0}
+  .invoice-middle .content-chips{overflow:hidden;flex-wrap:nowrap}
+  .invoice-middle .content-chips span{flex:0 0 auto}
+  .invoice-right{display:grid;grid-template-columns:auto auto;align-items:center;justify-content:end;gap:6px}
+  .invoice-right>strong{grid-column:1/-1;text-align:right;font-size:11px}
+  .invoice-right .balance{grid-column:1/-1;text-align:right}
+  .invoice-right .chevron{display:none}
+  .invoice-right .status{grid-column:1/-1;justify-self:end}
+  .drawer-summary{border-radius:11px}
+  .drawer-summary>div{min-height:74px}
+  .drawer-head h2{font-size:22px}
+  .total-box,.payment-total{border-radius:11px}
+}
+
+@media(min-width:721px){
+  .invoice-card{grid-template-columns:minmax(250px,1.1fr) minmax(220px,1fr) minmax(150px,.55fr)}
+  .invoice-middle{grid-column:auto;min-width:0}
+  .invoice-right{grid-column:auto;grid-row:auto}
+}

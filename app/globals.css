@@ -856,3 +856,8 @@ input::placeholder,textarea::placeholder{color:#59626e}
     margin-top:5vh;
   }
 }
+
+/* Minimal-first hierarchy */
+.data-panel-head p,.operations-intro p{display:none}
+.overview-minimal-head p{display:none}
+.kpi-note{display:none}

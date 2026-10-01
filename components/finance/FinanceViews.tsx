@@ -2,7 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
+  ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck,
   CircleAlert, FileText, Filter, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut
 } from "lucide-react";
 import {
@@ -104,24 +104,6 @@ export function AuthScreen() {
     </form>
     <button className="auth-switch" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setPassword(""); }}>{mode === "signin" ? "Need an account? Create one" : "Already have access? Sign in"}</button>
   </div></div>;
-}
-
-export function OrganizationWelcome({organizations,onSelect}:{organizations:any[];onSelect:(id:string)=>void}) {
-  const active=organizations.filter(o=>!["dissolved","discontinued"].includes(o.status));
-  const archived=organizations.filter(o=>["dissolved","discontinued"].includes(o.status));
-  const [showArchived,setShowArchived]=useState(false);
-  return <section className="workspace-landing" aria-label="Select organisation">
-    <div className="workspace-landing-list">
-      {active.map(o=><button key={o.id} className="workspace-minimal-row" onClick={()=>onSelect(o.id)}>
-        <span className="workspace-company-logo">{o.logo_path?<img src={o.logo_path} alt=""/>:String(o.name||"O").slice(0,1).toUpperCase()}</span>
-        <span className="workspace-minimal-name">{o.name}</span><ChevronRight size={15}/>
-      </button>)}
-      {showArchived&&archived.map(o=><button key={o.id} className="workspace-minimal-row archived" onClick={()=>onSelect(o.id)}>
-        <span className="workspace-company-logo">{String(o.name||"O").slice(0,1).toUpperCase()}</span><span className="workspace-minimal-name">{o.name}</span><span className="workspace-archived-label">Archived</span>
-      </button>)}
-    </div>
-    {archived.length>0&&<div className="workspace-landing-footer"><button className="workspace-archive-toggle" onClick={()=>setShowArchived(v=>!v)}>{showArchived?"Hide archived":"Archived · "+archived.length}</button></div>}
-  </section>;
 }
 
 export function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {

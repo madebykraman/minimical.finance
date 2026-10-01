@@ -355,7 +355,6 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             <InvoiceDrawer
               invoice={selected}
               onClose={() => setSelected(null)}
-              onStatus={markStatus}
               onSave={saveInvoice}
               onPayment={() => setPaymentFor(selected)}
             />

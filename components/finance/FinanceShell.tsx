@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3, ChevronRight, CircleAlert, FileText, FolderKanban, LayoutDashboard, LogOut,
@@ -85,6 +85,25 @@ export function FinanceShell({
 }) {
   const router = useRouter();
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!workspaceMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setWorkspaceMenuOpen(false);
+    };
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!(target instanceof Element) || !target.closest(".workspace-switcher-wrap")) {
+        setWorkspaceMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [workspaceMenuOpen]);
+
   const secondaryNavigation = navigation.filter(([key]) => !["overview", "invoices", "payments", "clients"].includes(key));
   const routeFor = (path: string) => {
     const workspace = activeOrganization?.id || "all";
@@ -110,6 +129,7 @@ export function FinanceShell({
             <button
               key={key}
               className={"nav-item " + (activeView === key ? "active" : "")}
+              aria-current={activeView === key ? "page" : undefined}
               onClick={() => router.push(routeFor(path))}
             >
               <Icon size={17} />

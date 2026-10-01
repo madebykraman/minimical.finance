@@ -183,11 +183,18 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             <h1>{activeView === "overview" ? "Overview" : activeView === "invoices" ? "Invoices" : activeView === "payments" ? "Payments" : activeView === "clients" ? "Clients" : activeView === "projects" ? "Projects" : activeView === "reports" ? "Reports" : "Settings"}</h1>
             <p>{activeView === "overview" ? "A focused view of cash, receivables and what needs attention." : activeView === "invoices" ? "Every invoice, its contents, payment state and history." : activeView === "payments" ? "Recorded collections and the invoices they settle." : activeView === "clients" ? "Client records, billing identity and account history." : activeView === "projects" ? "Projects grouped by client with billing performance." : activeView === "reports" ? "Period-based views of billed, collected and outstanding revenue." : "Workspace identity, invoice customisation and access controls."}</p><div className="topbar-meta"><i aria-hidden="true"/><span>{orgInvoices.length} invoices</span><b>·</b><span>{money(stats.outstanding)} open</span></div>
           </div>
-          <div className="top-actions">
+          <div className="topbar-tools">
+            <label className="global-search">
+              <Search size={15}/>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoices, clients, projects…" aria-label="Search workspace"/>
+              <kbd>⌘ K</kbd>
+            </label>
+            <div className="top-actions">
             <button className="icon-button" title="Refresh data" onClick={() => loadInvoices()}><RefreshCw size={17}/></button>
             {(activeView === "overview" || activeView === "invoices") && <button className="primary" onClick={() => setComposer(true)}><Plus size={17}/>New invoice</button>}
             {activeView === "clients" && <button className="primary" onClick={() => window.dispatchEvent(new Event("finance:new-client"))}><Plus size={17}/>New client</button>}
             {activeView === "projects" && <button className="primary" onClick={() => window.dispatchEvent(new Event("finance:new-project"))}><Plus size={17}/>New project</button>}
+            </div>
           </div>
         </header>
 

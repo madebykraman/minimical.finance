@@ -77,8 +77,28 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     setOrganizationsReady(false);
     loadInvoices();
     supabase.from("organizations").select("*").order("status").order("name").then(({data}) => {
-      setOrganizations(data || []);
+      const rows = data || [];
+      setOrganizations(rows);
       setOrganizationsReady(true);
+
+      const stored = typeof window !== "undefined" ? window.localStorage.getItem("finance.organizationId") : null;
+      const activeRows = rows.filter((o:any) => !["dissolved","discontinued"].includes(o.status));
+
+      if (stored === "all") {
+        setOrganizationId(null);
+        setWorkspaceReady(true);
+        return;
+      }
+
+      const remembered = activeRows.find((o:any) => o.id === stored);
+      if (remembered) {
+        setOrganizationId(remembered.id);
+        setWorkspaceReady(true);
+      } else {
+        setOrganizationId(null);
+        setWorkspaceReady(false);
+        if (stored) window.localStorage.removeItem("finance.organizationId");
+      }
     });
   }, [session, authReady]);
 
@@ -145,7 +165,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   if (!authReady) return <div className="auth-screen"><div className="auth-card"><div className="loading-mark"><RefreshCw size={18}/></div><p>Loading workspace…</p></div></div>;
   if (!session) return <AuthScreen />;
   if (!organizationsReady) return <div className="auth-screen"><div className="auth-card"><div className="loading-mark"><RefreshCw size={18}/></div><p>Loading organisations…</p></div></div>;
-  if (!workspaceReady) return <OrganizationWelcome organizations={organizations} onSelect={(id) => { setOrganizationId(id); window.localStorage.setItem("finance.organizationId", id); setWorkspaceReady(true); }} onAll={() => { setOrganizationId(null); window.localStorage.removeItem("finance.organizationId"); setWorkspaceReady(true); }} />;
+  if (!workspaceReady) return <OrganizationWelcome organizations={organizations} onSelect={(id) => { setOrganizationId(id); window.localStorage.setItem("finance.organizationId", id); setWorkspaceReady(true); }} onAll={() => { setOrganizationId(null); window.localStorage.setItem("finance.organizationId", "all"); setWorkspaceReady(true); }} />;
 
   return (
     <main
@@ -336,39 +356,44 @@ function AuthScreen() {
 
 function OrganizationWelcome({organizations,onSelect,onAll}:{organizations:any[];onSelect:(id:string)=>void;onAll:()=>void}) {
   const active = organizations.filter(o => !["dissolved","discontinued"].includes(o.status));
-  const historical = organizations.filter(o => ["dissolved","discontinued"].includes(o.status));
+  const archived = organizations.filter(o => ["dissolved","discontinued"].includes(o.status));
+  const [showArchived,setShowArchived]=useState(false);
+
   return <main className="workspace-gate">
     <div className="workspace-gate-inner">
-      <div className="workspace-gate-head">
+      <div className="workspace-gate-minimal-head">
         <div className="workspace-gate-mark">m</div>
         <div>
-          <div className="eyebrow">MINIMICAL FINANCE / WORKSPACE</div>
-          <h1>Choose where you want to work.</h1>
-          <p>Your financial records stay separated by organisation. Start inside one company, or read the consolidated book across all active organisations.</p>
+          <div className="eyebrow">MINIMICAL FINANCE</div>
+          <h1>Choose a workspace.</h1>
         </div>
       </div>
 
-      <section className="workspace-gate-section">
-        <div className="workspace-gate-section-head">
-          <div><span className="eyebrow">COMPANIES</span><h2>Your organisations</h2></div>
-          <span>{active.length} active</span>
-        </div>
-        <div className="workspace-company-list">
-          {active.map(o => <button key={o.id} className="workspace-company" onClick={() => onSelect(o.id)}>
+      <section className="workspace-gate-minimal">
+        <div className="workspace-gate-minimal-label">ORGANISATIONS</div>
+        <div className="workspace-minimal-list">
+          {active.map(o => <button key={o.id} className="workspace-minimal-row" onClick={() => onSelect(o.id)}>
             <span className="workspace-company-logo">{o.logo_path ? <img src={o.logo_path} alt="" /> : String(o.name||"O").slice(0,1).toUpperCase()}</span>
-            <span className="workspace-company-copy"><b>{o.name}</b><small>{o.legal_name || o.entity_type || "Organisation"} · {o.status}</small></span>
-            <ChevronRight size={17}/>
+            <span className="workspace-minimal-name">{o.name}</span>
+            <ChevronRight size={16}/>
+          </button>)}
+          {showArchived && archived.map(o => <button key={o.id} className="workspace-minimal-row archived" onClick={() => onSelect(o.id)}>
+            <span className="workspace-company-logo">{String(o.name||"O").slice(0,1).toUpperCase()}</span>
+            <span className="workspace-minimal-name">{o.name}</span>
+            <span className="workspace-archived-label">Archived</span>
           </button>)}
         </div>
+
+        <button className="workspace-all-minimal" onClick={onAll}>
+          <span className="workspace-all-minimal-mark"><BarChart3 size={15}/></span>
+          <span className="workspace-minimal-name">All organisations</span>
+          <ChevronRight size={16}/>
+        </button>
       </section>
 
-      <button className="workspace-all" onClick={onAll}>
-        <span className="workspace-all-icon"><BarChart3 size={18}/></span>
-        <span><b>All organisations</b><small>Consolidated overview across every active company.</small></span>
-        <ArrowUpRight size={16}/>
-      </button>
-
-      {historical.length > 0 && <div className="workspace-history"><span>Historical organisations</span><b>{historical.length}</b></div>}
+      {archived.length>0 && <button className="workspace-archive-toggle" onClick={()=>setShowArchived(v=>!v)}>
+        {showArchived ? "Hide archived" : ("Show "+archived.length+" archived")}
+      </button>}
     </div>
   </main>;
 }
@@ -481,72 +506,57 @@ function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;inv
   const overdue=open.filter(i=>daysOverdue(i)>0);
   const dueSoon=open.filter(i=>i.dueDate && (()=>{const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
   const unpriced=invoices.filter(i=>i.contents.some(c=>!c.priced));
-  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,8);
+  const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
   const collection=stats.billed?Math.round(stats.collected/stats.billed*100):0;
   const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const dueSoonValue=dueSoon.reduce((sum,i)=>sum+invoiceBalance(i),0);
   const attention=[
     ...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,detail:"Overdue "+daysOverdue(i)+" days",value:money(invoiceBalance(i)),invoice:i})),
-    ...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+i.dueDate,value:money(invoiceBalance(i)),invoice:i})),
+    ...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+dateLabel(i.dueDate!),value:money(invoiceBalance(i)),invoice:i})),
     ...unpriced.map(i=>({tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
-  ].slice(0,6);
-  const clientMap=new Map<string,{open:number;billed:number;count:number}>();
-  invoices.forEach(i=>{const g=clientMap.get(i.client)||{open:0,billed:0,count:0};g.open+=invoiceBalance(i);g.billed+=invoiceTotal(i);g.count++;clientMap.set(i.client,g)});
-  const clients=[...clientMap.entries()].filter(([,v])=>v.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6);
-  return <div className="overview-command">
-    <section className="dashboard-hero-lite">
-      <div><div className="eyebrow">WORKSPACE / OVERVIEW</div><h2>{organization?.name || "All organisations"}</h2><p>{organization ? "Operational view of this company’s billing, collections and receivables." : "Consolidated operational view across all active organisations."}</p></div>
-      <div className="dashboard-hero-meta"><span>OPEN</span><b>{money(stats.outstanding)}</b><small>{open.length} invoice{open.length===1?"":"s"}</small></div>
+  ].slice(0,4);
+
+  return <div className="overview-minimal">
+    <section className="overview-minimal-head">
+      <div>
+        <div className="eyebrow">OVERVIEW</div>
+        <h2>{organization?.name || "All organisations"}</h2>
+        <p>{open.length} open invoice{open.length===1?"":"s"} · {money(stats.outstanding)} outstanding</p>
+      </div>
     </section>
 
-    <section className="overview-kpis">
-      <article className="overview-kpi overview-kpi-primary"><div className="kpi-top"><span>Outstanding</span><span className="kpi-icon"><WalletCards size={15}/></span></div><strong>{money(stats.outstanding)}</strong><small>{open.length} open invoices</small></article>
-      <article className="overview-kpi overview-kpi-danger"><div className="kpi-top"><span>Overdue</span><span className="kpi-icon"><CircleAlert size={15}/></span></div><strong>{money(overdueValue)}</strong><small>{overdue.length} need attention</small></article>
-      <article className="overview-kpi"><div className="kpi-top"><span>Due next 14 days</span><span className="kpi-icon"><WalletCards size={15}/></span></div><strong>{money(dueSoonValue)}</strong><small>{dueSoon.length} upcoming</small></article>
-      <article className="overview-kpi"><div className="kpi-top"><span>Collected</span><span className="kpi-icon"><ArrowDownToLine size={15}/></span></div><strong>{money(stats.collected)}</strong><small>{collection}% of billed revenue</small></article>
+    <section className="overview-minimal-metrics">
+      <article><span>OUTSTANDING</span><b>{money(stats.outstanding)}</b><small>{open.length} open</small></article>
+      <article><span>COLLECTED</span><b>{money(stats.collected)}</b><small>{collection}% collected</small></article>
+      <article className={overdueValue>0?"attention":""}><span>OVERDUE</span><b>{money(overdueValue)}</b><small>{overdue.length} need attention</small></article>
     </section>
 
-    <section className="dashboard-attention-grid">
-      <section className="data-panel dashboard-attention">
-        <div className="data-panel-head"><div><h2>Needs attention</h2><p>Only work that requires a decision or follow-up.</p></div><span className="panel-count">{attention.length}</span></div>
-        {attention.length ? <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.detail} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={14}/>:a.tone==="warning"?<WalletCards size={14}/>:<IndianRupee size={14}/>}</span><div><b>{a.label}</b><small>{a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={14}/></button>)}</div> : <div className="empty-state success-empty"><Check size={17}/><div><b>Nothing requires attention</b><span>Your visible receivables are clear.</span></div></div>}
-      </section>
+    {attention.length>0 && <section className="data-panel overview-minimal-section">
+      <div className="data-panel-head"><div><h2>Needs attention</h2><p>Only items that need action.</p></div><span className="panel-count">{attention.length}</span></div>
+      <div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.detail} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={14}/>:a.tone==="warning"?<WalletCards size={14}/>:<IndianRupee size={14}/>}</span><div><b>{a.label}</b><small>{a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={14}/></button>)}</div>
+    </section>}
 
-      <section className="data-panel dashboard-position">
-        <div className="data-panel-head"><div><h2>Financial position</h2><p>Where the book stands right now.</p></div></div>
-        <div className="position-list">
-          <div><span>Billed</span><b>{money(stats.billed)}</b></div>
-          <div><span>Collected</span><b>{money(stats.collected)}</b></div>
-          <div><span>Outstanding</span><b>{money(stats.outstanding)}</b></div>
-          <div><span>Collection rate</span><b>{collection}%</b></div>
-        </div>
-        <button className="secondary full-width" onClick={()=>onNavigate("payments")}>Open payment ledger <ArrowUpRight size={13}/></button>
-      </section>
+    <section className="data-panel overview-minimal-section">
+      <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest activity.</p></div><button className="mini-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+      <div className="invoice-register minimal-register">
+        {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}>
+          <b>#{i.number}</b>
+          <span><strong>{i.client}</strong><small>{i.project || "No project"} · {dateLabel(i.date)}</small></span>
+          <em className={i.status}>{statusLabel(i.status)}</em>
+          <strong>{money(invoiceTotal(i))}</strong>
+          <ChevronRight size={14}/>
+        </button>)}
+        {!recent.length&&<div className="empty-state">No invoices yet.</div>}
+      </div>
     </section>
 
-    <section className="dashboard-lower-grid">
-      <section className="data-panel recent-panel">
-        <div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest billing activity for {organization?.name || "all organisations"}.</p></div><button className="mini-action" onClick={()=>onNavigate("invoices")}>View register <ArrowUpRight size={12}/></button></div>
-        <div className="invoice-register">
-          <div className="invoice-register-head"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>DATE</span><span>STATUS</span><span>AMOUNT</span></div>
-          {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project}</small></span><span>{dateLabel(i.date)}</span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={14}/></button>)}
-          {!recent.length&&<div className="empty-state">No invoices yet.</div>}
-        </div>
-      </section>
-
-      <section className="data-panel dashboard-clients">
-        <div className="data-panel-head"><div><h2>Open by client</h2><p>Largest outstanding balances.</p></div><Building2 size={15}/></div>
-        {clients.length?<div className="client-exposure-list">{clients.map(([name,g])=><button key={name} className="client-exposure-row"><span className="client-exposure-avatar">{name.slice(0,1).toUpperCase()}</span><span><b>{name}</b><small>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</small></span><strong>{money(g.open)}</strong></button>)}</div>:<div className="empty-state">No open receivables.</div>}
-      </section>
-    </section>
-
-    <section className="overview-foot-grid">
-      <button className="overview-shortcut" onClick={()=>onNavigate("invoices")}><span className="shortcut-icon purple"><Receipt size={17}/></span><span><b>Invoices</b><small>Issue, review and collect</small></span><ChevronRight size={15}/></button>
-      <button className="overview-shortcut" onClick={()=>onNavigate("payments")}><span className="shortcut-icon green"><WalletCards size={17}/></span><span><b>Payments</b><small>Record and reconcile cash</small></span><ChevronRight size={15}/></button>
-      <button className="overview-shortcut" onClick={()=>onNavigate("clients")}><span className="shortcut-icon blue"><Building2 size={17}/></span><span><b>Clients</b><small>Billing identity and history</small></span><ChevronRight size={15}/></button>
-    </section>
+    <div className="overview-minimal-footer">
+      <button onClick={()=>onNavigate("invoices")}>Invoices <ChevronRight size={13}/></button>
+      <button onClick={()=>onNavigate("payments")}>Payments <ChevronRight size={13}/></button>
+      <button onClick={()=>onNavigate("clients")}>Clients <ChevronRight size={13}/></button>
+    </div>
   </div>;
 }
+
 function dateLabel(value:string){return new Date(value+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
 
 function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {

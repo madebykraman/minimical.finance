@@ -18,12 +18,12 @@ const navigation:Array<[FinanceView,typeof LayoutDashboard,string,string]>=[
 ];
 
 export function FinanceShell({activeView,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,mobileMoreOpen,setMobileMoreOpen,children,overlays}:{
- activeView:FinanceView;activeOrganization:WorkspaceOrganization|null;invoiceCount:number;session:WorkspaceSession;query:string;setQuery:(v:string)=>void;actionError:string;clearError:()=>void;onRefresh:()=>void;onSelectWorkspace:(id:string|null)=>void;organizations:WorkspaceOrganization[];onSignOut:()=>void;onNewInvoice:()=>void;onNewClient:()=>void;onNewProject:()=>void;mobileMoreOpen:boolean;setMobileMoreOpen:(v:boolean)=>void;children:ReactNode;overlays?:ReactNode
+ activeView:FinanceView;activeOrganization:WorkspaceOrganization|null;invoiceCount:number;session:WorkspaceSession;query:string;setQuery:(v:string)=>void;actionError:string;clearError:()=>void;onRefresh:()=>void;onSelectWorkspace:(id:string)=>void;organizations:WorkspaceOrganization[];onSignOut:()=>void;onNewInvoice:()=>void;onNewClient:()=>void;onNewProject:()=>void;mobileMoreOpen:boolean;setMobileMoreOpen:(v:boolean)=>void;children:ReactNode;overlays?:ReactNode
 }){
  const router=useRouter(); const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");
  useEffect(()=>{if(!workspaceMenuOpen)return;const key=(e:KeyboardEvent)=>e.key==="Escape"&&setWorkspaceMenuOpen(false);const click=(e:MouseEvent)=>{const t=e.target as Node;if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))setWorkspaceMenuOpen(false)};document.addEventListener("keydown",key);document.addEventListener("mousedown",click);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("mousedown",click)}},[workspaceMenuOpen]);
  const secondary=navigation.filter(([k])=>!["overview","invoices","payments","clients"].includes(k));
- const routeFor=(path:string)=>`${path}?organization=${encodeURIComponent(activeOrganization?.id||"")}`;
+ const routeFor=(path:string)=>activeOrganization?.id ? `${path}?organization=${encodeURIComponent(activeOrganization.id)}` : path;
  const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
  const filteredOrgs=activeOrgs.filter(o=>String(o.name||"").toLowerCase().includes(workspaceFilter.trim().toLowerCase()));
  const pageTitle=navigation.find(([key])=>key===activeView)?.[2]||"Overview";
@@ -33,7 +33,7 @@ export function FinanceShell({activeView,activeOrganization,invoiceCount,session
   <aside className="sidebar">
    <div className="rail-workspace workspace-switcher-wrap">
     <button className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-expanded={workspaceMenuOpen}>
-      <span className="rail-workspace-mark">{mark(activeOrganization)}</span><span className="rail-workspace-copy"><b>{activeOrganization?.name||"All organisations"}</b></span><ChevronDown size={14}/>
+      <span className="rail-workspace-mark">{mark(activeOrganization)}</span><span className="rail-workspace-copy"><b>{activeOrganization?.name||"Organisation"}</b></span><ChevronDown size={14}/>
     </button>
     {workspaceMenuOpen&&<div className="workspace-switcher-menu rail-menu" role="listbox" aria-label="Organisations">
       <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>

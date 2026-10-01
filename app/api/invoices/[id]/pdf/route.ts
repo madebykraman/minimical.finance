@@ -180,8 +180,10 @@ export async function GET(
 
   const regularBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-Regular.ttf"));
   const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-SemiBold.ttf"));
+  const monoBytes = await readFile(join(process.cwd(), "public", "fonts", "GeistMono-Regular.ttf"));
   const regular = await pdf.embedFont(regularBytes, { subset: true });
   const bold = await pdf.embedFont(boldBytes, { subset: true });
+  const mono = await pdf.embedFont(monoBytes, { subset: true });
   const organizationLogo = await embedLogo(pdf, organization?.logo_path);
   const clientLogo = await embedLogo(pdf, billingClient?.logo_path);
 
@@ -269,7 +271,7 @@ export async function GET(
     lines.forEach((lineText, lineIndex) =>
       center(page, lineText, X.descriptionCenter, first - lineIndex * LEADING, regular),
     );
-    center(page, amount, X.amountCenter, slot, regular);
+    center(page, amount, X.amountCenter, slot, mono);
   });
   center(page, "TOTAL", X.descriptionCenter, Y.totalBaseline, bold);
   center(page, hasUnpriced ? unknownMoney() : money(total), X.amountCenter, Y.totalBaseline, bold);

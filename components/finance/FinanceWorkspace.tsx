@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -69,6 +70,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizationsReady, setOrganizationsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
@@ -124,13 +126,14 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         setOrganizations(rows);
         setOrganizationsReady(true);
 
+        const urlWorkspace = searchParams.get("organization");
         const namespaced = typeof window !== "undefined"
           ? window.localStorage.getItem(workspaceStorageKey)
           : null;
         const legacy = typeof window !== "undefined"
           ? window.localStorage.getItem(WORKSPACE_KEY)
           : null;
-        const stored = namespaced ?? legacy;
+        const stored = urlWorkspace ?? namespaced ?? legacy;
 
         if (stored === "all") {
           setOrganizationId(null);
@@ -163,7 +166,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       // The Supabase request is intentionally allowed to settle; state writes are guarded by the
       // current workspace/session lifecycle in the next effect pass.
     };
-  }, [session?.user?.id, authReady, workspaceStorageKey]);
+  }, [session?.user?.id, authReady, workspaceStorageKey, searchParams]);
 
   useEffect(() => {
     if (!session || !organizationsReady || !workspaceReady) return;
@@ -257,7 +260,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     setOrganizationId(id);
     setWorkspaceReady(true);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(workspaceStorageKey, id ?? "all");
+      const workspace = id ?? "all";
+      window.localStorage.setItem(workspaceStorageKey, workspace);
+      const params = new URLSearchParams(window.location.search);
+      params.set("organization", workspace);
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
       if (workspaceStorageKey !== WORKSPACE_KEY) {
         window.localStorage.removeItem(WORKSPACE_KEY);
       }

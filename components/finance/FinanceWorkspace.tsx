@@ -448,7 +448,7 @@ function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:stri
 }
 
 function ClientPortal({clientId,invoices,onBack,onOpenInvoice,onSaved}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void}) {
-  const [client,setClient]=useState<any>(null);const [portalLink,setPortalLink]=useState("");const [tab,setTab]=useState<"overview"|"invoices"|"projects"|"statement"|"settings">("overview");
+  const [client,setClient]=useState<any>(null);const [documents,setDocuments]=useState<any[]>([]);const [portalLink,setPortalLink]=useState("");const [tab,setTab]=useState<"overview"|"invoices"|"projects"|"statement"|"settings">("overview");
   const [period,setPeriod]=useState<Period>("all");const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
   const [portalPassword,setPortalPassword]=useState("");const [passwordSaving,setPasswordSaving]=useState(false);const [openSection,setOpenSection]=useState<"identity"|"portal"|"documents"|null>(null);
   const [form,setForm]=useState<any>({});

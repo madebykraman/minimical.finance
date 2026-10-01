@@ -478,6 +478,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const [contents,setContents]=useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   const [clients,setClients]=useState<any[]>([]);
   const [projects,setProjects]=useState<any[]>([]);
+  const [organizationName,setOrganizationName]=useState("");
   const organizationId=initialOrganizationId||"";
   const total=contents.reduce((sum,c)=>sum+contentAmount(c),0);
 
@@ -485,8 +486,9 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
     if(!organizationId){setClients([]);setProjects([]);return}
     Promise.all([
       supabase.from("clients").select("id,name").is("archived_at",null).eq("organization_id",organizationId).order("name"),
-      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).neq("status","archived").order("name")
-    ]).then(([c,p])=>{setClients(c.data||[]);setProjects(p.data||[])});
+      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).neq("status","archived").order("name"),
+      supabase.from("organizations").select("name").eq("id",organizationId).single()
+    ]).then(([c,p,o])=>{setClients(c.data||[]);setProjects(p.data||[]);setOrganizationName(o.data?.name||"Current organisation")});
   },[organizationId]);
 
   const patch=(id:string,p:Partial<Content>)=>setContents(v=>v.map(c=>c.id===id?{...c,...p}:c));
@@ -511,7 +513,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
           </div>
           <datalist id="invoice-client-options">{clients.map(c=><option key={c.id} value={c.name}/>)}</datalist>
           <datalist id="invoice-project-options">{clientProjects.map(p=><option key={p.id} value={p.name}/>)}</datalist>
-          <div className="editor-org-lock"><Building2 size={15}/><div><span>Billing organisation</span><b>{clients.length>=0&&organizationId ? "Current organisation" : "No organisation selected"}</b></div><span className="editor-readonly">#{number}</span></div>
+          <div className="editor-org-lock"><Building2 size={15}/><div><span>Billing organisation</span><b>{organizationId ? (organizationName||"Current organisation") : "No organisation selected"}</b></div><span className="editor-readonly">#{number}</span></div>
         </section>
 
         <section className="editor-section contents-editor-section">

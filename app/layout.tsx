@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-// UI typography and visual primitives are defined by the dark-native product system.
-
 export const metadata: Metadata = {
   title: "Finance Workspace",
   description: "Private financial workspace.",

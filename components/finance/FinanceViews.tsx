@@ -16,6 +16,8 @@ import { DownloadButton } from "@/components/finance/DownloadButton";
 
 const supabase = createClient();
 
+type Period = "month" | "quarter" | "half" | "year" | "all";
+
 export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -230,158 +232,66 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   const today=new Date();
   const open=invoices.filter(i=>invoiceBalance(i)>0);
   const overdue=open.filter(i=>daysOverdue(i)>0);
-  const dueSoon=open.filter(i=>i.dueDate&&(()=>{const d=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((d.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
-  const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const dueSoon=open.filter(i=>i.dueDate&&(() => { const d=new Date(i.dueDate+"T00:00:00"); const days=Math.ceil((d.getTime()-today.getTime())/86400000); return days>=0&&days<=14; })());
   const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
-  const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),meta:daysOverdue(i)+"d overdue",invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,value:money(invoiceBalance(i)),meta:"Due soon",invoice:i}))].slice(0,5);
-  const collection=stats.total>0?Math.round((stats.collected/stats.total)*100):0;
+  const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,meta:daysOverdue(i)+"d overdue",invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,meta:"Due soon",invoice:i}))].slice(0,5);
+  const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const collection=stats.total>0?Math.round(stats.collected/stats.total*100):0;
   return <div className="overview-minimal">
-    <header className="overview-minimal-head">
-      <div><span className="eyebrow">Workspace</span><h2>{organization?.name||"Organisation"}</h2></div>
-      <button className="secondary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Invoices</button>
-    </header>
-
+    <header className="overview-minimal-head"><div><span className="eyebrow">Financial position</span><h2>{organization?.name}</h2></div><button className="primary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Invoices</button></header>
     <section className="overview-position">
-      <div><span>Outstanding</span><strong>{money(stats.outstanding)}</strong><small>{overdue.length} overdue invoice{overdue.length===1?"":"s"}</small></div>
-      <div className="overview-position-facts">
-        <div><span>Collected</span><b>{money(stats.collected)}</b></div>
-        <div><span>Overdue</span><b>{money(overdueValue)}</b></div>
-        <div><span>Collection</span><b>{collection}%</b></div>
-      </div>
-      <button className="primary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Open invoices</button>
+      <div><span>Outstanding</span><strong>{money(stats.outstanding)}</strong><small>{overdue.length ? overdue.length+" overdue" : "No overdue invoices"}</small></div>
+      <div className="overview-position-facts"><div><span>Collected</span><b>{money(stats.collected)}</b></div><div><span>Overdue</span><b>{money(overdueValue)}</b></div><div><span>Collection</span><b>{collection}%</b></div></div>
+      <button className="secondary" onClick={()=>onNavigate("payments")}><WalletCards size={14}/>Payments</button>
     </section>
-
     <div className="overview-grid">
-      <section className="data-panel">
-        <div className="data-panel-head"><div><span className="eyebrow">Receivables</span><h2>Recent invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
-        <div className="invoice-register minimal-register">
-          {recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}>
-            <b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/>
-          </button>)}
-          {!recent.length&&<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><button className="text-action" onClick={()=>onNavigate("invoices")}>Open invoices</button></div>}
-        </div>
+      <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Latest</span><h2>Invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+        <div className="invoice-register minimal-register">{recent.length?recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project||"No project"} · {dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>):<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><span>Create the first invoice for this organisation.</span></div>}</div>
       </section>
-
-      <section className="data-panel">
-        <div className="data-panel-head"><div><span className="eyebrow">Action queue</span><h2>Needs attention</h2></div><span className="panel-count">{attention.length}</span></div>
-        {attention.length?<div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}>
-          <span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span>
-          <div><b>{a.label}</b><small>{a.meta}</small></div><strong>{a.value}</strong><ChevronRight size={13}/>
-        </button>)}</div>:<div className="empty-state"><ShieldCheck size={18}/><b>No payment issues need attention.</b></div>}
+      <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Action queue</span><h2>Needs attention</h2></div><span className="panel-count">{attention.length}</span></div>
+        {attention.length?<div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span><div><b>{a.label}</b><small>{a.meta}</small></div><strong>{money(invoiceBalance(a.invoice))}</strong><ChevronRight size={13}/></button>)}</div>:<div className="empty-state"><ShieldCheck size={18}/><b>Nothing needs attention.</b><span>Open receivables are currently on track.</span></div>}
       </section>
     </div>
-
-    <section className="overview-grid overview-secondary">
-      <section className="data-panel">
-        <div className="data-panel-head"><div><span className="eyebrow">Workspace</span><h2>Go to</h2></div></div>
-        <div className="action-list">
-          <button className="action-row" onClick={()=>onNavigate("payments")}><span className="action-icon"><WalletCards size={13}/></span><div><b>Payments</b><small>Recorded collections and reconciliation</small></div><ChevronRight size={13}/></button>
-          <button className="action-row" onClick={()=>onNavigate("clients")}><span className="action-icon"><Building2 size={13}/></span><div><b>Clients</b><small>Billing relationships and client workspaces</small></div><ChevronRight size={13}/></button>
-          <button className="action-row" onClick={()=>onNavigate("projects")}><span className="action-icon"><FolderKanban size={13}/></span><div><b>Projects</b><small>Work grouped against billing</small></div><ChevronRight size={13}/></button>
-        </div>
-      </section>
-      <section className="data-panel">
-        <div className="data-panel-head"><div><span className="eyebrow">Context</span><h2>Organisation</h2></div></div>
-        <div className="organisation-summary">
-          <div className="organisation-summary-mark">{organization?.logo_path?<img src={organization.logo_path} alt=""/>:String(organization?.name||"O").slice(0,1).toUpperCase()}</div>
-          <div><strong>{organization?.name}</strong><span>{organization?.legal_name||"Billing identity"}</span></div>
-          <button className="secondary" onClick={()=>onNavigate("settings")}><Settings2 size={13}/>Settings</button>
-        </div>
-      </section>
-    </section>
   </div>;
 }
-
 export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
-  const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const overdue=filtered.filter(i=>daysOverdue(i)>0);
+  const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0), overdue=filtered.filter(i=>daysOverdue(i)>0).length;
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head">
-      <div><h2>Invoices</h2></div>
-      <div className="operations-count"><b>{filtered.length}</b><span>records</span></div>
-    </section>
-    <section className="register-summary">
-      <div><span>OPEN</span><b>{money(open)}</b></div>
-      <div><span>OVERDUE</span><b>{overdue.length}</b></div>
-      <div><span>FILTER</span><b>{status==="all"?"All":statusLabel(status)}</b></div>
-    </section>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-count"><b>{filtered.length}</b><span>records</span></div></section>
+    <section className="register-summary"><div><span>OPEN</span><b>{money(open)}</b></div><div><span>OVERDUE</span><b>{overdue}</b></div><div><span>VIEW</span><b>{status==="all"?"All":statusLabel(status)}</b></div></section>
     <section className="data-panel operations-register">
-      <div className="data-panel-head operations-register-head">
-        <div><h2>All invoices</h2></div>
-        <div className="filters"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search register…"/></div><div className="filter"><Filter size={14}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
-      </div>
-      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading finance data…</div>:filtered.length?<div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>:<div className="empty-state"><FileText size={18}/><b>No invoices match this register view.</b><span>Try another status or search term.</span></div>}
+      <div className="data-panel-head"><div><h2>Register</h2></div><div className="filters"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoices"/></div><div className="filter"><Filter size={13}/><select value={status} onChange={e=>setStatus(e.target.value as "all"|Status)}><option value="all">All</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partial</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div></div>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search or status filter.</span></div>}
     </section>
   </div>;
 }
-
 export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
-  const rows = invoices.flatMap(i => i.payments.map(p => ({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
-  const collected=rows.reduce((sum,r)=>sum+r.amount,0);
-  const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const partial=invoices.filter(i=>paidTotal(i)>0&&invoiceBalance(i)>0).length;
+  const rows=invoices.flatMap(i=>i.payments.map(p=>({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
+  const collected=rows.reduce((s,r)=>s+r.amount,0), outstanding=invoices.reduce((s,i)=>s+invoiceBalance(i),0);
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head">
-      <div><h2>Payments</h2></div>
-      <div className="operations-count"><b>{rows.length}</b><span>recorded</span></div>
-    </section>
-    <section className="register-summary">
-      <div><span>COLLECTED</span><b>{money(collected)}</b></div>
-      <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
-      <div><span>PARTIAL</span><b>{partial}</b></div>
-    </section>
-    <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Payment ledger</h2><p>Ledger</p></div><WalletCards size={16}/></div>
-      {rows.length?<div className="simple-table"><div className="simple-row simple-head"><span>Date</span><span>Invoice</span><span>Client</span><span>Method</span><span>Amount</span></div>{rows.map(r=><div className="simple-row payment-record-row" key={r.id} onClick={()=>onOpenPayment(r.invoice)} role="button" tabIndex={0}><span>{r.payment_date ? new Date(r.payment_date+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</span><span>#{r.invoice.number}</span><span>{r.invoice.client}</span><span>{r.method.replaceAll("_"," ")}</span><strong>{money(r.amount)}</strong></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded yet.</b><span>Record a payment from any open invoice.</span></div>}
-      <div className="payment-shortcuts">{invoices.filter(i=>invoiceBalance(i)>0).slice(0,6).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number} · {money(invoiceBalance(i))} open</button>)}</div>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Collections</span><h2>Payments</h2></div><div className="operations-count"><b>{rows.length}</b><span>recorded</span></div></section>
+    <section className="register-summary"><div><span>COLLECTED</span><b>{money(collected)}</b></div><div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div><div><span>OPEN INVOICES</span><b>{invoices.filter(i=>invoiceBalance(i)>0).length}</b></div></section>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Ledger</h2></div><WalletCards size={15}/></div>
+      {rows.length?<div className="simple-list">{rows.map(r=><div className="simple-row payment-record-row" key={r.id} onClick={()=>onOpenPayment(r.invoice)} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")onOpenPayment(r.invoice)}}><span>{r.payment_date?dateLabel(r.payment_date):"—"}</span><b>#{r.invoice.number} · {r.invoice.client}</b><span>{r.method.replaceAll("_"," ")}</span><strong>{money(r.amount)}</strong><a className="text-action" href={"/api/payments/"+r.id+"/receipt"} onClick={e=>e.stopPropagation()}>Receipt</a></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded.</b><span>Record a payment from an open invoice.</span></div>}
+      {!!invoices.filter(i=>invoiceBalance(i)>0).length&&<div className="payment-shortcuts">{invoices.filter(i=>invoiceBalance(i)>0).slice(0,5).map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number}</button>)}</div>}
     </section>
   </div>;
 }
-
 export function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
-  const [clients,setClients]=useState<any[]>([]);
-  const [loading,setLoading]=useState(true);
-  const [creating,setCreating]=useState(false);
-  useEffect(()=>{
-    load();
-    const h=()=>setCreating(true);
-    window.addEventListener("finance:new-client",h);
-    return()=>window.removeEventListener("finance:new-client",h);
-  },[organizationId]);
-  async function load(){
-    setLoading(true);
-    if(!organizationId){setClients([]);setLoading(false);return}
-    const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");
-    setClients(data||[]);
-    setLoading(false);
-  }
-  const clientStats=clients.map(c=>{
-    const rows=invoices.filter(i=>i.clientId===c.id);
-    const billed=rows.reduce((sum,i)=>sum+invoiceTotal(i),0);
-    const open=rows.reduce((sum,i)=>sum+invoiceBalance(i),0);
-    return {client:c,rows,billed,open};
-  });
-  const billed=clientStats.reduce((sum,c)=>sum+c.billed,0);
-  const open=clientStats.reduce((sum,c)=>sum+c.open,0);
+  const [clients,setClients]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
+  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");setClients(data||[]);setLoading(false)}
+  useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[organizationId]);
+  const stats=clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0),open=rows.reduce((s,i)=>s+invoiceBalance(i),0);return {c,rows,billed,open}});
   if(selectedClientId)return <ClientWorkspace clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
+  const billed=stats.reduce((s,x)=>s+x.billed,0),open=stats.reduce((s,x)=>s+x.open,0);
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head">
-      <div><h2>Clients</h2></div>
-      <div className="operations-count"><b>{clients.length}</b><span>active</span></div>
-    </section>
-    <section className="register-summary">
-      <div><span>BILLED</span><b>{money(billed)}</b></div>
-      <div><span>OUTSTANDING</span><b>{money(open)}</b></div>
-      <div><span>AVG. EXPOSURE</span><b>{clients.length?money(open/clients.length):"₹0"}</b></div>
-    </section>
-    <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Client directory</h2></div></div>
-      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:clientStats.length?<div className="client-directory">{clientStats.map(({client:c,rows,billed:clientBilled,open:clientOpen})=><button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(clientBilled)}</b><span>billed</span></div><div className="client-meta"><b>{money(clientOpen)}</b><span>outstanding</span></div><ChevronRight size={15}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create the first client to establish a billing workspace.</span></div>}
-    </section>
-    {creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Relationships</span><h2>Clients</h2></div><div className="operations-count"><b>{clients.length}</b><span>active</span></div></section>
+    <section className="register-summary"><div><span>BILLED</span><b>{money(billed)}</b></div><div><span>OUTSTANDING</span><b>{money(open)}</b></div><div><span>CLIENTS</span><b>{clients.length}</b></div></section>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Directory</h2></div></div>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:stats.length?<div className="client-directory">{stats.map(x=><button className="client-directory-row" key={x.c.id} onClick={()=>setSelectedClientId(x.c.id)}><div className="client-avatar">{x.c.logo_path?<img src={x.c.logo_path} alt=""/>:String(x.c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{x.c.name}</b><span>{x.c.email||x.c.legal_name||"Billing profile incomplete"}</span></div><div className="client-meta"><b>{x.rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(x.billed)}</b><span>billed</span></div><div className="client-meta"><b>{money(x.open)}</b><span>open</span></div><ChevronRight size={14}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create a client workspace.</span></div>}
+    </section>{creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);void load()}}/>}
   </div>;
 }
-
 export function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {
   const [form,setForm]=useState({name:"",legal_name:"",email:"",phone:"",pan:"",gstin:"",address:""});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
   async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
@@ -389,105 +299,76 @@ export function ClientCreateModal({organizationId,onClose,onSaved}:{organization
 }
 
 export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,onArchived}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void;onArchived:()=>void}) {
-  const [client,setClient]=useState<any>(null);const [documents,setDocuments]=useState<any[]>([]);const [portalLink,setPortalLink]=useState("");const [tab,setTab]=useState<"overview"|"invoices"|"projects"|"statement"|"settings">("overview");
-  const [period,setPeriod]=useState<Period>("all");const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
-  const [portalPassword,setPortalPassword]=useState("");const [passwordSaving,setPasswordSaving]=useState(false);const [openSection,setOpenSection]=useState<"identity"|"portal"|"documents"|null>(null);
+  const [client,setClient]=useState<any>(null),[documents,setDocuments]=useState<any[]>([]),[tab,setTab]=useState<"overview"|"invoices"|"projects"|"documents"|"statement"|"settings">("overview"),[period,setPeriod]=useState<Period>("all"),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(""),[portalPassword,setPortalPassword]=useState("");
   const [form,setForm]=useState<any>({});
-
-  async function load(){setLoading(true);const [{data,error},{data:docs}]=await Promise.all([supabase.from("clients").select("id,name,legal_name,email,phone,pan,gstin,address_lines,portal_enabled,portal_slug,portal_message,allow_profile_edit,show_projects,show_documents,logo_path,portal_password_set_at").eq("id",clientId).single(),supabase.from("documents").select("*").eq("client_id",clientId).order("created_at",{ascending:false})]);setClient(data);setDocuments(docs||[]);if(error)setMessage(error.message);setLoading(false)}
-  useEffect(()=>{load()},[clientId]);
+  async function load(){setLoading(true);const [{data,error},{data:docs}]=await Promise.all([supabase.from("clients").select("id,name,legal_name,email,phone,pan,gstin,address_lines,portal_enabled,portal_slug,portal_message,allow_profile_edit,show_projects,show_documents,logo_path,portal_password_set_at").eq("id",clientId).single(),supabase.from("documents").select("*").eq("client_id",clientId).order("created_at",{ascending:false})]);if(error)setMessage(error.message);setClient(data);setDocuments(docs||[]);setLoading(false)}
+  useEffect(()=>{void load()},[clientId]);
   useEffect(()=>{if(client)setForm({name:client.name||"",legal_name:client.legal_name||"",email:client.email||"",phone:client.phone||"",pan:client.pan||"",gstin:client.gstin||"",address:Array.isArray(client.address_lines)?client.address_lines.join("\n"):"",portal_enabled:!!client.portal_enabled,allow_profile_edit:!!client.allow_profile_edit,show_projects:client.show_projects!==false,show_documents:client.show_documents!==false,portal_message:client.portal_message||"",logo_path:client.logo_path||""})},[client]);
-
-  const rows=invoices.filter(i=>i.clientId===clientId);const scoped=rows.filter(i=>withinPeriod(i.date,period));const billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0);const paid=scoped.reduce((s,i)=>s+paidTotal(i),0);const projects=[...new Set(rows.map(i=>i.project))];
-
-  async function save(){setSaving(true);setMessage("");const {error}=await supabase.from("clients").update({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map((v:string)=>v.trim()).filter(Boolean),portal_enabled:form.portal_enabled,allow_profile_edit:form.allow_profile_edit,show_projects:form.show_projects,show_documents:form.show_documents,portal_message:form.portal_message.trim()||null,logo_path:form.logo_path||null,updated_at:new Date().toISOString()}).eq("id",clientId);setSaving(false);setMessage(error?error.message:"Client settings saved.");if(!error){setClient((p:any)=>({...p,...form}));onSaved()}}
-  async function setPassword(){if(portalPassword.length<10){setMessage("Use at least 10 characters for the client portal password.");return}setPasswordSaving(true);setMessage("");const r=await fetch("/api/client-portal/"+clientId+"/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:portalPassword})});const j=await r.json();setPasswordSaving(false);if(!r.ok){setMessage(j.error||"Could not set portal password.");return}setPortalPassword("");setClient((p:any)=>({...p,portal_password_set_at:new Date().toISOString(),portal_enabled:true}));setForm((p:any)=>({...p,portal_enabled:true}));setMessage("Portal password saved. You can now create a protected access link.");}
-  async function uploadLogo(file:File){if(!file.type.startsWith("image/")){setMessage("Please choose a PNG, JPG or WEBP logo.");return}if(file.size>2*1024*1024){setMessage("Logo must be under 2 MB.");return}setMessage("Uploading logo…");const path="clients/"+clientId+"/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("minimical-finance-assets").upload(path,file,{upsert:true,contentType:file.type});if(error){setMessage(error.message);return}const {data}=supabase.storage.from("minimical-finance-assets").getPublicUrl(path);setForm((p:any)=>({...p,logo_path:data.publicUrl}));setClient((p:any)=>({...p,logo_path:data.publicUrl}));setMessage("Logo uploaded. Save client settings to apply it.");}
-
+  const rows=invoices.filter(i=>i.clientId===clientId),scoped=rows.filter(i=>withinPeriod(i.date,period)),billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0),paid=scoped.reduce((s,i)=>s+paidTotal(i),0),open=Math.max(billed-paid,0);
+  async function save(){setSaving(true);const {error}=await supabase.from("clients").update({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map((v:string)=>v.trim()).filter(Boolean),portal_enabled:form.portal_enabled,allow_profile_edit:form.allow_profile_edit,show_projects:form.show_projects,show_documents:form.show_documents,portal_message:form.portal_message.trim()||null,logo_path:form.logo_path||null,updated_at:new Date().toISOString()}).eq("id",clientId);setSaving(false);setMessage(error?error.message:"Saved.");if(!error){setClient((p:any)=>({...p,...form}));onSaved()}}
+  async function setPassword(){if(portalPassword.length<10){setMessage("Use at least 10 characters.");return}const r=await fetch("/api/client-portal/"+clientId+"/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:portalPassword})});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not set portal password.");return}setPortalPassword("");setClient((p:any)=>({...p,portal_password_set_at:new Date().toISOString(),portal_enabled:true}));setForm((p:any)=>({...p,portal_enabled:true}));setMessage("Protected portal access enabled.")}
   if(loading)return <div className="empty-state">Loading client workspace…</div>;if(!client)return <div className="empty-state">Client not found.</div>;
+  const projectNames=[...new Set(rows.map(i=>i.project).filter(Boolean))];
   return <div className="client-portal">
-    <div className="client-portal-head"><button className="back-link" onClick={onBack}>← Clients</button><div className="client-title-lockup">{client.logo_path?<img className="client-logo-small" src={client.logo_path} alt=""/>:<div className="client-avatar">{String(client.name||"?").slice(0,1).toUpperCase()}</div>}<div><div className="eyebrow">CLIENT WORKSPACE</div><h2>{client.name}</h2><p>{client.legal_name||"Billing profile incomplete"}{client.email?" · "+client.email:""}</p></div></div><button className="secondary" onClick={()=>setTab("settings")}><Settings2 size={14}/>Client settings</button></div>
-    <div className="client-tabs">{(["overview","invoices","projects","statement","settings"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t==="statement"?"Account statement":t[0].toUpperCase()+t.slice(1)}</button>)}</div>
-    {tab!=="settings"&&<div className="period-strip"><span>Reporting period</span>{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div>}
-    {tab==="overview"&&<div className="client-dashboard"><div className="client-kpis"><Kpi label="Billed" value={money(billed)} detail={periodLabel(period)}/><Kpi label="Collected" value={money(paid)} detail="Recorded payments"/><Kpi label="Outstanding" value={money(Math.max(billed-paid,0))} detail="Current period"/><Kpi label="Invoices" value={String(scoped.length)} detail="In selected period"/></div><div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><div><h2>Account health</h2><p>Open receivables and payment history for this client.</p></div></div><div className="statement-summary"><div><span>All-time billed</span><b>{money(rows.reduce((s,i)=>s+invoiceTotal(i),0))}</b></div><div><span>All-time collected</span><b>{money(rows.reduce((s,i)=>s+paidTotal(i),0))}</b></div><div><span>Open balance</span><b>{money(rows.reduce((s,i)=>s+invoiceBalance(i),0))}</b></div></div></section><section className="data-panel"><div className="data-panel-head"><div><h2>Latest activity</h2><p>Recent invoices for this client.</p></div></div><div className="recent-list">{rows.slice(0,5).map(i=><button className="recent-row" key={i.id} onClick={()=>onOpenInvoice(i)}><div><b>#{i.number}</b><span>{i.project}</span></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div></button>)}</div></section></div></div>}
-    {tab==="invoices"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Invoices</h2><p>{scoped.length+" invoices · "+periodLabel(period)}</p></div></div><div className="simple-list">{scoped.map(i=><button className="simple-row client-invoice-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span>{i.date}</span><span>{i.project}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></button>)}</div></div>}
-    {tab==="projects"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Projects</h2><p>Projects linked to this client.</p></div></div><div className="project-directory">{projects.map(p=>{const ps=rows.filter(i=>i.project===p);return <div className="project-row" key={p}><div><b>{p}</b><span>{ps.length+" invoices"}</span></div><strong>{money(ps.reduce((s,i)=>s+invoiceTotal(i),0))}</strong><span>{money(ps.reduce((s,i)=>s+invoiceBalance(i),0))+" open"}</span></div>})}</div></div>}
-    {tab==="statement"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Account statement</h2><p>Billed, paid and outstanding activity for {periodLabel(period).toLowerCase()}.</p></div></div><div className="statement-summary"><div><span>Invoiced</span><b>{money(billed)}</b></div><div><span>Paid</span><b>{money(paid)}</b></div><div><span>Balance</span><b>{money(Math.max(billed-paid,0))}</b></div></div><div className="simple-list">{scoped.map(i=><div className="simple-row" key={i.id}><b>{"Invoice #"+i.number}</b><span>{i.date}</span><span>{i.project}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></div>)}</div></div>}
-    {tab==="settings"&&<div className="settings-stack">
-      <div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpenSection(openSection==="identity"?null:"identity")}><span><b>Billing identity</b><small>Name, address, tax identity and client logo.</small></span><span>{openSection==="identity"?"Hide":"Edit"}</span></button>{openSection==="identity"&&<div className="settings-section-body"><div className="client-logo-upload">{form.logo_path?<img src={form.logo_path} alt="Client logo"/>:<div className="client-logo-placeholder">Logo</div>}<label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f)uploadLogo(f)}}/></label><small>PNG, JPG or WEBP · max 2 MB · used on organisation PDFs without moving canonical invoice geometry.</small></div><div className="form-grid">{["name","legal_name","email","phone","pan","gstin"].map(k=><label key={k}>{k==="legal_name"?"Billed-to / legal name":k==="name"?"Client name":k.toUpperCase()}<input value={form[k]||""} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.value}))}/></label>)}</div><label>Address lines<textarea value={form.address||""} onChange={e=>setForm((p:any)=>({...p,address:e.target.value}))}/></label></div>}</div>
-      <div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpenSection(openSection==="portal"?null:"portal")}><span><b>Client portal</b><small>{client.portal_enabled?"Enabled":"Disabled"} · {client.portal_password_set_at?"Password protected":"Password not set"}</small></span><span>{openSection==="portal"?"Hide":"Edit"}</span></button>{openSection==="portal"&&<div className="settings-section-body"><label className="toggle-row"><span><b>Enable portal access</b><small>Clients must still enter the portal password.</small></span><input type="checkbox" checked={!!form.portal_enabled} onChange={e=>setForm((p:any)=>({...p,portal_enabled:e.target.checked}))}/></label><div className="portal-password-row"><label>Portal password<input type="password" value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder={client.portal_password_set_at?"Set a new password":"Create password"}/></label><button className="secondary" type="button" onClick={setPassword} disabled={passwordSaving}>{passwordSaving?"Saving…":client.portal_password_set_at?"Change password":"Set password"}<KeyRound size={14}/></button></div><div className="portal-settings">{([["allow_profile_edit","Allow client to edit profile"],["show_projects","Show projects"],["show_documents","Show documents"]] as const).map(([k,label])=><label className="toggle-row" key={k}><span><b>{label}</b></span><input type="checkbox" checked={!!form[k]} onChange={e=>setForm((p:any)=>({...p,[k]:e.target.checked}))}/></label>)}<label>Portal message<textarea value={form.portal_message||""} onChange={e=>setForm((p:any)=>({...p,portal_message:e.target.value}))} placeholder="Optional message"/></label></div><div className="portal-link-tools"><button className="secondary" type="button" disabled={!form.portal_enabled||!client.portal_password_set_at} onClick={async()=>{const r=await fetch("/api/client-portal/"+clientId+"/token",{method:"POST"});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not create access link.");return;}setPortalLink(j.url);setMessage("Protected shareable link created.");}}><ExternalLink size={14}/>Create protected link</button><button className="secondary" type="button" disabled={!form.portal_enabled||!client.portal_password_set_at||!client.email} onClick={async()=>{const r=await fetch("/api/client-portal/"+clientId+"/invite",{method:"POST"});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not prepare invitation.");return;}window.location.href=j.mailto;setMessage("Invitation email prepared.");}}><ExternalLink size={14}/>Prepare email invitation</button>{portalLink?<div className="portal-link-box"><input readOnly value={portalLink}/><button className="secondary" type="button" onClick={()=>navigator.clipboard?.writeText(portalLink)}>Copy</button></div>:null}</div><div className="portal-access-note">{form.portal_enabled&&client.portal_password_set_at?"Ready: link + password required.":"Set a password and save portal access before sharing."}</div></div>}</div>
-      <div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpenSection(openSection==="documents"?null:"documents")}><span><b>Client visibility</b><small>Control projects and shared documents.</small></span><span>{openSection==="documents"?"Hide":"Edit"}</span></button>{openSection==="documents"&&<div className="settings-section-body"><p className="settings-help">Visibility settings are included in the client-facing portal. They do not affect your internal records.</p><div className="document-upload-panel"><label className="secondary"><Upload size={14}/>Upload client document<input hidden type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>10*1024*1024){setMessage("Document must be under 10 MB.");return}setMessage("Uploading document…");const path="documents/"+clientId+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const up=await supabase.storage.from("minimical-finance-documents").upload(path,file,{upsert:false,contentType:file.type});if(up.error){setMessage(up.error.message);return}const ins=await supabase.from("documents").insert({client_id:clientId,file_path:path,storage_bucket:"minimical-finance-documents",file_name:file.name,document_type:file.type==="application/pdf"?"pdf":"image",mime_type:file.type,size_bytes:file.size,visible_to_client:true,description:null}).select().single();if(ins.error){setMessage(ins.error.message);return}setMessage("Document uploaded and shared with the client.");}}/></label><p className="settings-help">PDF, PNG, JPG or WEBP · maximum 10 MB.</p></div></div>}</div>
-      {documents.length>0&&openSection==="documents"&&<div className="document-manager-list">{documents.map(d=><div className="document-manager-row" key={d.id}><FileText size={15}/><div><b>{d.file_name}</b><span>{d.description||d.document_type} · {d.visible_to_client?"Visible to client":"Internal"}</span></div><div><a className="secondary mini-action" href={"/api/client-portal/"+client.portal_slug+"/document/"+d.id+"?preview=1"} target="_blank" rel="noreferrer">Preview</a><button className="secondary mini-action" onClick={async()=>{const {error}=await supabase.from("documents").update({visible_to_client:!d.visible_to_client}).eq("id",d.id);if(error)setMessage(error.message);else setDocuments(v=>v.map(x=>x.id===d.id?{...x,visible_to_client:!x.visible_to_client}:x));}}>{d.visible_to_client?"Hide":"Share"}</button><button className="secondary mini-action" onClick={async()=>{if(!window.confirm("Delete this document?"))return;const rm=await supabase.storage.from(d.storage_bucket||"minimical-finance-documents").remove([d.file_path]);if(rm.error){setMessage(rm.error.message);return}const del=await supabase.from("documents").delete().eq("id",d.id);if(del.error)setMessage(del.error.message);else{setDocuments(v=>v.filter(x=>x.id!==d.id));setMessage("Document deleted.");}}}>Delete</button></div></div>)}</div>}{message&&<div className="auth-success">{message}</div>}<div className="client-danger-actions"><button className="secondary danger-button" onClick={async()=>{if(!window.confirm("Archive this client? Existing invoices and documents remain preserved."))return;const {error}=await supabase.from("clients").update({archived_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",clientId);if(error)setMessage(error.message);else {onArchived();onSaved()}}}>Archive client</button><button className="primary" disabled={saving} onClick={save}>{saving?"Saving…":"Save client settings"}</button></div>
-    </div>}
+    <div className="client-portal-head"><button className="back-link" onClick={onBack}>← Clients</button><div className="client-title-lockup">{client.logo_path?<img className="client-logo-small" src={client.logo_path} alt=""/>:<div className="client-avatar">{String(client.name||"?").slice(0,1).toUpperCase()}</div>}<div><span className="eyebrow">Client workspace</span><h2>{client.name}</h2><p>{client.legal_name||"Billing profile incomplete"}{client.email?" · "+client.email:""}</p></div></div><button className="secondary" onClick={()=>setTab("settings")}><Settings2 size={14}/>Settings</button></div>
+    <div className="client-tabs">{(["overview","invoices","projects","documents","statement","settings"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t==="statement"?"Statement":t[0].toUpperCase()+t.slice(1)}</button>)}</div>
+    {tab!=="settings"&&<div className="period-strip">{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div>}
+    {tab==="overview"&&<div className="client-dashboard"><section className="overview-position"><div><span>Outstanding</span><strong>{money(open)}</strong><small>{periodLabel(period)}</small></div><div className="overview-position-facts"><div><span>Billed</span><b>{money(billed)}</b></div><div><span>Collected</span><b>{money(paid)}</b></div><div><span>Invoices</span><b>{scoped.length}</b></div></div></section><div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><h2>Recent invoices</h2></div>{scoped.slice(0,8).map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.project||"Invoice"}</strong><small>{dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!scoped.length&&<div className="empty-state"><FileText size={18}/><b>No invoices in this period.</b></div>}</section><section className="data-panel"><div className="data-panel-head"><h2>Portal</h2></div><div className="client-detail-list"><div className="client-detail-row"><span>Access</span><strong>{client.portal_enabled&&client.portal_password_set_at?"Protected":"Not enabled"}</strong></div><div className="client-detail-row"><span>Projects</span><strong>{client.show_projects!==false?"Visible":"Hidden"}</strong></div><div className="client-detail-row"><span>Documents</span><strong>{client.show_documents!==false?"Visible":"Hidden"}</strong></div></div></section></div></div>}
+    {tab==="invoices"&&<section className="data-panel"><div className="data-panel-head"><h2>Invoices</h2></div>{rows.map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.project||"Invoice"}</strong><small>{dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}</section>}
+    {tab==="projects"&&<section className="data-panel"><div className="data-panel-head"><h2>Projects</h2></div>{projectNames.length?projectNames.map(p=><div className="client-detail-row" key={p}><span>{p}</span><strong>{money(rows.filter(i=>i.project===p).reduce((s,i)=>s+invoiceTotal(i),0))}</strong></div>):<div className="empty-state"><FolderKanban size={18}/><b>No projects linked.</b></div>}</section>}
+    {tab==="documents"&&<section className="data-panel"><div className="data-panel-head"><h2>Documents</h2></div>{documents.length?documents.map(d=><div className="client-detail-row" key={d.id}><span>{d.name||d.file_name||"Document"}</span><a className="text-action" href={d.url||d.storage_path||"#"} target="_blank" rel="noreferrer">Open</a></div>):<div className="empty-state"><FileText size={18}/><b>No shared documents.</b><span>Documents appear here when explicitly shared with this client.</span></div>}</section>}{tab==="statement"&&<section className="data-panel"><div className="data-panel-head"><h2>Account statement</h2><a className="text-action" href={"/api/client-portal/"+clientId+"/statement"}>Download</a></div><div className="statement-summary"><div><span>Billed</span><b>{money(rows.reduce((s,i)=>s+invoiceTotal(i),0))}</b></div><div><span>Collected</span><b>{money(rows.reduce((s,i)=>s+paidTotal(i),0))}</b></div><div><span>Outstanding</span><b>{money(rows.reduce((s,i)=>s+invoiceBalance(i),0))}</b></div></div></section>}
+    {tab==="settings"&&<section className="settings-stack">
+      <section className="settings-section-card"><div className="settings-section-body"><div className="form-grid">
+        <label>Name<input value={form.name||""} onChange={e=>setForm((p:any)=>({...p,name:e.target.value}))}/></label>
+        <label>Email<input value={form.email||""} onChange={e=>setForm((p:any)=>({...p,email:e.target.value}))}/></label>
+        <label>Phone<input value={form.phone||""} onChange={e=>setForm((p:any)=>({...p,phone:e.target.value}))}/></label>
+        <label>GSTIN<input value={form.gstin||""} onChange={e=>setForm((p:any)=>({...p,gstin:e.target.value}))}/></label>
+        <label className="full-span">Address<textarea value={form.address||""} onChange={e=>setForm((p:any)=>({...p,address:e.target.value}))}/></label>
+      </div>
+      <div className="settings-row"><div><b>Portal access</b><p>Protected client-facing workspace.</p></div><label><span>Enable</span><input type="checkbox" checked={!!form.portal_enabled} onChange={e=>setForm((p:any)=>({...p,portal_enabled:e.target.checked}))}/></label></div>
+      <div className="settings-row"><div><b>Visible sections</b><p>Projects and documents can be controlled independently.</p></div><label><span>Projects</span><input type="checkbox" checked={form.show_projects!==false} onChange={e=>setForm((p:any)=>({...p,show_projects:e.target.checked}))}/></label><label><span>Documents</span><input type="checkbox" checked={form.show_documents!==false} onChange={e=>setForm((p:any)=>({...p,show_documents:e.target.checked}))}/></label></div>
+      {message&&<div className="auth-message">{message}</div>}<div className="client-portal-actions"><button className="primary" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save client"}</button><button className="secondary" onClick={onArchived}>Archive</button></div>
+      </div></section>
+      <section className="settings-section-card"><div className="settings-section-body"><label>Portal password<input type="password" value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder="10+ characters"/></label><button className="primary" onClick={()=>void setPassword()}>Set protected access</button>{client.portal_slug&&<div className="portal-link-box">/portal/{client.portal_slug}</div>}</div></section>
+    </section>}
   </div>;
 }
-
-type Period="month"|"quarter"|"half"|"year"|"all";
-
 export function periodLabel(p:Period){if(p==="month")return "This month";if(p==="quarter")return "Last 3 months";if(p==="half")return "Last 6 months";if(p==="year"){const n=new Date();const y=n.getMonth()>=3?n.getFullYear():n.getFullYear()-1;return `FY ${y}-${String(y+1).slice(-2)}`;}return "All time";}
 
 export function withinPeriod(date:string,p:Period,today=new Date()){if(p==="all")return true;const d=new Date(date+"T00:00:00"),end=new Date(today.getFullYear(),today.getMonth()+1,0);if(p==="month")return d>=new Date(today.getFullYear(),today.getMonth(),1)&&d<=end;if(p==="quarter"){const start=new Date(today.getFullYear(),today.getMonth()-2,1);return d>=start&&d<=end;}if(p==="half"){const start=new Date(today.getFullYear(),today.getMonth()-5,1);return d>=start&&d<=end;}const fy=new Date(today.getMonth()>=3?today.getFullYear():today.getFullYear()-1,3,1);return d>=fy&&d<=new Date(fy.getFullYear()+1,2,31);}
 
 export function ReportsView({invoices}:{invoices:Invoice[]}) {
-  const [period,setPeriod]=useState<Period>("year"); const [client,setClient]=useState("all"); const [org,setOrg]=useState("all"); const [projects,setProjects]=useState<any[]>([]); const [organizations,setOrganizations]=useState<any[]>([]);
-  useEffect(()=>{Promise.all([supabase.from("projects").select("id,name,actual_cost,organization_id,organizations(name)"),supabase.from("organizations").select("id,name").order("name")]).then(([p,o])=>{setProjects(p.data||[]);setOrganizations(o.data||[])})},[]);
-  const clients=[...new Set(invoices.map(i=>i.client))].sort(); const orgs=[...new Set(invoices.map(i=>i.organizationId).filter((id): id is string=>Boolean(id)))];
-  const scoped=invoices.filter(i=>(client==="all"||i.client===client)&&(org==="all"||i.organizationId===org)&&withinPeriod(i.date,period));
-  const billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0),paid=scoped.reduce((s,i)=>s+paidTotal(i),0),outstanding=Math.max(billed-paid,0);
-  const groups=new Map<string,{billed:number;paid:number;count:number}>();scoped.forEach(i=>{const key=i.date.slice(0,7);const g=groups.get(key)||{billed:0,paid:0,count:0};g.billed+=invoiceTotal(i);g.paid+=paidTotal(i);g.count++;groups.set(key,g)});
-  const byClient=new Map<string,number>();scoped.forEach(i=>byClient.set(i.client,(byClient.get(i.client)||0)+invoiceTotal(i)));
-  const byProject=new Map<string,{billed:number;paid:number;cost:number}>();scoped.forEach(i=>{const key=i.projectId||i.project;const g=byProject.get(key)||{billed:0,paid:0,cost:projects.find(p=>p.id===i.projectId)?.actual_cost||0};g.billed+=invoiceTotal(i);g.paid+=paidTotal(i);byProject.set(key,g)});
-  const byOrg=new Map<string,{billed:number;paid:number;open:number}>();scoped.forEach(i=>{const key=i.organizationId||"unassigned";const g=byOrg.get(key)||{billed:0,paid:0,open:0};g.billed+=invoiceTotal(i);g.paid+=paidTotal(i);g.open+=invoiceBalance(i);byOrg.set(key,g)});
-  const cashflow=new Map<string,number>();scoped.forEach(i=>i.payments.forEach(p=>{const key=(p.payment_date||i.date).slice(0,7);cashflow.set(key,(cashflow.get(key)||0)+Number(p.amount||0))}));
+  const [period,setPeriod]=useState<Period>("year");const [client,setClient]=useState("all");
+  const clients=[...new Set(invoices.map(i=>i.client))].sort();
+  const scoped=invoices.filter(i=>(client==="all"||i.client===client)&&withinPeriod(i.date,period));
+  const billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0),paid=scoped.reduce((s,i)=>s+paidTotal(i),0),open=scoped.reduce((s,i)=>s+invoiceBalance(i),0);
   const aging={current:0,d1_30:0,d31_60:0,d61_90:0,d90:0};scoped.forEach(i=>{const b=invoiceBalance(i);if(!b)return;const d=daysOverdue(i);if(d<=0)aging.current+=b;else if(d<=30)aging.d1_30+=b;else if(d<=60)aging.d31_60+=b;else if(d<=90)aging.d61_90+=b;else aging.d90+=b});
-  const profitability=[...byProject.entries()].map(([id,g])=>({id,name:projects.find(p=>p.id===id)?.name||id,billed:g.billed,cost:g.cost,profit:g.billed-g.cost,margin:g.billed?Math.round((g.billed-g.cost)/g.billed*1000)/10:0})).sort((a,b)=>b.profit-a.profit);
-  return <div className="reports-page">
-    <div className="report-toolbar"><div className="period-strip">{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div><div className="report-filters"><select value={client} onChange={e=>setClient(e.target.value)}><option value="all">All clients</option>{clients.map(c=><option key={c}>{c}</option>)}</select><select value={org} onChange={e=>setOrg(e.target.value)}><option value="all">All organisations</option>{orgs.map(id=><option key={id} value={id}>{organizations.find(o=>o.id===id)?.name||id}</option>)}</select></div></div>
-    <section className="kpis compact-kpis"><Kpi label="Billed" value={money(billed)} detail={periodLabel(period)}/><Kpi label="Collected" value={money(paid)} detail="Recorded payments"/><Kpi label="Outstanding" value={money(outstanding)} detail="Current period balance"/><Kpi label="Collection" value={billed?Math.round(paid/billed*100)+"%":"0%"} detail="Collected / billed"/></section>
-    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><div><h2>Period breakdown</h2><p>Monthly billed and collected performance.</p></div></div><div className="report-bars">{[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,g])=><div className="report-bar-row" key={month}><span>{new Date(month+"-01T00:00:00").toLocaleDateString("en-IN",{month:"short",year:"numeric"})}</span><div><i style={{width:String(billed?Math.min(100,g.billed/billed*100):0)+"%"}}/></div><strong>{money(g.billed)}</strong><small>{money(g.paid)} collected · {g.count} invoices</small></div>)}</div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Cashflow</h2><p>Actual recorded collections by payment month.</p></div></div><div className="simple-list">{[...cashflow.entries()].sort((a,b)=>b[0].localeCompare(a[0])).map(([m,v])=><div className="simple-row" key={m}><b>{new Date(m+"-01T00:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</b><span>Cash received</span><span></span><strong>{money(v)}</strong><em>Collected</em></div>)}</div></section></div>
-    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><div><h2>AR aging</h2><p>Outstanding receivables grouped by days overdue.</p></div></div><div className="simple-list">{[["Current",aging.current],["1–30 days",aging.d1_30],["31–60 days",aging.d31_60],["61–90 days",aging.d61_90],[">90 days",aging.d90]].map(([label,value])=><div className="simple-row" key={String(label)}><b>{label}</b><span>Receivables</span><span></span><strong>{money(Number(value))}</strong><em>Open</em></div>)}</div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Revenue by organisation</h2><p>Gross billed, collected and open balance.</p></div></div><div className="simple-list">{[...byOrg.entries()].sort((a,b)=>b[1].billed-a[1].billed).map(([id,g])=><div className="simple-row" key={id}><b>{organizations.find(o=>o.id===id)?.name||"Unassigned"}</b><span>{money(g.paid)} paid</span><span>{money(g.open)} open</span><strong>{money(g.billed)}</strong><em>Billed</em></div>)}</div></section></div>
-    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><div><h2>Revenue by client</h2><p>Gross billed in the selected period.</p></div></div><div className="simple-list">{[...byClient.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=><div className="simple-row" key={name}><b>{name}</b><span>Client</span><span></span><strong>{money(value)}</strong><em>Billed</em></div>)}</div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Production profitability</h2><p>Revenue less recorded project production cost.</p></div></div><div className="simple-list">{profitability.map(g=><div className="simple-row" key={g.id}><b>{g.name}</b><span>{money(g.billed)} billed</span><span>{money(g.cost)} cost</span><strong>{money(g.profit)}</strong><em>{g.margin}% margin</em></div>)}</div></section></div>
-    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><div><h2>Revenue by project</h2><p>Billing, collection and recorded production cost.</p></div></div><div className="simple-list">{[...byProject.entries()].sort((a,b)=>b[1].billed-a[1].billed).map(([name,g])=><div className="simple-row" key={name}><b>{projects.find(p=>p.id===name)?.name||name}</b><span>{money(g.paid)} paid</span><span>Cost {money(g.cost)}</span><strong>{money(g.billed-g.cost)}</strong><em>Gross</em></div>)}</div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Collection analytics</h2><p>Conversion from invoiced revenue into recorded cash.</p></div></div><div className="statement-summary"><div><span>Collection rate</span><b>{billed?Math.round(paid/billed*1000)/10:0}%</b></div><div><span>Average invoice</span><b>{scoped.length?money(billed/scoped.length):money(0)}</b></div><div><span>Average collected</span><b>{scoped.length?money(paid/scoped.length):money(0)}</b></div></div></section></div>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Invoice register</h2><p>Issued records inside the selected period.</p></div></div><div className="simple-list">{[...scoped].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(i=><div className="simple-row" key={i.id}><b>#{i.number}</b><span>{i.date}</span><span>{i.client}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></div>)}</div></section>
-  </div>
-}
-
-export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
-  const [projects,setProjects]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
-  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
-  async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").eq("organization_id",organizationId).order("name");setProjects(data||[]);setLoading(false);}
-  const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const row=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);fallback.set(key,row)});
-  const derived=Array.from(fallback.values()).filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));
-  const totalBilled=projects.reduce((sum,p)=>sum+invoices.filter(i=>i.projectId===p.id).reduce((s,i)=>s+invoiceTotal(i),0),0)+derived.reduce((sum,p)=>sum+p.billed,0);
-  const totalCost=projects.reduce((sum,p)=>sum+Number(p.actual_cost||0),0);
-  const active=projects.filter(p=>p.status==="active").length+derived.length;
-  return <div className="operations-page">
-    <section className="operations-intro compact-page-head">
-      <div><h2>Projects</h2></div>
-      <div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div>
-    </section>
-    <section className="register-summary">
-      <div><span>ACTIVE</span><b>{active}</b></div>
-      <div><span>REVENUE</span><b>{money(totalBilled)}</b></div>
-      <div><span>RECORDED COST</span><b>{money(totalCost)}</b></div>
-    </section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Project register</h2></div></div>
-      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}
-      {!loading&&!projects.length&&!derived.length&&<div className="empty-state"><FolderKanban size={18}/><b>No projects yet.</b><span>Create a project to connect production work with billing.</span></div>}
-    </section>
-    {creating&&<ProjectCreateModal onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
+  const byClient=new Map<string,number>();scoped.forEach(i=>byClient.set(i.client,(byClient.get(i.client)||0)+invoiceTotal(i)));
+  return <div className="reports-page"><section className="compact-page-head"><div><span className="eyebrow">Analysis</span><h2>Reports</h2></div></section>
+    <div className="report-toolbar"><div className="period-strip">{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div><div className="report-filters"><select value={client} onChange={e=>setClient(e.target.value)}><option value="all">All clients</option>{clients.map(c=><option key={c}>{c}</option>)}</select></div></div>
+    <section className="kpis compact-kpis"><Kpi label="Billed" value={money(billed)} detail={periodLabel(period)}/><Kpi label="Collected" value={money(paid)} detail="Recorded"/><Kpi label="Outstanding" value={money(open)} detail="Open balance"/><Kpi label="Collection" value={billed?Math.round(paid/billed*100)+"%":"0%"} detail="Collected / billed"/></section>
+    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><h2>AR ageing</h2></div><div className="simple-list">{[["Current",aging.current],["1–30 days",aging.d1_30],["31–60 days",aging.d31_60],["61–90 days",aging.d61_90],[">90 days",aging.d90]].map(([label,value])=><div className="simple-row" key={String(label)}><b>{label}</b><span>Receivable</span><span></span><strong>{money(Number(value))}</strong><em>Open</em></div>)}</div></section><section className="data-panel"><div className="data-panel-head"><h2>Revenue by client</h2></div><div className="simple-list">{[...byClient.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=><div className="simple-row" key={name}><b>{name}</b><span>Client</span><span></span><strong>{money(value)}</strong><em>Billed</em></div>)}{!byClient.size&&<div className="empty-state">No revenue in this period.</div>}</div></section></div>
   </div>;
 }
-
-export function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[];onOpen:(i:Invoice)=>void;onSaved?:()=>void}){
- const [editing,setEditing]=useState(false); const rows=invoices.filter(i=>(p.id&&i.projectId===p.id)||(!p.id&&i.project===p.name&&i.client===(p.clients?.name||"")));const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0);const paid=rows.reduce((s,i)=>s+paidTotal(i),0);const profit=billed-Number(p.actual_cost||0);
- return <><article className="client-card project-card"><div className="client-avatar"><FolderKanban size={17}/></div><div><h3>{p.name}</h3><p>{p.clients?.name||"Unassigned client"} · {p.status||"active"}</p></div><strong>{money(billed)}</strong><small>{money(paid)} collected · {money(Math.max(billed-paid,0))} outstanding · {money(profit)} gross after recorded cost</small><div className="client-invoices">{rows.slice(0,5).map(i=><button key={i.id} onClick={()=>onOpen(i)}>#{i.number} · {money(invoiceTotal(i))}</button>)}</div><div className="project-actions">{p.id&&<><button className="secondary mini-action" onClick={()=>setEditing(true)}>Edit</button><button className="secondary mini-action danger-button" onClick={async()=>{if(!window.confirm("Archive this project?"))return;const {error}=await supabase.from("projects").update({status:"archived",updated_at:new Date().toISOString()}).eq("id",p.id);if(error)window.alert(error.message);else onSaved?.()}}>Archive</button></>}</div></article>{editing&&<ProjectEditModal project={p} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved?.()}}/>}</>;
+export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
+  const [projects,setProjects]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
+  async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").eq("organization_id",organizationId).order("name");setProjects(data||[]);setLoading(false)}
+  useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
+  const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const x=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};x.invoices.push(i);x.billed+=invoiceTotal(i);x.paid+=paidTotal(i);fallback.set(key,x)});
+  const derived=[...fallback.values()].filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));
+  const revenue=projects.reduce((s,p)=>s+invoices.filter(i=>i.projectId===p.id).reduce((a,i)=>a+invoiceTotal(i),0),0)+derived.reduce((s,p)=>s+p.billed,0);
+  const cost=projects.reduce((s,p)=>s+Number(p.actual_cost||0),0);
+  return <div className="operations-page">
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Production</span><h2>Projects</h2></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div></section>
+    <section className="register-summary"><div><span>ACTIVE</span><b>{projects.filter(p=>p.status==="active").length+derived.length}</b></div><div><span>REVENUE</span><b>{money(revenue)}</b></div><div><span>RECORDED COST</span><b>{money(cost)}</b></div></section>
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Register</h2></div></div>{loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}</section>
+    {creating&&<ProjectCreateModal onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);void load()}}/>}
+  </div>;
 }
-
+export function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[];onOpen:(i:Invoice)=>void;onSaved?:()=>void}) {
+ const [editing,setEditing]=useState(false);const rows=invoices.filter(i=>(p.id&&i.projectId===p.id)||(!p.id&&i.project===p.name&&i.client===(p.clients?.name||"")));const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0),paid=rows.reduce((s,i)=>s+paidTotal(i),0);
+ return <><article className="client-card project-card"><div className="client-avatar"><FolderKanban size={16}/></div><div><h3>{p.name}</h3><p>{p.clients?.name||"Unassigned client"} · {p.status||"active"}</p></div><strong>{money(billed)}</strong><small>{money(paid)} collected · {money(Math.max(billed-paid,0))} outstanding</small><div className="project-actions">{p.id&&<><button className="secondary mini-action" onClick={()=>setEditing(true)}>Edit</button><button className="secondary mini-action danger-button" onClick={async()=>{if(!window.confirm("Archive this project?"))return;const {error}=await supabase.from("projects").update({status:"archived",updated_at:new Date().toISOString()}).eq("id",p.id);if(error)window.alert(error.message);else onSaved?.()}}>Archive</button></>}</div></article>{editing&&<ProjectEditModal project={p} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved?.()}}/>}</>;
+}
 export function ProjectEditModal({project,onClose,onSaved}:{project:any;onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:project.name||"",status:project.status||"active",description:project.description||"",budget_cost:String(project.budget_cost||0),actual_cost:String(project.actual_cost||0)});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
  async function save(e:FormEvent){e.preventDefault();setSaving(true);const {error}=await supabase.from("projects").update({name:form.name.trim(),status:form.status,description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,updated_at:new Date().toISOString()}).eq("id",project.id);setSaving(false);if(error)setMessage(error.message);else onSaved()}

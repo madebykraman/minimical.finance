@@ -111,13 +111,13 @@ export function FinanceShell({
   };
 
   return (
-    <main className="shell" style={{ "--org-accent": activeOrganization?.accent_hex || "#6d5df5" } as CSSProperties}>
+    <main className="shell" style={{ "--org-accent": activeOrganization?.accent_hex || "#8b5cf6" } as CSSProperties}>
       <aside className="sidebar">
         <div className="brand-lockup">
           <div className="brand-mark">
             {activeOrganization?.logo_path
               ? <img src={activeOrganization.logo_path} alt="" />
-              : <span className="brand-glyph">m</span>}
+              : <span className="brand-glyph">{String(activeOrganization?.name || "O").slice(0, 1).toUpperCase()}</span>}
           </div>
           <div className="brand-copy">
             <strong>{activeOrganization?.name || "Organisations"}</strong>
@@ -181,7 +181,7 @@ export function FinanceShell({
                 aria-haspopup="listbox"
               >
                 <span className="top-workspace-mark">
-                  {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : "m"}
+                  {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : String(activeOrganization?.name || "O").slice(0, 1).toUpperCase()}
                 </span>
                 <span className="top-workspace-copy">
                   <strong>{activeOrganization?.name || "All organisations"}</strong>

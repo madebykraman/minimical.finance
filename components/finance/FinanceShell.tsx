@@ -101,13 +101,6 @@ export function FinanceShell({
           </div>
         </div>
 
-        <button className="workspace-switcher" onClick={onChangeWorkspace} aria-label="Change organisation workspace">
-          <span>WORKSPACE</span>
-          <b>{activeOrganization?.name || "All organisations"}</b>
-          <ChevronRight size={14} />
-        </button>
-
-        <div className="nav-label">WORKSPACE</div>
         <nav>
           {navigation.map(([key, Icon, label, path]) => (
             <button
@@ -232,7 +225,7 @@ export function FinanceShell({
               <button
                 key={key}
                 className={activeView === key ? "active" : ""}
-                onClick={() => { setMobileMoreOpen(false); router.push(path); }}
+                onClick={() => { setMobileMoreOpen(false); router.push(routeFor(path)); }}
               >
                 <Icon size={17} />
                 <span>{label}</span>

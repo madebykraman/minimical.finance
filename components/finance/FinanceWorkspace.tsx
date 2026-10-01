@@ -322,6 +322,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       clearError={() => setActionError("")}
       onRefresh={() => { void loadInvoices(); }}
       onChangeWorkspace={changeWorkspace}
+      onSelectWorkspace={selectOrganization}
+      organizations={organizations}
       onSignOut={() => { void supabase.auth.signOut(); }}
       onNewInvoice={() => setComposer(true)}
       onNewClient={() => window.dispatchEvent(new Event("finance:new-client"))}

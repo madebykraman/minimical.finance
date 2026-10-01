@@ -525,7 +525,7 @@ export type Database = {
           invoice_number: string
           issue_date: string
           notes: string | null
-          organization_id: string | null
+          organization_id: string
           project_id: string | null
           source_total: number | null
           status: Database["public"]["Enums"]["invoice_status"]
@@ -540,7 +540,7 @@ export type Database = {
           invoice_number: string
           issue_date?: string
           notes?: string | null
-          organization_id?: string | null
+          organization_id: string
           project_id?: string | null
           source_total?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -555,7 +555,7 @@ export type Database = {
           invoice_number?: string
           issue_date?: string
           notes?: string | null
-          organization_id?: string | null
+          organization_id?: string
           project_id?: string | null
           source_total?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -587,6 +587,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          accent_hex: string
           account_number: string | null
           address_lines: Json
           bank_name: string | null
@@ -613,6 +614,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accent_hex?: string
+          accent_hex?: string
           account_number?: string | null
           address_lines?: Json
           bank_name?: string | null

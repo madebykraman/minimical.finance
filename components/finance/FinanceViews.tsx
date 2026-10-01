@@ -114,7 +114,7 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
         <div className="workspace-gate-mark">m</div>
         <div>
           <div className="eyebrow">MINIMICAL FINANCE</div>
-          <h1>Choose a workspace.</h1>
+          <h1>Workspaces</h1>
         </div>
       </div>
 

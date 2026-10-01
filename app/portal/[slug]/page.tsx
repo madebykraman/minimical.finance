@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownToLine, ArrowRight, CheckCircle2, ChevronDown, FileText, LockKeyhole, LogOut, Receipt, WalletCards } from "lucide-react";
+import { ArrowDownToLine, ArrowRight, Building2, CheckCircle2, ChevronDown, FileText, LockKeyhole, LogOut, Receipt, WalletCards } from "lucide-react";
 
 type Period="month"|"3months"|"6months"|"fy"|"all";
 type StatusFilter="all"|"paid"|"open"|"overdue"|"partial";
-type PortalData={client:any;invoices:any[];payments:any[];projects:any[];documents:any[]};
+type PortalData={organization:any;client:any;invoices:any[];payments:any[];projects:any[];documents:any[]};
 
 const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n||0);
 const date=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"";
@@ -48,12 +48,12 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
   const filteredStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period="+period;
   const fullStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period=all";
 
-  if(loading&& !data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark">F</div><p>Opening secure client account…</p></div></main>;
+  if(loading&& !data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><Building2 size={16}/></div><p>Opening secure client account…</p></div></main>;
   if(!data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><LockKeyhole size={16}/></div><div className="portal-kicker">SECURE CLIENT ACCOUNT</div><h1>Enter your portal password.</h1><p>This link identifies your account. Your password protects the financial records inside it.</p><form onSubmit={login} className="portal-login"><label>Password<input autoFocus type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Portal password" required/></label>{error&&<div className="portal-login-error">{error}</div>}<button className="portal-button dark" disabled={loginBusy}>{loginBusy?"Signing in…":"Open account"}</button></form></div></main>;
 
   return <main className="portal-screen"><div className="portal-shell">
     <header className="portal-header">
-      <div>{data.client.logo_path?<img className="portal-client-logo" src={data.client.logo_path} alt=""/>:null}<div className="portal-brand">FINOS</div><div className="portal-kicker">CLIENT ACCOUNT</div><h1>{data.client.legal_name||data.client.name}</h1><p>{data.client.portal_message||"Your invoices, payments and account history in one place."}</p></div>
+      <div>{data.client.logo_path?<img className="portal-client-logo" src={data.client.logo_path} alt=""/>:null}<div className="portal-brand">{data.organization?.logo_path?<img className="portal-org-logo" src={data.organization.logo_path} alt=""/>:null}<strong>{data.organization?.name||""}</strong></div><div className="portal-kicker">CLIENT ACCOUNT</div><h1>{data.client.legal_name||data.client.name}</h1><p>{data.client.portal_message||"Your invoices, payments and account history in one place."}</p></div>
       <div className="portal-actions"><a href={fullStatement} className="portal-button dark"><ArrowDownToLine size={15}/>Full statement</a><button className="portal-button" onClick={async()=>{await fetch("/api/client-portal/logout",{method:"POST"});location.href="/portal/"+slug;}}><LogOut size={14}/>Sign out</button></div>
     </header>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode, CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3, ChevronRight, CircleAlert, FileText, FolderKanban, LayoutDashboard, LogOut,
@@ -51,6 +52,8 @@ export function FinanceShell({
   clearError,
   onRefresh,
   onChangeWorkspace,
+  onSelectWorkspace,
+  organizations,
   onSignOut,
   onNewInvoice,
   onNewClient,
@@ -70,6 +73,8 @@ export function FinanceShell({
   clearError: () => void;
   onRefresh: () => void;
   onChangeWorkspace: () => void;
+  onSelectWorkspace: (id: string | null) => void;
+  organizations: WorkspaceOrganization[];
   onSignOut: () => void;
   onNewInvoice: () => void;
   onNewClient: () => void;
@@ -80,6 +85,7 @@ export function FinanceShell({
   overlays?: ReactNode;
 }) {
   const router = useRouter();
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const secondaryNavigation = navigation.filter(([key]) => !["overview", "invoices", "payments", "clients"].includes(key));
   const routeFor = (path: string) => {
     const workspace = activeOrganization?.id || "all";
@@ -148,16 +154,56 @@ export function FinanceShell({
           </div>
 
           <div className="topbar-tools">
-            <button className="top-workspace-switcher" onClick={onChangeWorkspace} aria-label="Switch organisation">
-              <span className="top-workspace-mark">
-                {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : "m"}
-              </span>
-              <span className="top-workspace-copy">
-                <small>WORKSPACE</small>
-                <strong>{activeOrganization?.name || "All organisations"}</strong>
-              </span>
-              <ChevronRight size={14} />
-            </button>
+            <div className="workspace-switcher-wrap">
+              <button
+                className="top-workspace-switcher"
+                onClick={() => setWorkspaceMenuOpen(open => !open)}
+                aria-label="Switch organisation"
+                aria-expanded={workspaceMenuOpen}
+                aria-haspopup="listbox"
+              >
+                <span className="top-workspace-mark">
+                  {activeOrganization?.logo_path ? <img src={activeOrganization.logo_path} alt="" /> : "m"}
+                </span>
+                <span className="top-workspace-copy">
+                  <small>WORKSPACE</small>
+                  <strong>{activeOrganization?.name || "All organisations"}</strong>
+                </span>
+                <ChevronRight size={14} className={workspaceMenuOpen ? "workspace-chevron-open" : ""} />
+              </button>
+              {workspaceMenuOpen && (
+                <div className="workspace-switcher-menu" role="listbox" aria-label="Workspaces">
+                  <button
+                    className={!activeOrganization ? "selected" : ""}
+                    role="option"
+                    aria-selected={!activeOrganization}
+                    onClick={() => { onSelectWorkspace(null); setWorkspaceMenuOpen(false); }}
+                  >
+                    <span className="workspace-option-mark">A</span>
+                    <span><strong>All organisations</strong><small>All workspace data</small></span>
+                    {!activeOrganization && <span className="workspace-check">✓</span>}
+                  </button>
+                  {organizations.filter(o => !["dissolved", "discontinued"].includes(String(o.status))).map(org => (
+                    <button
+                      key={org.id}
+                      className={activeOrganization?.id === org.id ? "selected" : ""}
+                      role="option"
+                      aria-selected={activeOrganization?.id === org.id}
+                      onClick={() => { onSelectWorkspace(org.id); setWorkspaceMenuOpen(false); }}
+                    >
+                      <span className="workspace-option-mark">
+                        {org.logo_path ? <img src={org.logo_path} alt="" /> : String(org.name || "O").slice(0, 1).toUpperCase()}
+                      </span>
+                      <span><strong>{org.name || "Organisation"}</strong><small>{org.legal_name || "Workspace"}</small></span>
+                      {activeOrganization?.id === org.id && <span className="workspace-check">✓</span>}
+                    </button>
+                  ))}
+                  <button className="workspace-menu-manage" onClick={onChangeWorkspace}>
+                    <span>Manage workspaces</span><ChevronRight size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
             <label className="global-search">
               <Search size={15} />
               <input

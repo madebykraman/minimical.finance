@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateStats, contentAmount, invoiceBalance, invoiceTotal, paidTotal, daysOverdue } from "../lib/finance/domain.ts";
+import { calculateStats, contentAmount, invoiceBalance, invoiceTotal, paidTotal, daysOverdue } from "../lib/finance/domain";
 
 const base={id:"1",number:"180",client:"Elle India",project:"Video Editing",date:"2026-08-05",dueDate:"2026-09-04",status:"sent" as const,sourceTotal:10000,notes:null,adjustment:null,organizationId:null,clientId:null,projectId:null,contents:[
 {id:"a",title:"The Devil Wears Prada 2",kind:"service" as const,quantity:1,rate:2000,amount:2000,priced:true},

@@ -112,14 +112,11 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
     <div className="workspace-gate-inner">
       <div className="workspace-gate-minimal-head">
         <div className="workspace-gate-mark">m</div>
-        <div>
-          <div className="eyebrow">MINIMICAL FINANCE</div>
-          <h1>Workspaces</h1>
-        </div>
+        <h1>Choose workspace</h1>
       </div>
 
       <section className="workspace-gate-minimal">
-        <div className="workspace-gate-minimal-label">ORGANISATIONS</div>
+        <div className="workspace-gate-minimal-label">WORKSPACES</div>
         <div className="workspace-minimal-list">
           {active.map(o => <button key={o.id} className="workspace-minimal-row" onClick={() => onSelect(o.id)}>
             <span className="workspace-company-logo">{o.logo_path ? <img src={o.logo_path} alt="" /> : String(o.name||"O").slice(0,1).toUpperCase()}</span>
@@ -141,7 +138,7 @@ export function OrganizationWelcome({organizations,onSelect,onAll}:{organization
       </section>
 
       {archived.length>0 && <button className="workspace-archive-toggle" onClick={()=>setShowArchived(v=>!v)}>
-        {showArchived ? "Hide archived" : ("Show "+archived.length+" archived")}
+        {showArchived ? "Hide archived" : ("Archived · "+archived.length)}
       </button>}
     </div>
   </main>;

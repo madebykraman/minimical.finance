@@ -547,13 +547,48 @@ function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment
 }
 
 function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
-  const [clients,setClients]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
-  useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[]);
-  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");setClients(data||[]);setLoading(false);}
+  const [clients,setClients]=useState<any[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [creating,setCreating]=useState(false);
+  useEffect(()=>{
+    load();
+    const h=()=>setCreating(true);
+    window.addEventListener("finance:new-client",h);
+    return()=>window.removeEventListener("finance:new-client",h);
+  },[organizationId]);
+  async function load(){
+    setLoading(true);
+    if(!organizationId){setClients([]);setLoading(false);return}
+    const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");
+    setClients(data||[]);
+    setLoading(false);
+  }
+  const clientStats=clients.map(c=>{
+    const rows=invoices.filter(i=>i.clientId===c.id);
+    const billed=rows.reduce((sum,i)=>sum+invoiceTotal(i),0);
+    const open=rows.reduce((sum,i)=>sum+invoiceBalance(i),0);
+    return {client:c,rows,billed,open};
+  });
+  const billed=clientStats.reduce((sum,c)=>sum+c.billed,0);
+  const open=clientStats.reduce((sum,c)=>sum+c.open,0);
   if(selectedClientId)return <ClientPortal clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
-  return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>Each client is a workspace: billing identity, invoices, projects, statements and portal controls.</p></div></div>
-    {loading?<div className="empty-state">Loading clients…</div>:<div className="client-directory">{clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0);const paid=rows.reduce((s,i)=>s+paidTotal(i),0);return <button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(billed)}</b><span>billed</span></div><div className="client-meta"><b>{money(Math.max(billed-paid,0))}</b><span>outstanding</span></div><ChevronRight size={15}/></button>})}</div>}
-    {!loading&&!clients.length&&<div className="empty-state">No clients yet. Create the first client.</div>}{creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}</div>;
+  return <div className="operations-page">
+    <section className="operations-intro">
+      <div><div className="eyebrow">RELATIONSHIPS / CLIENTS</div><h2>Clients</h2><p>Every client is a financial workspace: billing identity, invoices, projects, statements and portal access.</p></div>
+      <div className="operations-count"><b>{clients.length}</b><span>active clients</span></div>
+    </section>
+    <section className="operations-kpis">
+      <Kpi label="Active clients" value={String(clients.length)} detail="Current organisation"/>
+      <Kpi label="Client billed" value={money(billed)} detail="Gross invoice value"/>
+      <Kpi label="Client outstanding" value={money(open)} detail="Open receivables" accent/>
+      <Kpi label="Avg. exposure" value={clients.length?money(open/clients.length):"₹0"} detail="Outstanding / client"/>
+    </section>
+    <section className="data-panel operations-register">
+      <div className="data-panel-head"><div><h2>Client directory</h2><p>Open a client to manage identity, billing, projects and portal access.</p></div><Building2 size={16}/></div>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:clientStats.length?<div className="client-directory">{clientStats.map(({client:c,rows,billed:clientBilled,open:clientOpen})=><button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(clientBilled)}</b><span>billed</span></div><div className="client-meta"><b>{money(clientOpen)}</b><span>outstanding</span></div><ChevronRight size={15}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create the first client to establish a billing workspace.</span></div>}
+    </section>
+    {creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}
+  </div>;
 }
 
 function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {

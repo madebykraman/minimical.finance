@@ -553,14 +553,8 @@ export function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoi
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
       <section className="invoice-hero">
-        <div className="invoice-hero-brand"><span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span><div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"minimical finance"}</b><small>Branded invoice workspace</small></div></div>
+        <div className="invoice-hero-brand"><span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span><div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"Organisation"}</b><small>Invoice workspace</small></div></div>
         <div className="invoice-hero-amount"><span>Invoice total</span><strong>{money(invoiceTotal(draft))}</strong><small>{draft.status==="paid"?"Fully settled":draft.status==="partially_paid"?"Partially collected":"Balance "+money(Math.max(invoiceTotal(draft)-paidTotal(draft),0))}</small></div>
-      </section>
-      <section className="invoice-document-preview">
-        <div className="invoice-document-top"><div><span className="invoice-document-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"minimical finance"}</b></div><strong>INVOICE</strong></div>
-        <div className="invoice-document-meta"><div><span>Billed to</span><b>{draft.client}</b><small>{draft.project}</small></div><div><span>Invoice</span><b>#{draft.number}</b><small>{dateLabel(draft.date)}</small></div><div><span>Due</span><b>{draft.dueDate||"—"}</b><small>{statusLabel(draft.status)}</small></div></div>
-        <div className="invoice-document-lines">{draft.contents.slice(0,3).map((item,idx)=><div key={item.id}><span>{String(idx+1).padStart(2,"0")} · {item.title||"Untitled item"}</span><b>{item.priced?money(contentAmount(item)):"TBD"}</b></div>)}{draft.contents.length>3&&<small>+ {draft.contents.length-3} more line items</small>}</div>
-        <div className="invoice-document-total"><span>Total</span><b>{money(invoiceTotal(draft))}</b></div>
       </section>
       <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       <div className="invoice-meta-grid">

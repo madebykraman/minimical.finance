@@ -12,6 +12,7 @@ import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentM
 import type { FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
+import { DownloadButton } from "@/components/finance/DownloadButton";
 
 const supabase = createClient();
 
@@ -544,7 +545,7 @@ export function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoi
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
-    <div className="drawer-foot"><button className="secondary" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}>Download PDF</button><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    <div className="drawer-foot"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
 }
 

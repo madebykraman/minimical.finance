@@ -496,7 +496,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const [draft,setDraft] = useState(invoice);
   const [organizations,setOrganizations]=useState<any[]>([]);
   useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").order("name").then(({data})=>setOrganizations(data||[]))},[]);
-  useEffect(() => setDraft(invoice), [invoice.id]);
+  useEffect(() => setDraft(invoice), [invoice]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   const requestClose = () => {

@@ -136,8 +136,10 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           ? window.localStorage.getItem(WORKSPACE_KEY)
           : null;
         const stored = urlWorkspace ?? namespaced ?? legacy;
+        const urlMatchesActive = !urlWorkspace || urlWorkspace === "all" || activeRows.some(o => o.id === urlWorkspace);
+        const resolvedStored = urlMatchesActive ? stored : (namespaced ?? legacy);
 
-        if (stored === "all") {
+        if (resolvedStored === "all") {
           setOrganizationId(null);
           setWorkspaceReady(true);
           if (legacy && !namespaced && session.user?.id) {
@@ -146,7 +148,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           return;
         }
 
-        const remembered = activeRows.find(o => o.id === stored);
+        const remembered = activeRows.find(o => o.id === resolvedStored);
         if (remembered) {
           setOrganizationId(remembered.id);
           setWorkspaceReady(true);

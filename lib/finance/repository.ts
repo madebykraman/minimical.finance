@@ -54,6 +54,8 @@ export async function saveInvoice(next: Invoice) {
 
   const { error } = await supabase.rpc("save_invoice", {
     p_invoice_id: next.id,
+    p_client_id: next.clientId ?? null,
+    p_project_id: next.projectId ?? null,
     p_notes: next.notes ?? null,
     p_adjustment_note: next.adjustment ?? null,
     p_issue_date: next.date,

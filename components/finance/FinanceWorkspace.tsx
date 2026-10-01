@@ -41,6 +41,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [activeView, setActiveView] = useState<FinanceView>(initialView);
   const [actionError, setActionError] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -56,8 +58,22 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }, []);
 
   useEffect(() => {
-    if (session) loadInvoices();
-    else if (authReady) setLoading(false);
+    if (!session) {
+      if (authReady) setLoading(false);
+      return;
+    }
+    loadInvoices();
+    supabase.from("organizations").select("*").order("status").order("name").then(({data}) => {
+      const rows = data || [];
+      setOrganizations(rows);
+      const active = rows.filter((o:any) => !["dissolved","discontinued"].includes(o.status));
+      const saved = typeof window !== "undefined" ? window.localStorage.getItem("finance.organizationId") : null;
+      const selected = active.find((o:any) => o.id === saved)
+        || active.find((o:any) => String(o.name).toLowerCase() === "kumar aman")
+        || active[0]
+        || rows[0];
+      if (selected) setOrganizationId(selected.id);
+    });
   }, [session, authReady]);
 
   async function loadInvoices() {
@@ -105,38 +121,47 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     await loadInvoices();
   }
 
+  const activeOrganization = useMemo(() => organizations.find(o => o.id === organizationId) ?? null, [organizations, organizationId]);
+  const orgInvoices = useMemo(() => organizationId ? invoices.filter(i => i.organizationId === organizationId) : invoices, [invoices, organizationId]);
   const nextInvoiceNumber = useMemo(() => {
-    const numeric = invoices.map(i => Number.parseInt(String(i.number).replace(/\D/g, ""), 10)).filter(Number.isFinite);
+    if (activeOrganization?.next_invoice_number) return String(activeOrganization.invoice_prefix || "") + String(activeOrganization.next_invoice_number);
+    const numeric = orgInvoices.map(i => Number.parseInt(String(i.number).replace(/\D/g, ""), 10)).filter(Number.isFinite);
     return numeric.length ? String(Math.max(...numeric) + 1) : "1";
-  }, [invoices]);
+  }, [activeOrganization, orgInvoices]);
 
-  const filtered = useMemo(() => invoices.filter(i => {
+  const filtered = useMemo(() => orgInvoices.filter(i => {
     const text = [i.number, i.client, i.project, i.notes, ...i.contents.map(c => c.title)].join(" ").toLowerCase();
     return (status === "all" || i.status === status) && text.includes(query.toLowerCase());
   }), [invoices, query, status]);
 
-  const stats = useMemo(() => calculateStats(invoices), [invoices]);
+  const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
-  if (!authReady) return <div className="auth-screen"><div className="auth-card">Loading FinOS…</div></div>;
+  if (!authReady) return <div className="auth-screen"><div className="auth-card"><div className="loading-mark"><RefreshCw size={18}/></div><p>Loading workspace…</p></div></div>;
   if (!session) return <AuthScreen />;
 
   return (
     <main className="shell">
       <aside className="sidebar">
-        <div className="brand"><div className="brand-mark">m</div><div><strong>FinOS</strong></div></div>
+        <div className="brand-lockup">
+          <div className="brand-mark">{activeOrganization?.logo_path?<img src={activeOrganization.logo_path} alt=""/>:<Building2 size={17}/>}</div>
+          <div className="brand-copy"><strong>{activeOrganization?.name || "Select organisation"}</strong><span>{activeOrganization?.legal_name || "Organisation workspace"}</span></div>
+        </div>
+        {organizations.filter(o=>!["dissolved","discontinued"].includes(o.status)).length>1&&<label className="org-switcher"><span>Organisation</span><select value={organizationId||""} onChange={e=>{const id=e.target.value;setOrganizationId(id);window.localStorage.setItem("finance.organizationId",id)}}>{organizations.filter(o=>!["dissolved","discontinued"].includes(o.status)).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
         <div className="nav-label">WORKSPACE</div>
         <nav>
-          <button className={"nav-item " + (activeView === "overview" ? "active" : "")} onClick={() => router.push("/overview")}><LayoutDashboard size={17}/>Overview</button>
-          <button className={"nav-item " + (activeView === "invoices" ? "active" : "")} onClick={() => router.push("/invoices")}><Receipt size={17}/>Invoices <span>{invoices.length}</span></button>
-          <button className={"nav-item " + (activeView === "payments" ? "active" : "")} onClick={() => router.push("/payments")}><WalletCards size={17}/>Payments</button>
-          <button className={"nav-item " + (activeView === "clients" ? "active" : "")} onClick={() => router.push("/clients")}><FileText size={17}/>Clients</button>
-          <button className={"nav-item " + (activeView === "projects" ? "active" : "")} onClick={() => router.push("/projects")}><FolderKanban size={17}/>Projects</button>
-          <button className={"nav-item " + (activeView === "reports" ? "active" : "")} onClick={() => router.push("/reports")}><BarChart3 size={17}/>Reports</button>
-          <button className={"nav-item " + (activeView === "settings" ? "active" : "")} onClick={() => router.push("/settings")}><Settings2 size={17}/>Settings</button>
+          {[
+            ["overview",LayoutDashboard,"Overview","/overview"],
+            ["invoices",Receipt,"Invoices","/invoices"],
+            ["payments",WalletCards,"Payments","/payments"],
+            ["clients",FileText,"Clients","/clients"],
+            ["projects",FolderKanban,"Projects","/projects"],
+            ["reports",BarChart3,"Reports","/reports"],
+            ["settings",Settings2,"Settings","/settings"],
+          ].map(([key,Icon,label,path])=>{const C=Icon as any;return <button key={String(key)} className={"nav-item "+(activeView===key?"active":"")} onClick={()=>router.push(String(path))}><C size={17}/><span>{String(label)}</span>{key==="invoices"&&<em>{orgInvoices.length}</em>}</button>})}
         </nav>
         <div className="sidebar-bottom">
-          <button className="nav-item" onClick={() => supabase.auth.signOut()}><LogOut size={17}/>Sign out</button>
-          <div className="profile"><div className="avatar">M</div><div><b>Finance workspace</b><small>Authenticated</small></div><MoreHorizontal size={16}/></div>
+          <button className="nav-item" onClick={()=>supabase.auth.signOut()}><LogOut size={17}/><span>Sign out</span></button>
+          <div className="profile"><div className="avatar">{String(activeOrganization?.name||session.user?.email||"A").slice(0,1).toUpperCase()}</div><div><b>{activeOrganization?.name||"Workspace"}</b><small>{session.user?.email||"Authenticated"}</small></div><MoreHorizontal size={16}/></div>
         </div>
       </aside>
 
@@ -144,7 +169,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         {actionError && <div className="global-error"><CircleAlert size={15}/><span>{actionError}</span><button onClick={() => setActionError("")}><X size={14}/></button></div>}
         <header className="topbar">
           <div>
-            <div className="eyebrow">FINANCE / {activeView.toUpperCase()}</div>
+            <div className="eyebrow">{activeOrganization?.name || "ORGANISATION"} / {activeView.toUpperCase()}</div>
             <h1>{activeView === "overview" ? "Overview" : activeView === "invoices" ? "Invoices" : activeView === "payments" ? "Payments" : activeView === "clients" ? "Clients" : activeView === "projects" ? "Projects" : activeView === "reports" ? "Reports" : "Settings"}</h1>
             <p>{activeView === "overview" ? "A focused view of cash, receivables and what needs attention." : activeView === "invoices" ? "Every invoice, its contents, payment state and history." : activeView === "payments" ? "Recorded collections and the invoices they settle." : activeView === "clients" ? "Client records, billing identity and account history." : activeView === "projects" ? "Projects grouped by client with billing performance." : activeView === "reports" ? "Period-based views of billed, collected and outstanding revenue." : "Workspace identity, invoice customisation and access controls."}</p>
           </div>
@@ -156,13 +181,13 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           </div>
         </header>
 
-        {activeView === "overview" && <Overview stats={stats} invoices={invoices} onOpen={(i) => setSelected(i)} />}
+        {activeView === "overview" && <Overview stats={stats} invoices={orgInvoices} organization={activeOrganization} onOpen={(i) => setSelected(i)} />}
         {activeView === "invoices" && <InvoiceView filtered={filtered} query={query} setQuery={setQuery} status={status} setStatus={setStatus} loading={loading} onOpen={(i) => setSelected(i)} onStatus={markStatus} />}
-        {activeView === "payments" && <PaymentsView invoices={invoices} onOpenPayment={(i) => setPaymentFor(i)} />}
-        {activeView === "clients" && <ClientsView invoices={invoices} onOpen={(i) => setSelected(i)} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} />}
-        {activeView === "projects" && <ProjectsView invoices={invoices} onOpen={(i) => setSelected(i)} />}
-        {activeView === "reports" && <ReportsView invoices={invoices} />}
-        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} onSignOut={() => supabase.auth.signOut()} />}
+        {activeView === "payments" && <PaymentsView invoices={orgInvoices} onOpenPayment={(i) => setPaymentFor(i)} />}
+        {activeView === "clients" && <ClientsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} />}
+        {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={(i) => setSelected(i)} />}
+        {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
+        {activeView === "settings" && <SettingsView email={session.user?.email ?? ""} activeOrganizationId={organizationId} onSignOut={() => supabase.auth.signOut()} />}
       </section>
 
       <nav className="mobile-nav" aria-label="Primary navigation">
@@ -182,7 +207,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
       {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} onStatus={markStatus} onSave={saveInvoice} onPayment={() => setPaymentFor(selected)}/>}
       {paymentFor && <PaymentComposer invoice={paymentFor} onClose={() => setPaymentFor(null)} onCreate={recordPayment}/>}
-      {composer && <InvoiceComposer initialNumber={nextInvoiceNumber} onClose={() => setComposer(false)} onCreate={createInvoice}/>} 
+      {composer && <InvoiceComposer initialNumber={nextInvoiceNumber} initialOrganizationId={organizationId} onClose={() => setComposer(false)} onCreate={createInvoice}/>} 
     </main>
   );
 }
@@ -256,8 +281,8 @@ function AuthScreen() {
   }
 
   return <div className="auth-screen"><div className="auth-card">
-    <div className="brand"><div className="brand-mark">m</div><div><strong>minimical</strong><span>.finance</span></div></div>
-    <div className="eyebrow">PRIVATE FINANCE OS</div>
+    <div className="auth-neutral-mark"><Building2 size={18}/></div>
+    <div className="eyebrow">SECURE WORKSPACE</div>
     <h1>{mode === "signin" ? "Welcome back." : "Create access."}</h1>
     <p>Internal invoicing, collections and financial records for the studio.</p>
     {verified && <div className="auth-success"><Check size={15}/> Email verified. You can sign in.</div>}
@@ -275,23 +300,23 @@ function AuthScreen() {
   </div></div>;
 }
 
-function SettingsView({email,onSignOut}:{email:string;onSignOut:()=>void}) {
-  const [profile,setProfile]=useState<any>({studio_name:"Kumar Aman",brand_name:"minimical",contact_email:"framedbyaman@gmail.com",payee_name:"Kumar Aman",account_number:"55550101570800",bank_name:"FEDERAL BANK",branch_name:"Patna/Kankarbagh",branch_code:"2189",ifsc_code:"FDRL0002189",pan_number:"CIBPA9801L",invoice_footer_line_1:"Please contact framedbyaman@gmail.com in case of any queries.",invoice_footer_line_2:"Thank you for your time.",pdf_template:"legacy_elle"});
+function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activeOrganizationId:string|null;onSignOut:()=>void}) {
+  const [profile,setProfile]=useState<any>({studio_name:"Kumar Aman",brand_name:"",contact_email:"framedbyaman@gmail.com",payee_name:"Kumar Aman",account_number:"55550101570800",bank_name:"FEDERAL BANK",branch_name:"Patna/Kankarbagh",branch_code:"2189",ifsc_code:"FDRL0002189",pan_number:"CIBPA9801L",invoice_footer_line_1:"Please contact framedbyaman@gmail.com in case of any queries.",invoice_footer_line_2:"Thank you for your time.",pdf_template:"legacy_elle"});
   const [portalLink,setPortalLink]=useState("");
   const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [message,setMessage]=useState("");const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(true);const [tab,setTab]=useState<"invoice"|"account"|"organizations"|"workspace"|"security">("invoice");
   useEffect(()=>{supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle().then(({data,error})=>{if(data)setProfile((p:any)=>({...p,...data}));if(error)setMessage(error.message);setLoading(false)})},[]);
-  async function save(e:FormEvent){e.preventDefault();setSaving(true);setMessage("");const {error}=await supabase.from("workspace_settings").upsert({...profile,id:true,updated_at:new Date().toISOString()});setSaving(false);setMessage(error?"Could not save: "+error.message:"Invoice customisation saved.");}
+  async function save(e:FormEvent){e.preventDefault();setSaving(true);setMessage("");const {error}=await supabase.from("workspace_settings").upsert({...profile,id:true,updated_at:new Date().toISOString()});setSaving(false);setMessage(error?"Could not save: "+error.message:"Defaults saved.");}
   async function changePassword(e:FormEvent){e.preventDefault();if(password.length<12||!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/\d/.test(password)||!/[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./]/.test(password))return setMessage("Use 12+ characters with upper/lowercase, a number and a symbol.");if(password!==confirm)return setMessage("Passwords do not match.");const {error}=await supabase.auth.updateUser({password});if(error)return setMessage(error.message);setPassword("");setConfirm("");setMessage("Password updated successfully.");}
-  return <div className="settings-stack"><div className="settings-tabs">{(["invoice","account","organizations","workspace","security"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t==="invoice"?"Invoice customisation":t==="account"?"My account":t==="organizations"?"Organisations":t==="workspace"?"Workspace":"Security"}</button>)}</div>
+  return <div className="settings-stack"><div className="settings-tabs">{(["invoice","account","organizations","workspace","security"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t==="invoice"?"Defaults":t==="account"?"My account":t==="organizations"?"Organisations":t==="workspace"?"Workspace":"Security"}</button>)}</div>
     {tab==="account"&&<AccountIdentitySettings/>}
     {tab==="organizations"&&<OrganizationsSettings/>}
     {tab==="invoice"&&<form className="settings-stack" onSubmit={save}><div className="data-panel"><div className="data-panel-head"><div><h2>Invoice customisation</h2><p>Global defaults for the invoice you actually send. These are not project-level settings.</p></div>{loading&&<span className="settings-good">Loading</span>}</div>
       <div className="settings-section"><div className="settings-section-head"><b>Contact & identity</b><span>Used by the invoice template.</span></div><div className="form-grid"><label>Studio / legal name<input value={profile.studio_name||""} onChange={e=>setProfile((p:any)=>({...p,studio_name:e.target.value}))}/></label><label>Brand name<input value={profile.brand_name||""} onChange={e=>setProfile((p:any)=>({...p,brand_name:e.target.value}))}/></label><label>Contact email<input type="email" value={profile.contact_email||""} onChange={e=>setProfile((p:any)=>({...p,contact_email:e.target.value}))}/></label><label>Payee name<input value={profile.payee_name||""} onChange={e=>setProfile((p:any)=>({...p,payee_name:e.target.value}))}/></label></div></div>
       <div className="settings-section"><div className="settings-section-head"><b>Bank / payment details</b><span>Future PDFs use the saved values.</span></div><div className="form-grid">{["account_number","bank_name","branch_name","branch_code","ifsc_code","pan_number"].map(k=><label key={k}>{k.replaceAll("_"," ").toUpperCase()}<input value={profile[k]||""} onChange={e=>setProfile((p:any)=>({...p,[k]:e.target.value}))}/></label>)}</div></div>
       <div className="settings-section"><div className="settings-section-head"><b>Footer</b><span>Closing copy printed below the invoice.</span></div><div className="form-grid"><label>Footer line 1<input value={profile.invoice_footer_line_1||""} onChange={e=>setProfile((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label><label>Footer line 2<input value={profile.invoice_footer_line_2||""} onChange={e=>setProfile((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label></div></div>
-      <div className="settings-section"><div className="settings-section-head"><b>Template</b><span>Future template controls belong here.</span></div><div className="template-choice"><div><b>Legacy / Elle</b><span>Reference-faithful typography, spacing and geometry.</span></div><span className="settings-good">Active</span></div></div>
+      <div className="settings-section"><div className="settings-section-head"><b>Template</b><span>Future template controls belong here.</span></div><div className="template-choice"><div><b>Legacy template</b><span>Reference-faithful typography, spacing and geometry.</span></div><span className="settings-good">Active</span></div></div>
       {message&&<div className="auth-success">{message}</div>}<button className="primary" disabled={saving}>{saving?"Saving…":"Save invoice customisation"}</button></div></form>}
-    {tab==="workspace"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Workspace</h2><p>Global finance workspace configuration.</p></div></div><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Workspace</b><p>{profile.brand_name}.finance</p></div></div><div className="settings-row"><div className="settings-icon"><Mail size={16}/></div><div><b>Contact</b><p>{profile.contact_email||"No contact email configured"}</p></div></div><div className="settings-row"><div className="settings-icon"><Receipt size={16}/></div><div><b>PDF generation</b><p>Server-side canonical invoice renderer using stored billing identity.</p></div><span className="settings-good">Live</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a JSON backup of clients, projects, invoices, payments, documents and organisations.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}
+    {tab==="workspace"&&<div className="data-panel"><div className="data-panel-head"><div><h2>Workspace</h2><p>Neutral system controls. Organisation identity lives under Organisations.</p></div></div><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"No organisation selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><Mail size={16}/></div><div><b>Contact</b><p>{profile.contact_email||"No contact email configured"}</p></div></div><div className="settings-row"><div className="settings-icon"><Receipt size={16}/></div><div><b>PDF generation</b><p>Server-side canonical invoice renderer using stored billing identity.</p></div><span className="settings-good">Live</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a JSON backup of clients, projects, invoices, payments, documents and organisations.</p></div><button className="secondary" onClick={()=>{window.location.href="/api/export/finance"}}>Export</button></div></div>}
     {tab==="security"&&<div className="settings-stack"><div className="data-panel"><div className="data-panel-head"><div><h2>Security</h2><p>Authenticated owner access.</p></div></div><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Signed-in account</b><p>{email}</p></div><span className="settings-good">Protected</span></div></div><div className="data-panel"><div className="data-panel-head"><div><h2>Change password</h2></div></div><form className="password-settings" onSubmit={changePassword}><label>New password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label><label>Confirm password<input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>{message&&<div className="auth-message">{message}</div>}<button className="primary">Update password</button></form></div><div className="data-panel"><div className="settings-actions"><button className="secondary" onClick={onSignOut}><LogOut size={14}/>Sign out</button></div></div></div>}
   </div>;
 }
@@ -310,7 +335,7 @@ function OrganizationsSettings(){
   useEffect(()=>{supabase.from("organizations").select("*").order("status").order("name").then(({data,error})=>{setOrgs(data||[]);if(data?.[0])setSelected(data[0]);if(error)setMessage(error.message)})},[]);
   async function save(){if(!selected)return;setSaving(true);const {error}=await supabase.from("organizations").update({...selected,updated_at:new Date().toISOString()}).eq("id",selected.id);setSaving(false);setMessage(error?error.message:"Organisation saved.");if(!error)setOrgs(v=>v.map(o=>o.id===selected.id?selected:o))}
   async function create(){const name=window.prompt("Organisation / brand name");if(!name?.trim())return;const {data,error}=await supabase.from("organizations").insert({name:name.trim(),legal_name:name.trim(),entity_type:"brand"}).select("*").single();if(error){setMessage(error.message);return}setOrgs(v=>[...v,data]);setSelected(data)}
-  return <div className="settings-stack"><div className="data-panel"><div className="data-panel-head"><div><h2>Organisations & brands</h2><p>Each billing identity is independent. Invoice data can be associated with an organisation.</p></div><button className="secondary" onClick={create}><Plus size={14}/>Add organisation</button></div><div className="org-grid">{orgs.map(o=><button className={"org-card "+(selected?.id===o.id?"active":"")} key={o.id} onClick={()=>setSelected(o)}><div className="org-card-logo">{o.logo_path?<img src={o.logo_path} alt=""/>:<span>{String(o.name).slice(0,1).toUpperCase()}</span>}</div><div><b>{o.name}</b><small>{o.entity_type} · {o.status}</small></div></button>)}</div></div>{selected&&<div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Edit {selected.name}</b><small>Identity, tax, bank, footer and logo.</small></span><span>{open?"Collapse":"Edit"}</span></button>{open&&<div className="settings-section-body"><div className="client-logo-upload">{selected.logo_path?<img src={selected.logo_path} alt="Organisation logo"/>:<div className="client-logo-placeholder">Logo</div>}<label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;const path="organizations/"+selected.id+"/"+Date.now()+"-"+f.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("finos-assets").upload(path,f,{upsert:true,contentType:f.type});if(error){setMessage(error.message);return}const {data}=supabase.storage.from("finos-assets").getPublicUrl(path);setSelected((p:any)=>({...p,logo_path:data.publicUrl}))}}/></label></div><div className="form-grid"><label>Name<input value={selected.name||""} onChange={e=>setSelected((p:any)=>({...p,name:e.target.value}))}/></label><label>Legal name<input value={selected.legal_name||""} onChange={e=>setSelected((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Entity type<select value={selected.entity_type||"brand"} onChange={e=>setSelected((p:any)=>({...p,entity_type:e.target.value}))}><option>brand</option><option>freelance</option><option>company</option><option>studio</option></select></label><label>Status<select value={selected.status||"active"} onChange={e=>setSelected((p:any)=>({...p,status:e.target.value}))}><option>active</option><option>dissolved</option><option>discontinued</option></select></label><label>Email<input value={selected.email||""} onChange={e=>setSelected((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={selected.phone||""} onChange={e=>setSelected((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={selected.pan||""} onChange={e=>setSelected((p:any)=>({...p,pan:e.target.value}))}/></label><label>GSTIN<input value={selected.gstin||""} onChange={e=>setSelected((p:any)=>({...p,gstin:e.target.value}))}/></label><label>Bank<input value={selected.bank_name||""} onChange={e=>setSelected((p:any)=>({...p,bank_name:e.target.value}))}/></label><label>Account number<input value={selected.account_number||""} onChange={e=>setSelected((p:any)=>({...p,account_number:e.target.value}))}/></label><label>Branch<input value={selected.branch_name||""} onChange={e=>setSelected((p:any)=>({...p,branch_name:e.target.value}))}/></label><label>IFSC<input value={selected.ifsc_code||""} onChange={e=>setSelected((p:any)=>({...p,ifsc_code:e.target.value}))}/></label></div><div className="form-grid"><label>Invoice prefix<input value={selected.invoice_prefix||""} onChange={e=>setSelected((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label><label>Next invoice number<input type="number" value={selected.next_invoice_number||1} onChange={e=>setSelected((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label><label>Invoice template<select value={selected.invoice_template_key||"legacy_elle"} onChange={e=>setSelected((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Legacy / Elle</option><option value="clean">FinOS Clean</option></select></label></div><label>Address lines<textarea value={Array.isArray(selected.address_lines)?selected.address_lines.join("\n"):""} onChange={e=>setSelected((p:any)=>({...p,address_lines:e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean)}))}/></label><div className="form-grid"><label>Invoice footer line 1<input value={selected.invoice_footer_line_1||""} onChange={e=>setSelected((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label><label>Invoice footer line 2<input value={selected.invoice_footer_line_2||""} onChange={e=>setSelected((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label></div><button className="primary" onClick={save} disabled={saving}>{saving?"Saving…":"Save organisation"}</button></div>}</div>}{message&&<div className="auth-success">{message}</div>}</div>;
+  return <div className="settings-stack"><div className="data-panel"><div className="data-panel-head"><div><h2>Organisations & brands</h2><p>Each billing identity is independent. Invoice data can be associated with an organisation.</p></div><button className="secondary" onClick={create}><Plus size={14}/>Add organisation</button></div><div className="org-grid">{orgs.map(o=><button className={"org-card "+(selected?.id===o.id?"active":"")} key={o.id} onClick={()=>setSelected(o)}><div className="org-card-logo">{o.logo_path?<img src={o.logo_path} alt=""/>:<span>{String(o.name).slice(0,1).toUpperCase()}</span>}</div><div><b>{o.name}</b><small>{o.entity_type} · {o.status}</small></div></button>)}</div></div>{selected&&<div className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(!open)}><span><b>Edit {selected.name}</b><small>Identity, tax, bank, footer and logo.</small></span><span>{open?"Collapse":"Edit"}</span></button>{open&&<div className="settings-section-body"><div className="client-logo-upload">{selected.logo_path?<img src={selected.logo_path} alt="Organisation logo"/>:<div className="client-logo-placeholder">Logo</div>}<label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;const path="organizations/"+selected.id+"/"+Date.now()+"-"+f.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("finos-assets").upload(path,f,{upsert:true,contentType:f.type});if(error){setMessage(error.message);return}const {data}=supabase.storage.from("finos-assets").getPublicUrl(path);setSelected((p:any)=>({...p,logo_path:data.publicUrl}))}}/></label></div><div className="form-grid"><label>Name<input value={selected.name||""} onChange={e=>setSelected((p:any)=>({...p,name:e.target.value}))}/></label><label>Legal name<input value={selected.legal_name||""} onChange={e=>setSelected((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Entity type<select value={selected.entity_type||"brand"} onChange={e=>setSelected((p:any)=>({...p,entity_type:e.target.value}))}><option>brand</option><option>freelance</option><option>company</option><option>studio</option></select></label><label>Status<select value={selected.status||"active"} onChange={e=>setSelected((p:any)=>({...p,status:e.target.value}))}><option>active</option><option>dissolved</option><option>discontinued</option></select></label><label>Email<input value={selected.email||""} onChange={e=>setSelected((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={selected.phone||""} onChange={e=>setSelected((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={selected.pan||""} onChange={e=>setSelected((p:any)=>({...p,pan:e.target.value}))}/></label><label>GSTIN<input value={selected.gstin||""} onChange={e=>setSelected((p:any)=>({...p,gstin:e.target.value}))}/></label><label>Bank<input value={selected.bank_name||""} onChange={e=>setSelected((p:any)=>({...p,bank_name:e.target.value}))}/></label><label>Account number<input value={selected.account_number||""} onChange={e=>setSelected((p:any)=>({...p,account_number:e.target.value}))}/></label><label>Branch<input value={selected.branch_name||""} onChange={e=>setSelected((p:any)=>({...p,branch_name:e.target.value}))}/></label><label>IFSC<input value={selected.ifsc_code||""} onChange={e=>setSelected((p:any)=>({...p,ifsc_code:e.target.value}))}/></label></div><div className="form-grid"><label>Invoice prefix<input value={selected.invoice_prefix||""} onChange={e=>setSelected((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label><label>Next invoice number<input type="number" value={selected.next_invoice_number||1} onChange={e=>setSelected((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label><label>Invoice template<select value={selected.invoice_template_key||"legacy_elle"} onChange={e=>setSelected((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Legacy template</option><option value="clean">Workspace Clean</option></select></label></div><label>Address lines<textarea value={Array.isArray(selected.address_lines)?selected.address_lines.join("\n"):""} onChange={e=>setSelected((p:any)=>({...p,address_lines:e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean)}))}/></label><div className="form-grid"><label>Invoice footer line 1<input value={selected.invoice_footer_line_1||""} onChange={e=>setSelected((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label><label>Invoice footer line 2<input value={selected.invoice_footer_line_2||""} onChange={e=>setSelected((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label></div><button className="primary" onClick={save} disabled={saving}>{saving?"Saving…":"Save organisation"}</button></div>}</div>}{message&&<div className="auth-success">{message}</div>}</div>;
 }
 
 function Overview({stats,invoices,organization,onOpen}:{stats:any;invoices:Invoice[];organization:any;onOpen:(i:Invoice)=>void}) {
@@ -323,20 +348,15 @@ function Overview({stats,invoices,organization,onOpen}:{stats:any;invoices:Invoi
   const clientMap=new Map<string,{billed:number;open:number;count:number}>();
   invoices.forEach(i=>{const g=clientMap.get(i.client)||{billed:0,open:0,count:0};g.billed+=invoiceTotal(i);g.open+=invoiceBalance(i);g.count++;clientMap.set(i.client,g)});
   const collection=stats.billed?Math.round(stats.collected/stats.billed*100):0;
-  const actionItems=[
-    ...overdue.slice(0,3).map(i=>({kind:"Overdue",tone:"danger",label:"#"+i.number+" · "+i.client,detail:(daysOverdue(i)+" days overdue"),value:money(invoiceBalance(i)),invoice:i})),
+  const actions=[
+    ...overdue.slice(0,3).map(i=>({kind:"Overdue",tone:"danger",label:"#"+i.number+" · "+i.client,detail:daysOverdue(i)+" days overdue",value:money(invoiceBalance(i)),invoice:i})),
     ...dueSoon.filter(i=>!overdue.includes(i)).slice(0,3).map(i=>({kind:"Due soon",tone:"warning",label:"#"+i.number+" · "+i.client,detail:"Due "+i.dueDate,value:money(invoiceBalance(i)),invoice:i})),
-    ...unpriced.slice(0,3).map(i=>({kind:"Needs pricing",tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i})),
+    ...unpriced.slice(0,3).map(i=>({kind:"Needs pricing",tone:"neutral",label:"#"+i.number+" · "+i.client,detail:i.contents.filter(c=>!c.priced).length+" unpriced item(s)",value:money(invoiceTotal(i)),invoice:i}))
   ].slice(0,6);
   return <div className="overview">
-    <section className="command-hero">
-      <div className="command-hero-copy"><div className="eyebrow">CURRENT POSITION</div><h2>{money(stats.outstanding)}</h2><p>Open receivables for {organization?.name||"this organisation"}.</p><div className="hero-actions"><button className="primary" onClick={()=>overdue[0]&&onOpen(overdue[0])}><CircleAlert size={15}/>Review receivables</button><span className="hero-meta"><Check size={14}/> {collection}% collected</span></div></div>
-      <div className="hero-metrics"><div><span>Overdue</span><b>{money(overdue.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div><div><span>Due next 14 days</span><b>{money(dueSoon.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{dueSoon.length} invoice{dueSoon.length===1?"":"s"}</small></div><div><span>Unpriced work</span><b>{unpriced.length}</b><small>Needs a rate before billing</small></div></div>
-    </section>
-    <section className="overview-command-grid">
-      <section className="data-panel action-panel"><div className="data-panel-head"><div><h2>Action queue</h2><p>Only work that needs a decision, follow-up or pricing.</p></div><ArrowUpRight size={17}/></div>{actionItems.length?<div className="action-list">{actionItems.map((a,i)=><button key={a.kind+"-"+a.invoice.id} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.kind==="Overdue"?<CircleAlert size={15}/>:a.kind==="Due soon"?<WalletCards size={15}/>:<IndianRupee size={15}/>}</span><div><b>{a.label}</b><small>{a.kind} · {a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={15}/></button>)}</div>:<div className="empty-state success-empty"><Check size={17}/><div><b>Nothing needs attention</b><span>Receivables are clear and all visible work is priced.</span></div></div>}</section>
-      <section className="data-panel"><div className="data-panel-head"><div><h2>Receivables by client</h2><p>Where the open balance is concentrated.</p></div><Building2 size={17}/></div><div className="receivable-list">{[...clientMap.entries()].filter(([,g])=>g.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6).map(([name,g])=><div className="receivable-row" key={name}><div><b>{name}</b><span>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</span></div><strong>{money(g.open)}</strong></div>)}{!open.length&&<div className="empty-state">No open receivables.</div>}</div></section>
-    </section>
+    <section className="command-hero"><div className="command-hero-copy"><div className="eyebrow">CURRENT POSITION</div><h2>{money(stats.outstanding)}</h2><p>Open receivables for {organization?.name||"this organisation"}.</p><div className="hero-actions"><button className="primary" onClick={()=>overdue[0]&&onOpen(overdue[0])}><CircleAlert size={15}/>Review receivables</button><span className="hero-meta"><Check size={14}/> {collection}% collected</span></div></div><div className="hero-metrics"><div><span>Overdue</span><b>{money(overdue.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{overdue.length} invoice{overdue.length===1?"":"s"}</small></div><div><span>Due next 14 days</span><b>{money(dueSoon.reduce((s,i)=>s+invoiceBalance(i),0))}</b><small>{dueSoon.length} invoice{dueSoon.length===1?"":"s"}</small></div><div><span>Unpriced work</span><b>{unpriced.length}</b><small>Needs a rate before billing</small></div></div></section>
+    <section className="overview-command-grid"><section className="data-panel action-panel"><div className="data-panel-head"><div><h2>Action queue</h2><p>Only work requiring a decision or follow-up.</p></div><ArrowUpRight size={17}/></div>{actions.length?<div className="action-list">{actions.map(a=><button key={a.kind+"-"+a.invoice.id} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.kind==="Overdue"?<CircleAlert size={15}/>:a.kind==="Due soon"?<WalletCards size={15}/>:<IndianRupee size={15}/>}</span><div><b>{a.label}</b><small>{a.kind} · {a.detail}</small></div><strong>{a.value}</strong><ChevronRight size={15}/></button>)}</div>:<div className="empty-state success-empty"><Check size={17}/><div><b>Nothing needs attention</b><span>Receivables are clear and all visible work is priced.</span></div></div>}</section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Receivables by client</h2><p>Where the open balance is concentrated.</p></div><Building2 size={17}/></div><div className="receivable-list">{[...clientMap.entries()].filter(([,g])=>g.open>0).sort((a,b)=>b[1].open-a[1].open).slice(0,6).map(([name,g])=><div className="receivable-row" key={name}><div><b>{name}</b><span>{g.count} invoice{g.count===1?"":"s"} · {money(g.billed)} billed</span></div><strong>{money(g.open)}</strong></div>)}{!open.length&&<div className="empty-state">No open receivables.</div>}</div></section></section>
     <section className="data-panel recent-panel"><div className="data-panel-head"><div><h2>Recent activity</h2><p>Latest invoices in this organisation.</p></div><Receipt size={17}/></div><div className="recent-list">{recent.map(i=><button key={i.id} className="recent-row" onClick={()=>onOpen(i)}><div><span className="recent-number">#{i.number}</span><b>{i.client}</b><small>{i.project} · {i.date}</small></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div></button>)}</div></section>
   </div>;
 }
@@ -357,19 +377,19 @@ function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment
   </div>;
 }
 
-function ClientsView({invoices,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
+function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
   const [clients,setClients]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
   useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[]);
-  async function load(){setLoading(true);const {data}=await supabase.from("clients").select("*").is("archived_at",null).order("name");setClients(data||[]);setLoading(false);}
+  async function load(){setLoading(true);const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId).order("name");setClients(data||[]);setLoading(false);}
   if(selectedClientId)return <ClientPortal clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load}/>;
   return <div className="data-panel"><div className="data-panel-head"><div><h2>Clients</h2><p>Each client is a workspace: billing identity, invoices, projects, statements and portal controls.</p></div></div>
     {loading?<div className="empty-state">Loading clients…</div>:<div className="client-directory">{clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0);const paid=rows.reduce((s,i)=>s+paidTotal(i),0);return <button className="client-directory-row" key={c.id} onClick={()=>setSelectedClientId(c.id)}><div className="client-avatar">{c.logo_path?<img src={c.logo_path} alt="" />:String(c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{c.name}</b><span>{c.legal_name||"Billing profile not completed"}</span></div><div className="client-meta"><b>{rows.length}</b><span>invoices</span></div><div className="client-meta"><b>{money(billed)}</b><span>billed</span></div><div className="client-meta"><b>{money(Math.max(billed-paid,0))}</b><span>outstanding</span></div><ChevronRight size={15}/></button>})}</div>}
-    {!loading&&!clients.length&&<div className="empty-state">No clients yet. Create the first client.</div>}{creating&&<ClientCreateModal onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}</div>;
+    {!loading&&!clients.length&&<div className="empty-state">No clients yet. Create the first client.</div>}{creating&&<ClientCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);load()}}/>}</div>;
 }
 
-function ClientCreateModal({onClose,onSaved}:{onClose:()=>void;onSaved:()=>void}) {
+function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {
   const [form,setForm]=useState({name:"",legal_name:"",email:"",phone:"",pan:"",gstin:"",address:""});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
-  async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug});setSaving(false);if(error)setMessage(error.message);else onSaved();}
+  async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
   return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">NEW CLIENT</div><h2>Create client</h2><p>Set the billing identity once; invoices inherit it.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={e=>((e.currentTarget.parentElement?.previousElementSibling?.querySelector("form") as HTMLFormElement|null)?.requestSubmit())} disabled={saving}>{saving?"Creating…":"Create client"}</button></div></div></div>;
 }
 
@@ -408,22 +428,8 @@ function ClientPortal({clientId,invoices,onBack,onOpenInvoice,onSaved}:{clientId
 }
 
 type Period="month"|"quarter"|"half"|"year"|"all";
-function periodLabel(p:Period){
-  if(p==="month")return "This month";
-  if(p==="quarter")return "Last 3 months";
-  if(p==="half")return "Last 6 months";
-  if(p==="year"){const now=new Date();const start=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;return `FY ${start}-${String(start+1).slice(-2)}`;}
-  return "All time";
-}
-function withinPeriod(date:string,p:Period,today=new Date()){
-  if(p==="all")return true;
-  const d=new Date(date+"T00:00:00"); const end=new Date(today.getFullYear(),today.getMonth()+1,0);
-  if(p==="month")return d>=new Date(today.getFullYear(),today.getMonth(),1)&&d<=end;
-  if(p==="quarter"){const start=new Date(today.getFullYear(),today.getMonth()-2,1);return d>=start&&d<=end;}
-  if(p==="half"){const start=new Date(today.getFullYear(),today.getMonth()-5,1);return d>=start&&d<=end;}
-  const fyStart=new Date(today.getMonth()>=3?today.getFullYear():today.getFullYear()-1,3,1);
-  return d>=fyStart&&d<=new Date(fyStart.getFullYear()+1,2,31);
-}
+function periodLabel(p:Period){if(p==="month")return "This month";if(p==="quarter")return "Last 3 months";if(p==="half")return "Last 6 months";if(p==="year"){const n=new Date();const y=n.getMonth()>=3?n.getFullYear():n.getFullYear()-1;return `FY ${y}-${String(y+1).slice(-2)}`;}return "All time";}
+function withinPeriod(date:string,p:Period,today=new Date()){if(p==="all")return true;const d=new Date(date+"T00:00:00"),end=new Date(today.getFullYear(),today.getMonth()+1,0);if(p==="month")return d>=new Date(today.getFullYear(),today.getMonth(),1)&&d<=end;if(p==="quarter"){const start=new Date(today.getFullYear(),today.getMonth()-2,1);return d>=start&&d<=end;}if(p==="half"){const start=new Date(today.getFullYear(),today.getMonth()-5,1);return d>=start&&d<=end;}const fy=new Date(today.getMonth()>=3?today.getFullYear():today.getFullYear()-1,3,1);return d>=fy&&d<=new Date(fy.getFullYear()+1,2,31);}
 function ReportsView({invoices}:{invoices:Invoice[]}) {
   const [period,setPeriod]=useState<Period>("year"); const [client,setClient]=useState("all"); const [org,setOrg]=useState("all"); const [projects,setProjects]=useState<any[]>([]); const [organizations,setOrganizations]=useState<any[]>([]);
   useEffect(()=>{Promise.all([supabase.from("projects").select("id,name,actual_cost,organization_id,organizations(name)"),supabase.from("organizations").select("id,name").order("name")]).then(([p,o])=>{setProjects(p.data||[]);setOrganizations(o.data||[])})},[]);
@@ -442,10 +448,10 @@ function ReportsView({invoices}:{invoices:Invoice[]}) {
     <section className="data-panel"><div className="data-panel-head"><div><h2>Invoice register</h2><p>Issued records inside the selected period.</p></div></div><div className="simple-list">{[...scoped].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(i=><div className="simple-row" key={i.id}><b>#{i.number}</b><span>{i.date}</span><span>{i.client}</span><strong>{money(invoiceTotal(i))}</strong><em>{statusLabel(i.status)}</em></div>)}</div></section></div>
   </div>;
 }
-function ProjectsView({invoices,onOpen}:{invoices:Invoice[];onOpen:(i:Invoice)=>void}) {
+function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
   const [projects,setProjects]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [creating,setCreating]=useState(false);
   useEffect(()=>{load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[]);
-  async function load(){setLoading(true);const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").order("name");setProjects(data||[]);setLoading(false);}
+  async function load(){setLoading(true);const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").eq("organization_id",organizationId).order("name");setProjects(data||[]);setLoading(false);}
   const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const row=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};row.invoices.push(i);row.billed+=invoiceTotal(i);row.paid+=paidTotal(i);fallback.set(key,row)});
   const derived=Array.from(fallback.values()).filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));
   return <div className="data-panel"><div className="data-panel-head"><div><h2>Projects</h2><p>{projects.length+derived.length} project records · billing and production cost.</p></div></div>
@@ -524,22 +530,22 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
   </aside></div>;
 }
 
-function InvoiceComposer({initialNumber,onClose,onCreate}:{initialNumber:string;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {
+function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {
   const [number,setNumber] = useState(initialNumber);
   const [client,setClient] = useState("ELLE");
   const [project,setProject] = useState("Video Editing");
   const [date,setDate] = useState(new Date().toISOString().slice(0,10));
   const [dueDate,setDueDate] = useState(new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10));
   const [contents,setContents] = useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
-  const [organizations,setOrganizations]=useState<any[]>([]);const [organizationId,setOrganizationId]=useState<string>("");
-  useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").eq("status","active").order("name").then(({data})=>{setOrganizations(data||[]);if(data?.[0])setOrganizationId(data[0].id)})},[]);
+  const [organizations,setOrganizations]=useState<any[]>([]);const [organizationId,setOrganizationId]=useState<string>(initialOrganizationId||"");
+  useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").eq("status","active").order("name").then(({data})=>{setOrganizations(data||[]);if(initialOrganizationId)setOrganizationId(initialOrganizationId);else if(data?.[0])setOrganizationId(data[0].id)})},[initialOrganizationId]);
   useEffect(()=>{const o=organizations.find(x=>x.id===organizationId);if(o)setNumber(String(o.invoice_prefix||"")+String(o.next_invoice_number||1))},[organizationId,organizations]);
   const total = contents.reduce((s,c) => s + contentAmount(c), 0);
   const patch = (id:string,p:Partial<Content>) => setContents(v => v.map(c => c.id === id ? {...c,...p} : c));
   const add = () => setContents(v => [...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">NEW INVOICE</div><h2>Create invoice</h2><p>Build it from the actual contents.</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="e.g. 196"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Billing organisation<select value={organizationId} onChange={e=>setOrganizationId(e.target.value)}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
+    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="Automatic"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Billing organisation<select value={organizationId} onChange={e=>setOrganizationId(e.target.value)}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Billable, adjustment and unpriced content can coexist.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
         {contents.map((c,idx) => <div className="composer-row" key={c.id}><span>{idx + 1}</span><input value={c.title} onChange={e => patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input type="number" value={c.quantity ?? ""} onChange={e => patch(c.id,{quantity:Number(e.target.value) || 1})} placeholder="Qty"/><input type="number" value={c.rate ?? ""} onChange={e => patch(c.id,{rate:e.target.value ? Number(e.target.value) : null,priced:!!e.target.value})} placeholder="Rate"/><b>{c.priced && c.rate ? money(contentAmount(c)) : "TBD"}</b></div>)}
       </div><div className="total-box"><span>Invoice total</span><strong>{money(total)}</strong></div>

@@ -321,7 +321,7 @@ function SettingsView({email,activeOrganizationId,onSignOut}:{email:string;activ
   </div>;
 }
 function AccountIdentitySettings(){
-  const [profile,setProfile]=useState<any>({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");const [open,setOpen]=useState(true);
+  const [profile,setProfile]=useState<any>({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");const [open,setOpen]=useState(false);
   useEffect(()=>{supabase.from("account_profile").select("*").eq("id",true).maybeSingle().then(({data,error})=>{if(data)setProfile(data);if(error)setMessage(error.message);setLoading(false)})},[]);
   async function save(){setSaving(true);const {error}=await supabase.from("account_profile").upsert({...profile,id:true,updated_at:new Date().toISOString()});setSaving(false);setMessage(error?error.message:"Account master data saved.");}
   async function upload(file:File){if(file.size>2*1024*1024)return setMessage("Logo must be under 2 MB.");const path="account/"+Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const {error}=await supabase.storage.from("finos-assets").upload(path,file,{upsert:true,contentType:file.type});if(error)return setMessage(error.message);const {data}=supabase.storage.from("finos-assets").getPublicUrl(path);setProfile((p:any)=>({...p,logo_path:data.publicUrl}));setMessage("Account logo uploaded.");}

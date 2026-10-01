@@ -16,7 +16,7 @@ const navigation:Array<[FinanceView,typeof LayoutDashboard,string,string]>=[
   ["projects",FolderKanban,"Projects","/projects"],["reports",BarChart3,"Reports","/reports"],["settings",Settings2,"Settings","/settings"]
 ];
 
-export function FinanceShell({activeView,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,mobileMoreOpen,setMobileMoreOpen,children,overlays}:{
+export function FinanceShell({activeView,onNavigate,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,mobileMoreOpen,setMobileMoreOpen,children,overlays}:{
  activeView:FinanceView;activeOrganization:WorkspaceOrganization|null;invoiceCount:number;session:WorkspaceSession;query:string;setQuery:(v:string)=>void;actionError:string;clearError:()=>void;onRefresh:()=>void;onSelectWorkspace:(id:string)=>void;organizations:WorkspaceOrganization[];onSignOut:()=>void;onNewInvoice:()=>void;onNewClient:()=>void;onNewProject:()=>void;mobileMoreOpen:boolean;setMobileMoreOpen:(v:boolean)=>void;children:ReactNode;overlays?:ReactNode
 }){
  const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false); const [workspaceFilter,setWorkspaceFilter]=useState("");

@@ -409,6 +409,12 @@ function Overview({stats,invoices,organization,onOpen}:{stats:any;invoices:Invoi
     <section className="data-panel recent-panel"><div className="data-panel-head"><div><h2>Recent invoices</h2><p>Latest financial activity for {organization?.name||"this organisation"}.</p></div><Receipt size={17}/></div>
       <div className="recent-list">{recent.map(i=><button key={i.id} className="recent-row" onClick={()=>onOpen(i)}><div><span className="recent-number">#{i.number}</span><b>{i.client}</b><small>{i.project} · {dateLabel(i.date)}</small></div><div><strong>{money(invoiceTotal(i))}</strong><small>{statusLabel(i.status)}</small></div><ChevronRight size={15}/></button>)}</div>
     </section>
+    <section className="workspace-launcher">
+      <button className="workspace-tile tile-invoice" onClick={()=>window.dispatchEvent(new Event("finance:go-invoices"))}><span className="workspace-tile-icon"><FileText size={18}/></span><span><b>Invoices</b><small>Issue, review and collect</small></span><ChevronRight size={16}/></button>
+      <button className="workspace-tile tile-payment" onClick={()=>window.dispatchEvent(new Event("finance:go-payments"))}><span className="workspace-tile-icon"><WalletCards size={18}/></span><span><b>Payments</b><small>Track recorded cash</small></span><ChevronRight size={16}/></button>
+      <button className="workspace-tile tile-client" onClick={()=>window.dispatchEvent(new Event("finance:go-clients"))}><span className="workspace-tile-icon"><Users size={18}/></span><span><b>Clients</b><small>Open a client workspace</small></span><ChevronRight size={16}/></button>
+      <button className="workspace-tile tile-report" onClick={()=>window.dispatchEvent(new Event("finance:go-reports"))}><span className="workspace-tile-icon"><BarChart3 size={18}/></span><span><b>Reports</b><small>Read the business</small></span><ChevronRight size={16}/></button>
+    </section>
     <section className="position-footnote"><div><WalletCards size={16}/><span><b>Unpriced work</b><small>{unpriced.length} invoice{unpriced.length===1?"":"s"} contain content without a rate.</small></span></div><div><FileText size={16}/><span><b>Accounting boundary</b><small>Everything shown here is scoped to the selected organisation.</small></span></div></section>
   </div>;
 }
@@ -574,6 +580,10 @@ function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoice:Invo
   return <div className="overlay" onMouseDown={onClose}><aside className="drawer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
     <div className="drawer-body">
+      <section className="invoice-hero">
+        <div className="invoice-hero-brand"><span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span><div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"minimical finance"}</b><small>Branded invoice workspace</small></div></div>
+        <div className="invoice-hero-amount"><span>Invoice total</span><strong>{money(invoiceTotal(draft))}</strong><small>{draft.status==="paid"?"Fully settled":draft.status==="partially_paid"?"Partially collected":"Balance "+money(Math.max(invoiceTotal(draft)-paidTotal(draft),0))}</small></div>
+      </section>
       <div className="drawer-summary"><div><span>Total</span><strong>{money(invoiceTotal(draft))}</strong></div><div><span>Collected</span><strong>{money(paidTotal(draft))}</strong></div><div><span>Status</span><select className="status-select" value={draft.status} onChange={async e=>{const next=e.target.value as Status; setDraft(d=>({...d,status:next})); await onStatus({...draft,status:next},next)}}><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="void">Void</option></select></div></div>
       <div className="invoice-meta-grid">
         <label>Issue date<input type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))}/></label>

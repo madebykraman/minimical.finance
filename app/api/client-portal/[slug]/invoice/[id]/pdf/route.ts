@@ -17,7 +17,7 @@ const formatDate=(v:string)=>{const d=new Date(v+"T00:00:00");const day=d.getDat
 const wrap=(t:string,font:any,max:number)=>{const out:string[]=[];let cur="";for(const w of safe(t).split(/\s+/).filter(Boolean)){const c=cur?cur+" "+w:w;if(!cur||font.widthOfTextAtSize(c,FONT_SIZE)<=max)cur=c;else{out.push(cur);cur=w}}if(cur)out.push(cur);return out};
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;id:string}>}){
-  const {slug,id}=await context.params;const session=request.cookies.get("finos_portal_session")?.value||"";if(!session)return new NextResponse("Unauthorized",{status:401});
+  const {slug,id}=await context.params;const session=request.cookies.get("portal_session")?.value||"";if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=await createClient();const [{data,error},{data:orgRaw}]=await Promise.all([
     supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),
     supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})

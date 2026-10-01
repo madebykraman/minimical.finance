@@ -143,7 +143,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   return (
     <main
       className="shell"
-      style={{ "--org-accent": activeOrganization?.accent_hex || "#171716" } as React.CSSProperties}
+      style={{ "--org-accent": activeOrganization?.accent_hex || "#171716" } as any}
     >
       <aside className="sidebar">
         <div className="brand-lockup">

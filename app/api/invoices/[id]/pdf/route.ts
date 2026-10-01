@@ -118,6 +118,16 @@ function wrap(text: string, font: any, maxWidth: number, size = FONT_SIZE) {
   return lines;
 }
 
+function fitItem(text: string, font: any, maxWidth: number) {
+  for (let size = FONT_SIZE; size >= 6; size -= 0.5) {
+    const lines = wrap(text, font, maxWidth, size);
+    if (lines.length <= 4) {
+      return { lines, size, leading: Math.max(8, size + 2) };
+    }
+  }
+  return { lines: wrap(text, font, maxWidth, 6), size: 6, leading: 8 };
+}
+
 async function embedLogo(pdf:any,url:string|null|undefined){
   if(!url) return null;
   try{
@@ -284,10 +294,10 @@ export async function GET(
       ? money(Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)))
       : unknownMoney();
     const slot = count === 1 ? (bodyTop + bodyBottom) / 2 : bodyTop - index * step;
-    const lines = wrap(title, regular, 245, FONT_SIZE).slice(0, 3);
-    const first = slot + ((lines.length - 1) * LEADING) / 2;
-    lines.forEach((lineText, lineIndex) =>
-      center(page, lineText, X.descriptionCenter, first - lineIndex * LEADING, regular),
+    const fitted = fitItem(title, regular, 245);
+    const first = slot + ((fitted.lines.length - 1) * fitted.leading) / 2;
+    fitted.lines.forEach((lineText, lineIndex) =>
+      center(page, lineText, X.descriptionCenter, first - lineIndex * fitted.leading, regular, fitted.size),
     );
     center(page, amount, X.amountCenter, slot, mono);
   });

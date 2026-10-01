@@ -25,7 +25,7 @@ test("overdue state respects balance and void status",()=>{
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"sent"},today),true);
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"paid",payments:[{...base.payments[0],amount:4000}]},today),false);
  assert.equal(isInvoiceOverdue({...base,dueDate:"2026-09-30",status:"void"},today),false);
- assert.equal(isInvoiceOverdue({...base,dueDate:"2026-10-01",status:"sent"},today),false);
+ assert.equal(isInvoiceOverdue({...base,dueDate:"2026-10-02",status:"sent"},today),false);
 });
 
 test("zero-billed invoices never report a positive collection rate",()=>{

@@ -44,5 +44,5 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
   y=58;text(safe(org.invoice_footer_line_1||"Please retain this receipt for your records."),x,y,regular,8);y-=13;text(safe(org.invoice_footer_line_2||"Thank you."),x,y,regular,8);
   const bytes=await pdf.save();
   const number=safe(invoice.invoice_number||invoice.number||"payment");
-  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition:`attachment; filename="Receipt_${number}-${id.slice(0,8)}.pdf"`,"Cache-Control":"private, no-store"}});
+  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="Receipt-${number}-${id.slice(0,8)}.pdf"`,"Cache-Control":"private, no-store"}});
 }

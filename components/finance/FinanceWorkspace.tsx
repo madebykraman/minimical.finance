@@ -19,7 +19,6 @@ import type { FinanceView } from "@/lib/finance/types";
 import { FinanceShell } from "./FinanceShell";
 import {
   AuthScreen,
-  OrganizationWelcome,
   Overview,
   InvoiceView,
   PaymentsView,

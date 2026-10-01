@@ -469,20 +469,18 @@ export function InvoiceDrawer({invoice,onClose,onStatus,onSave,onPayment}:{invoi
 
 export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {
   const [number,setNumber] = useState(initialNumber);
-  const [client,setClient] = useState("ELLE");
-  const [project,setProject] = useState("Video Editing");
+  const [client,setClient] = useState("");
+  const [project,setProject] = useState("");
   const [date,setDate] = useState(new Date().toISOString().slice(0,10));
   const [dueDate,setDueDate] = useState(new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10));
   const [contents,setContents] = useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
-  const [organizations,setOrganizations]=useState<any[]>([]);const [organizationId,setOrganizationId]=useState<string>(initialOrganizationId||"");
-  useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").eq("status","active").order("name").then(({data})=>{setOrganizations(data||[]);if(initialOrganizationId)setOrganizationId(initialOrganizationId);else if(data?.[0])setOrganizationId(data[0].id)})},[initialOrganizationId]);
-  useEffect(()=>{const o=organizations.find(x=>x.id===organizationId);if(o)setNumber(String(o.invoice_prefix||"")+String(o.next_invoice_number||1))},[organizationId,organizations]);
+  const organizationId=initialOrganizationId||"";
   const total = contents.reduce((s,c) => s + contentAmount(c), 0);
   const patch = (id:string,p:Partial<Content>) => setContents(v => v.map(c => c.id === id ? {...c,...p} : c));
   const add = () => setContents(v => [...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e => e.stopPropagation()}>
     <div className="drawer-head"><div><h2>Create invoice</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="Automatic"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Billing organisation<select value={organizationId} onChange={e=>setOrganizationId(e.target.value)}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
+    <div className="composer-body"><div className="form-grid"><label>Invoice number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="Automatic"/></label><label>Client<input value={client} onChange={e => setClient(e.target.value)}/></label><label>Project<input value={project} onChange={e => setProject(e.target.value)}/></label><label>Billing organisation<input value={organizationId||"No organisation selected"} readOnly aria-readonly="true"/></label><label>Issue date<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>Due date<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}/></label></div>
       <div className="block"><div className="block-head"><div><h3>Contents</h3><p>Billable, adjustment and unpriced content can coexist.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
         {contents.map((c,idx) => <div className="composer-row" key={c.id}><span>{idx + 1}</span><input value={c.title} onChange={e => patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input type="number" value={c.quantity ?? ""} onChange={e => patch(c.id,{quantity:Number(e.target.value) || 1})} placeholder="Qty"/><input type="number" value={c.rate ?? ""} onChange={e => patch(c.id,{rate:e.target.value ? Number(e.target.value) : null,priced:!!e.target.value})} placeholder="Rate"/><b>{c.priced && c.rate ? money(contentAmount(c)) : "TBD"}</b></div>)}
       </div><div className="total-box"><span>Invoice total</span><strong>{money(total)}</strong></div>

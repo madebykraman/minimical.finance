@@ -170,6 +170,21 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     void loadInvoices(organizationId);
   }, [session?.user?.id, workspaceReady, organizationId]);
 
+  useEffect(() => {
+    const refreshOrganizations = () => {
+      void supabase.from("organizations").select("*").order("status").order("name").then(({data}) => {
+        const rows = (data || []) as OrganizationRecord[];
+        setOrganizations(rows);
+        if (organizationId && !rows.some(o => o.id === organizationId && !["dissolved","discontinued"].includes(String(o.status)))) {
+          const fallback = rows.find(o => !["dissolved","discontinued"].includes(String(o.status)));
+          if (fallback) selectOrganization(fallback.id);
+        }
+      });
+    };
+    window.addEventListener("finance:organization-updated", refreshOrganizations);
+    return () => window.removeEventListener("finance:organization-updated", refreshOrganizations);
+  }, [organizationId, workspaceStorageKey]);
+
   async function loadInvoices(activeOrganizationId = organizationId) {
     setLoading(true);
     const result = await listInvoices(activeOrganizationId);

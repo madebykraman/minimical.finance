@@ -120,7 +120,7 @@ export function FinanceShell({
               : <span className="brand-glyph">m</span>}
           </div>
           <div className="brand-copy">
-            <strong>MINIMICAL FINANCE</strong>
+            <strong>{activeOrganization?.name || "Organisations"}</strong>
           </div>
         </div>
 

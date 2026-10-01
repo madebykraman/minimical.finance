@@ -408,22 +408,6 @@ input::placeholder,textarea::placeholder{color:#59626e}
 .invoice-hero-amount span{display:block;color:#66717f;font-size:6px}
 .invoice-hero-amount strong{display:block;margin-top:3px;color:#8f9cff;font:700 22px var(--font-data)}
 .invoice-hero-amount small{color:#4ad0a0;font-size:6px}
-.invoice-document-preview{padding:18px;border:1px solid #2d3440;border-radius:12px;background:#f5f6f8;color:#151922;box-shadow:0 18px 40px rgba(0,0,0,.25)}
-.invoice-document-top,.invoice-document-meta,.invoice-document-total{display:flex;justify-content:space-between;gap:12px}
-.invoice-document-top{align-items:center;padding-bottom:12px;border-bottom:1px solid #e7e9ee}
-.invoice-document-top>div{display:flex;align-items:center;gap:7px}
-.invoice-document-top b{font-size:8px}
-.invoice-document-top>strong{color:#674bc5;font:700 10px var(--font-data);letter-spacing:.1em}
-.invoice-document-mark{width:23px;height:23px;border-radius:5px;font-size:7px}
-.invoice-document-meta{padding:12px 0;border-bottom:1px solid #e7e9ee}
-.invoice-document-meta>div{display:flex;flex-direction:column;gap:3px}
-.invoice-document-meta>div:not(:first-child){align-items:flex-end;text-align:right}
-.invoice-document-meta span{color:#8b94a2;font:700 5px var(--font-data);text-transform:uppercase;letter-spacing:.08em}
-.invoice-document-meta b{font-size:8px}
-.invoice-document-meta small{color:#8b94a2;font-size:6px}
-.invoice-document-lines{padding:8px 0}
-.invoice-document-lines>div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #eceef2;font-size:7px}
-.invoice-document-lines span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .invoice-document-lines b{font:650 7px var(--font-data)}
 .invoice-document-lines>small{display:block;padding-top:6px;color:#98a2b3;font-size:6px}
 .invoice-document-total{align-items:center;padding-top:10px}

@@ -1011,3 +1011,109 @@ button:disabled{filter:saturate(.45)}
 @media(pointer:coarse){
   .nav-item,.secondary,.primary,.icon-button,.status,.client-tabs button,.portal-tabs button{min-height:42px}
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Reference-led product surfaces                                             */
+/* -------------------------------------------------------------------------- */
+.workspace-launcher{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin:14px 0 12px;
+}
+.workspace-tile{
+  position:relative;
+  min-height:104px;
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:17px 16px;
+  border:1px solid transparent;
+  border-radius:13px;
+  text-align:left;
+  color:#171716;
+  overflow:hidden;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+.workspace-tile:after{
+  content:"";
+  position:absolute;
+  width:110px;height:110px;
+  right:-48px;bottom:-55px;
+  border-radius:50%;
+  background:rgba(255,255,255,.34);
+}
+.workspace-tile:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(27,25,21,.08)}
+.workspace-tile-icon{
+  width:36px;height:36px;display:grid;place-items:center;
+  flex:0 0 36px;border-radius:10px;background:rgba(255,255,255,.72);
+  position:relative;z-index:1;
+}
+.workspace-tile>span:nth-child(2){display:flex;flex-direction:column;gap:5px;position:relative;z-index:1}
+.workspace-tile b{font-size:12px;font-weight:700;letter-spacing:-.015em}
+.workspace-tile small{font-size:9px;color:rgba(22,22,20,.62);line-height:1.35}
+.workspace-tile>svg{margin-left:auto;position:relative;z-index:1;color:rgba(22,22,20,.52)}
+.tile-invoice{background:#e4efff;border-color:#d4e5fb}
+.tile-invoice .workspace-tile-icon{color:#2769d8}
+.tile-payment{background:#fff4b9;border-color:#f1e6a1}
+.tile-payment .workspace-tile-icon{color:#8c6a00}
+.tile-client{background:#ebe9ff;border-color:#ddd9fa}
+.tile-client .workspace-tile-icon{color:#6659d1}
+.tile-report{background:#e9f5ee;border-color:#d7ebdf}
+.tile-report .workspace-tile-icon{color:#27815f}
+
+.invoice-hero{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding:20px;
+  margin-bottom:12px;
+  border:1px solid color-mix(in srgb,var(--brand-accent) 12%,var(--hairline-soft));
+  border-radius:14px;
+  overflow:hidden;
+  background:
+    radial-gradient(300px 150px at 100% 0,color-mix(in srgb,var(--brand-accent) 12%,transparent),transparent 70%),
+    linear-gradient(135deg,#fff 0%,color-mix(in srgb,var(--brand-accent) 4%,white) 100%);
+}
+.invoice-hero:after{
+  content:"";
+  position:absolute;right:-45px;bottom:-70px;width:180px;height:180px;border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--brand-accent) 10%,transparent);
+  box-shadow:0 0 0 20px color-mix(in srgb,var(--brand-accent) 2%,transparent);
+}
+.invoice-hero-brand,.invoice-hero-amount{position:relative;z-index:1}
+.invoice-hero-brand{display:flex;align-items:center;gap:11px}
+.invoice-hero-brand>div{display:flex;flex-direction:column;gap:3px}
+.invoice-hero-brand b{font-size:12px;font-weight:700}
+.invoice-hero-brand small,.invoice-hero-amount span,.invoice-hero-amount small{font-size:8px;color:var(--text-3)}
+.invoice-hero-mark{
+  width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+  background:var(--brand-accent);color:#fff;font-size:16px;font-weight:750;
+  box-shadow:0 8px 18px color-mix(in srgb,var(--brand-accent) 18%,transparent);
+}
+.invoice-hero-amount{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.invoice-hero-amount strong{font:700 23px var(--font-geist-mono),monospace;letter-spacing:-.055em;color:var(--brand-accent)}
+.invoice-hero-amount small{color:var(--text-2);font-weight:550}
+
+@media(max-width:900px){
+  .workspace-launcher{grid-template-columns:1fr 1fr}
+}
+@media(max-width:720px){
+  .workspace-launcher{grid-template-columns:1fr 1fr;gap:7px}
+  .workspace-tile{min-height:91px;padding:13px 12px;gap:9px}
+  .workspace-tile-icon{width:31px;height:31px;flex-basis:31px;border-radius:9px}
+  .workspace-tile b{font-size:10px}
+  .workspace-tile small{font-size:8px}
+  .workspace-tile>svg{width:14px;height:14px}
+  .invoice-hero{padding:15px;gap:12px}
+  .invoice-hero-mark{width:34px;height:34px;font-size:14px}
+  .invoice-hero-amount strong{font-size:18px}
+}
+@media(max-width:390px){
+  .workspace-launcher{grid-template-columns:1fr}
+  .workspace-tile{min-height:72px;align-items:center}
+  .invoice-hero{flex-direction:column}
+  .invoice-hero-amount{align-items:flex-start;text-align:left}
+}

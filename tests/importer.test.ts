@@ -57,3 +57,15 @@ test("invoice number normalisation strips tracker prefixes",()=>{
   assert.equal(normalizeInvoiceNumber("Invoice #43"),"43");
   assert.equal(normalizeInvoiceNumber("N/A"),"");
 });
+
+test("Elle-style tracker headers map to document semantics",()=>{
+  const mapping=inferImportMapping(["Name / Project","Amount","Payment","Date","Invoice No.","Total","Notes","Status"]);
+  assert.equal(mapping.lineItem,"Name / Project");
+  assert.equal(mapping.amount,"Amount");
+  assert.equal(mapping.paymentAmount,"Payment");
+  assert.equal(mapping.issueDate,"Date");
+  assert.equal(mapping.invoiceNumber,"Invoice No.");
+  assert.equal(mapping.invoiceTotal,"Total");
+  assert.equal(mapping.notes,"Notes");
+  assert.equal(mapping.status,"Status");
+});

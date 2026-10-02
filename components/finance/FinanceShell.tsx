@@ -99,14 +99,14 @@ export function FinanceShell({
       </div>
 
       <div className="rail-workspace workspace-switcher-wrap">
-        <button className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="menu" aria-expanded={workspaceMenuOpen}>
+        <button className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
           <span className="rail-workspace-mark">{mark(activeOrganization)}</span>
           <span className="rail-workspace-copy"><b>{activeOrganization?.name||"Organisation"}</b><small>{isAggregate?"Aggregate view":"Billing identity"}</small></span>
           <ChevronDown size={14}/>
         </button>
-        {workspaceMenuOpen&&<div className="workspace-switcher-menu" role="menu" aria-label="Organisations">
+        {workspaceMenuOpen&&<div className="workspace-switcher-menu" role="dialog" aria-label="Switch organisation">
           <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
-          {filteredOrgs.map(o=><button key={o.id} role="menuitem" className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}>
+          {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}>
             <span className="workspace-option-mark">{mark(o)}</span>
             <span className="workspace-option-copy"><strong>{o.name}</strong><small>{o.id===ALL_ORGANIZATIONS_ID?"Read-only aggregate":"Organisation"}</small></span>
             {activeOrganization?.id===o.id&&<Check size={13}/>}

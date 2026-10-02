@@ -1308,3 +1308,12 @@ button{-webkit-tap-highlight-color:transparent}
   .overview-home-grid .data-panel-head { padding: 12px 13px; }
   .overview-clear-state { min-height: 125px; padding: 18px; }
 }
+
+
+.operations-head-actions { display:flex; align-items:center; gap:8px; }
+.operations-head-actions .primary { min-height:34px; }
+@media(max-width:720px) {
+  .operations-head-actions { gap:6px; }
+  .operations-head-actions .operations-count { display:none; }
+  .operations-head-actions .primary { min-height:34px; padding:0 10px; }
+}

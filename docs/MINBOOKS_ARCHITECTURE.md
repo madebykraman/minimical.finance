@@ -23,6 +23,12 @@ Invoices, receipts and account statements are first-class document types. They s
 
 The approved invoice PDF template is a first-class renderer input. Other document renderers are independent so a receipt or statement never inherits invoice-specific geometry accidentally.
 
+## Financial integrity boundary
+
+Financial invariants are enforced at the database boundary, not only in the browser. Invoice client/project relationships must resolve to the same organisation; project/client relationships must agree; invoice numbers are unique within an organisation; payments cannot exceed the calculated invoice balance; payment and invoice-content changes synchronise invoice status; and payment recording plus its activity entry use a database function.
+
+The browser remains responsible for interaction, validation feedback and workflow orchestration. It is not the authority for financial integrity.
+
 ## Import architecture
 1. Detect CSV/XLS/XLSX workbook and available sheets.
 2. Preview source rows without mutating data.

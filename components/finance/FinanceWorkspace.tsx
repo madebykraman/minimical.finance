@@ -430,7 +430,12 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       )}
       {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} />}
       {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
-      {activeView === "documents" && (\n        <DocumentsView organizationId={activeOrganizationId===ALL_ORGANIZATIONS_ID?null:activeOrganizationId} />\n      )}\n      {activeView === "imports" && (\n        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />\n      )}\n      {activeView === "settings" && (
+      {activeView === "documents" && (
+        <DocumentsView organizationId={activeOrganization?.id === ALL_ORGANIZATIONS_ID ? null : activeOrganization?.id ?? null} />
+      )}
+      {activeView === "imports" && (
+        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />
+      )}\n      {activeView === "settings" && (
         <SettingsView
           email={session.user?.email ?? ""}
           activeOrganizationId={allOrganizations ? null : organizationId}

@@ -73,6 +73,8 @@ export function AuthScreen() {
     setBusy(false);
     if (result.error) {
       setMessage(result.error.message);
+    } else if (result.data.session) {
+      window.location.assign("/admin");
     } else if (mode === "signup" && !result.data.session) {
       setMessage("Account created. Check your email and confirm the address before signing in.");
     }

@@ -19,7 +19,42 @@ function formatDate(value?:string|null){if(!value)return "";const d=new Date(val
 function wrap(textValue:string,font:any,maxWidth:number,size:number){const words=safe(textValue).split(/\s+/).filter(Boolean);const lines:string[]=[];let current="";for(const word of words){const candidate=current?`${current} ${word}`:word;if(!current||font.widthOfTextAtSize(candidate,size)<=maxWidth)current=candidate;else{lines.push(current);current=word;}}if(current)lines.push(current);return lines;}
 function text(page:any,value:string,x:number,y:number,font:any,size=9,color=BLACK){page.drawText(safe(value),{x,y,font,size,color});}
 function right(page:any,value:string,rightX:number,y:number,font:any,size=9,color=BLACK){const v=safe(value);page.drawText(v,{x:rightX-font.widthOfTextAtSize(v,size),y,font,size,color});}
-function icon(page:any,x:number,y:number,type:"document"|"person"|"bank"|"mail"|"phone"){if(type==="mail"){page.drawRectangle({x,y,width:9,height:6,borderWidth:.55,borderColor:MUTED});page.drawLine({start:{x,y:y+6},end:{x:x+4.5,y:y+2.5},thickness:.45,color:MUTED});page.drawLine({start:{x:x+9,y:y+6},end:{x:x+4.5,y:y+2.5},thickness:.45,color:MUTED});return}if(type==="phone"){page.drawCircle({x:x+4.5,y:y+4.5,size:4.5,borderWidth:.55,borderColor:MUTED});page.drawLine({start:{x:x+2.2,y:y+2.1},end:{x:x+6.6,y:y+6.5},thickness:.55,color:MUTED});return}page.drawRectangle({x,y,width:8,height:9,borderWidth:.55,borderColor:MUTED});if(type==="person"){page.drawCircle({x:x+4,y:y+6.3,size:1.7,borderWidth:.45,borderColor:MUTED});page.drawLine({start:{x:x+2,y:y+2},end:{x:x+6,y:y+2},thickness:.5,color:MUTED});}else{page.drawLine({start:{x:x+1.5,y:y+6.5},end:{x:x+6.5,y:y+6.5},thickness:.45,color:MUTED});page.drawLine({start:{x:x+1.5,y:y+4},end:{x:x+6.5,y:y+4},thickness:.45,color:MUTED});}}
+function icon(page:any,x:number,y:number,type:"document"|"person"|"bank"|"mail"|"phone"|"calendar"|"total"){
+  const stroke=.65;
+  if(type==="mail"){
+    page.drawRectangle({x,y:y+1,width:11,height:7,borderWidth:stroke,borderColor:MUTED});
+    page.drawLine({start:{x,y:y+8},end:{x:x+5.5,y:y+4.3},thickness:stroke,color:MUTED});
+    page.drawLine({start:{x:x+11,y:y+8},end:{x:x+5.5,y:y+4.3},thickness:stroke,color:MUTED});
+    return;
+  }
+  if(type==="phone"){
+    page.drawSvgPath("M20.4 15.1c-1.2 1.2-2.6 2-4.1 2.4-3.5-1.7-6.2-4.4-7.9-7.9.4-1.5 1.2-2.9 2.4-4.1l1.8 1.8c.4.4.5.9.3 1.4l-.7 1.7c1.2 2 2.9 3.7 4.9 4.9l1.7-.7c.5-.2 1-.1 1.4.3l1.8 1.8Z",{x,y,scale:.42,borderColor:MUTED,fillColor:undefined,borderWidth:stroke});
+    return;
+  }
+  if(type==="calendar"){
+    page.drawRectangle({x,y:y+1,width:11,height:9,borderWidth:stroke,borderColor:MUTED});
+    page.drawLine({start:{x,y:y+7.5},end:{x:x+11,y:y+7.5},thickness:stroke,color:MUTED});
+    page.drawLine({start:{x:x+3,y:y+11},end:{x:x+3,y:y+8},thickness:stroke,color:MUTED});
+    page.drawLine({start:{x:x+8,y:y+11},end:{x:x+8,y:y+8},thickness:stroke,color:MUTED});
+    return;
+  }
+  if(type==="total"){
+    page.drawCircle({x:x+5.5,y:y+5.5,size:5.2,borderWidth:stroke,borderColor:MUTED});
+    page.drawLine({start:{x:x+5.5,y:y+2.2},end:{x:x+5.5,y:y+8.8},thickness:.5,color:MUTED});
+    page.drawLine({start:{x:x+3.3,y:y+4},end:{x:x+7.7,y:y+4},thickness:.5,color:MUTED});
+    page.drawLine({start:{x:x+3.3,y:y+7},end:{x:x+7.7,y:y+7},thickness:.5,color:MUTED});
+    return;
+  }
+  page.drawRectangle({x,y:y+1,width:9,height:10,borderWidth:stroke,borderColor:MUTED});
+  page.drawLine({start:{x:x+6,y:y+11},end:{x:x+9,y:y+8},thickness:stroke,color:MUTED});
+  if(type==="person"){
+    page.drawCircle({x:x+4.5,y:y+7,size:1.6,borderWidth:.5,borderColor:MUTED});
+    page.drawLine({start:{x:x+2.2,y:y+3},end:{x:x+6.8,y:y+3},thickness:.5,color:MUTED});
+  }else{
+    page.drawLine({start:{x:x+2,y:y+6},end:{x:x+7,y:y+6},thickness:.5,color:MUTED});
+    page.drawLine({start:{x:x+2,y:y+3.5},end:{x:x+7,y:y+3.5},thickness:.5,color:MUTED});
+  }
+}
 async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const res=await fetch(url,{cache:"no-store"});if(!res.ok)return null;const bytes=new Uint8Array(await res.arrayBuffer());const type=(res.headers.get("content-type")||"").toLowerCase();return type.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);}catch{return null}}
 function addressLines(value:unknown){return (Array.isArray(value)?value.map(safe):[]).filter(Boolean).slice(0,3);}
 function contactEmail(org:any){return safe(org?.email)||"framedbyaman@gmail.com";}
@@ -53,7 +88,15 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
   const mono=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","GeistMono-Regular.ttf")),{subset:true});
   const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,client.logo_path);const W=PAGE.width,L=54,R=W-54;
 
-  const drawFooter=(page:any)=>{const email=contactEmail(org),phone=contactPhone(org);page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,"Thank you for your time.",L,39,bold,8.5);text(page,"EMAIL",L,19,mono,6.5,MUTED);text(page,email,L+28,19,regular,7.5,MUTED);text(page,"WHATSAPP",L+185,19,mono,6.5,MUTED);text(page,phone,L+233,19,regular,7.5,MUTED);text(page,"MinBooks · Generated from the financial record",R-185,19,regular,6.5,MUTED);};
+  const drawFooter=(page:any)=>{
+    const email=contactEmail(org),phone=contactPhone(org);
+    const showBranding=org.show_minbooks_branding!==false;
+    page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});
+    text(page,"Thank you for your time and the opportunity to work together.",L,39,bold,8.5);
+    icon(page,L,14,"mail");text(page,email,L+18,16,regular,7.5,MUTED);
+    icon(page,L+185,14,"phone");text(page,phone,L+203,16,regular,7.5,MUTED);
+    if(showBranding)text(page,"MinBooks · Generated from the financial record",R-185,16,regular,6.5,MUTED);
+  };
 
   const drawIdentity=(page:any,continuation=false)=>{
     if(continuation){text(page,String(org.name||org.legal_name||"MinBooks"),L,790,bold,11);right(page,`Invoice #${invoice.invoice_number}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}
@@ -66,7 +109,14 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);
     const pay=[[`NAME  ${org.payee_name||org.legal_name||org.name||""}`,bold],[`A/C NO  ${org.account_number||""}`,regular],[`BANK  ${org.bank_name||""}`,regular],[`BRANCH  ${org.branch_name||""}`,regular],[`IFSC  ${org.ifsc_code||""}`,regular],[`PAN  ${org.pan||""}`,regular]] as const;
     pay.forEach(([line,font],i)=>text(page,line,L,payTop-18-i*10,font,7.8,i===0?BLACK:MUTED));
-    const metaX=360;text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),R,top-19,mono,12);text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),R,top-72,regular,9);text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasAuthoritativeTotal?money(total):(hasUnpriced?"₹X,XXX/-":money(total)),R,top-130,bold,16);page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});if(invoice.due_date){text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),R,top-177,regular,8.5);}
+    const metaX=370;
+    const iconX=metaX-20;
+    const valueX=R;
+    icon(page,iconX,top-10,"document");text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),valueX,top-19,mono,12);
+    icon(page,iconX,top-63,"calendar");text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),valueX,top-72,regular,9);
+    icon(page,iconX,top-116,"total");text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasAuthoritativeTotal?money(total):(hasUnpriced?"₹X,XXX/-":money(total)),valueX,top-130,bold,16);
+    page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});
+    if(invoice.due_date){icon(page,iconX,top-168,"calendar");text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),valueX,top-177,regular,8.5);}
     return Math.min(payTop-84,top-190);
   };
 

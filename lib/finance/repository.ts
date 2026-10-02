@@ -235,34 +235,64 @@ export type ImportInvoiceRow = {
   amount: number;
   description?: string;
   status?: Status;
+  paymentDate?: string;
+  paymentAmount?: number;
+  paymentMethod?: PaymentMethod;
 };
 
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
   const results: { row: ImportInvoiceRow; id?: string; error?: string }[] = [];
+
   for (const row of rows) {
-    if (!row.organizationId || !row.clientName || !row.issueDate) {
+    if (!row.organizationId || !row.clientName.trim() || !row.issueDate) {
       results.push({ row, error: "Organisation, client and issue date are required." });
       continue;
     }
-    const { data: existing } = row.invoiceNumber
-      ? await supabase.from("invoices").select("id").eq("organization_id", row.organizationId).eq("invoice_number", row.invoiceNumber).maybeSingle()
-      : { data: null };
+    if (!Number.isFinite(row.amount) || row.amount < 0) {
+      results.push({ row, error: "Invoice amount must be a valid non-negative number." });
+      continue;
+    }
+    if (row.paymentAmount != null && (!Number.isFinite(row.paymentAmount) || row.paymentAmount < 0 || row.paymentAmount > row.amount)) {
+      results.push({ row, error: "Imported payment cannot exceed the invoice amount." });
+      continue;
+    }
+
+    const { data: existing, error: existingError } = row.invoiceNumber
+      ? await supabase
+          .from("invoices")
+          .select("id")
+          .eq("organization_id", row.organizationId)
+          .ilike("invoice_number", row.invoiceNumber.trim())
+          .maybeSingle()
+      : { data: null, error: null };
+
+    if (existingError) {
+      results.push({ row, error: existingError.message });
+      continue;
+    }
     if (existing) {
       results.push({ row, error: "Invoice number already exists in this organisation." });
       continue;
     }
 
-    let { data: client } = await supabase
+    let { data: client, error: clientError } = await supabase
       .from("clients")
       .select("id")
       .eq("organization_id", row.organizationId)
-      .eq("name", row.clientName)
+      .eq("name", row.clientName.trim())
       .maybeSingle();
 
+    if (clientError) {
+      results.push({ row, error: clientError.message });
+      continue;
+    }
+
     if (!client) {
-      const created = await supabase.from("clients")
-        .insert({ organization_id: row.organizationId, name: row.clientName })
-        .select("id").single();
+      const created = await supabase
+        .from("clients")
+        .insert({ organization_id: row.organizationId, name: row.clientName.trim() })
+        .select("id")
+        .single();
       if (created.error || !created.data) {
         results.push({ row, error: created.error?.message ?? "Client creation failed." });
         continue;
@@ -272,21 +302,28 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
 
     let projectId: string | null = null;
     if (row.projectName?.trim()) {
-      const project = await supabase.from("projects")
+      const project = await supabase
+        .from("projects")
         .select("id")
         .eq("organization_id", row.organizationId)
         .eq("client_id", client.id)
         .eq("name", row.projectName.trim())
         .maybeSingle();
+
       if (project.error) {
         results.push({ row, error: project.error.message });
         continue;
       }
-      if (project.data) projectId = project.data.id;
-      else {
-        const createdProject = await supabase.from("projects")
+
+      if (project.data) {
+        projectId = project.data.id;
+      } else {
+        const createdProject = await supabase
+          .from("projects")
           .insert({ organization_id: row.organizationId, client_id: client.id, name: row.projectName.trim() })
-          .select("id").single();
+          .select("id")
+          .single();
+
         if (createdProject.error || !createdProject.data) {
           results.push({ row, error: createdProject.error?.message ?? "Project creation failed." });
           continue;
@@ -295,23 +332,30 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
       }
     }
 
-    const allocated = await supabase.rpc("allocate_invoice_number", { p_organization_id: row.organizationId });
-    const number = row.invoiceNumber?.trim() || String(allocated.data ?? "");
-    if (allocated.error && !row.invoiceNumber) {
-      results.push({ row, error: allocated.error.message });
-      continue;
+    let number = row.invoiceNumber?.trim() || "";
+    if (!number) {
+      const allocated = await supabase.rpc("allocate_invoice_number", { p_organization_id: row.organizationId });
+      if (allocated.error || !allocated.data) {
+        results.push({ row, error: allocated.error?.message ?? "Could not allocate invoice number." });
+        continue;
+      }
+      number = String(allocated.data);
     }
 
-    const created = await supabase.from("invoices").insert({
-      organization_id: row.organizationId,
-      client_id: client.id,
-      project_id: projectId,
-      invoice_number: number,
-      issue_date: row.issueDate,
-      due_date: row.dueDate || null,
-      source_total: row.amount,
-      status: row.status ?? "draft",
-    }).select("id").single();
+    const created = await supabase
+      .from("invoices")
+      .insert({
+        organization_id: row.organizationId,
+        client_id: client.id,
+        project_id: projectId,
+        invoice_number: number,
+        issue_date: row.issueDate,
+        due_date: row.dueDate || null,
+        source_total: row.amount,
+        status: "draft",
+      })
+      .select("id")
+      .single();
 
     if (created.error || !created.data) {
       results.push({ row, error: created.error?.message ?? "Invoice creation failed." });
@@ -328,16 +372,38 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
       amount: row.amount,
       priced: true,
     });
+
     if (content.error) {
-      results.push({ row, id: created.data.id, error: content.error.message });
+      await supabase.from("invoices").delete().eq("id", created.data.id);
+      results.push({ row, error: content.error.message });
       continue;
     }
 
-    await logActivity(created.data.id, "invoice_imported", {
+    if (row.paymentAmount && row.paymentAmount > 0) {
+      const payment = await supabase.rpc("record_invoice_payment", {
+        p_invoice_id: created.data.id,
+        p_amount: row.paymentAmount,
+        p_payment_date: row.paymentDate || null,
+        p_method: row.paymentMethod ?? "other",
+        p_reference: null,
+        p_notes: "Imported payment",
+      });
+
+      if (payment.error) {
+        await supabase.from("invoices").delete().eq("id", created.data.id);
+        results.push({ row, error: payment.error.message });
+        continue;
+      }
+    }
+
+    const activityError = await logActivity(created.data.id, "invoice_imported", {
       source: "spreadsheet",
       invoice_number: number,
+      payment_imported: Boolean(row.paymentAmount && row.paymentAmount > 0),
     });
-    results.push({ row, id: created.data.id });
+
+    results.push({ row, id: created.data.id, error: activityError });
   }
+
   return results;
 }

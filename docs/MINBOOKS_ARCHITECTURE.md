@@ -47,7 +47,7 @@ The import UI is designed for phone-first capture and desktop batch work.
 - Charts exist only where they answer an operational question.
 - Visual references from FinBooksOS, OpenSource UI, ObsidianUI and Uiverse are translated into MinBooks components rather than copied as a visual collage.
 
-OpenSource UI documents its components as MIT licensed and free for personal/commercial use; ObsidianUI describes its source as MIT licensed; Uiverse states its UI elements are MIT licensed. citeturn2search17turn2search16turn2search0
+OpenSource UI documents its components as MIT licensed and free for personal/commercial use; ObsidianUI describes its source as MIT licensed; Uiverse states its UI elements are MIT licensed. These references are used for component patterns and interaction ideas, not as a visual copy target.
 
 ## Product phases
 P0 — Rebuild foundation: routing, auth boundary, organisation scope, shell, navigation, design tokens, entity linking.

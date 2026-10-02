@@ -85,6 +85,28 @@ create table if not exists public.document_versions (
 create index if not exists document_versions_document_created_idx
   on public.document_versions (document_id, generated_at desc);
 
+create index if not exists document_versions_generated_by_idx
+  on public.document_versions (generated_by);
+
+create index if not exists invoice_versions_created_by_idx
+  on public.invoice_versions (created_by);
+
+do $
+declare r record; n text;
+begin
+  for r in
+    select p.id, p.organization_id
+    from public.payments p
+    where p.receipt_number is null
+    order by p.created_at, p.id
+  loop
+    n := public.allocate_receipt_number(r.organization_id);
+    update public.payments
+    set receipt_number=n, receipt_issued_at=coalesce(receipt_issued_at,created_at)
+    where id=r.id;
+  end loop;
+end $;
+
 create or replace function public.allocate_receipt_number(p_organization_id uuid)
 returns text
 language plpgsql
@@ -127,6 +149,26 @@ drop trigger if exists payments_sync_organization on public.payments;
 create trigger payments_sync_organization
 before insert or update of invoice_id, organization_id on public.payments
 for each row execute function public.sync_payment_organization();
+
+do $
+declare r record; snap jsonb; h text; v integer;
+begin
+  for r in
+    select i.id, i.organization_id
+    from public.invoices i
+    where i.status <> 'draft'
+      and not exists (select 1 from public.invoice_versions iv where iv.invoice_id=i.id)
+  loop
+    snap := public.invoice_snapshot(r.id);
+    h := encode(digest(snap::text,'sha256'),'hex');
+    v := 1;
+    insert into public.invoice_versions(invoice_id,organization_id,version_number,snapshot,snapshot_hash)
+    values(r.id,r.organization_id,v,snap,h);
+    update public.invoices
+    set issued_at=coalesce(issued_at,created_at), issued_version=coalesce(issued_version,v)
+    where id=r.id;
+  end loop;
+end $;
 
 create or replace function public.invoice_snapshot(p_invoice_id uuid)
 returns jsonb
@@ -180,6 +222,14 @@ begin
   return next_version;
 end;
 $$;
+
+insert into public.documents(invoice_id,client_id,organization_id,document_type,file_path,file_name,visible_to_client,description,mime_type,status,version_number,template_key,source_hash,issued_at)
+select i.id,i.client_id,i.organization_id,'invoice_pdf','', 'INV_'||i.invoice_number||'.pdf',true,'Canonical issued invoice','application/pdf','pending',iv.version_number,o.invoice_template_key,iv.snapshot_hash,i.issued_at
+from public.invoices i
+join public.invoice_versions iv on iv.invoice_id=i.id and iv.version_number=i.issued_version
+join public.organizations o on o.id=i.organization_id
+where i.status<>'draft'
+on conflict (invoice_id,document_type,version_number) where invoice_id is not null do nothing;
 
 create or replace function public.statement_ledger(p_client_id uuid, p_start date default '2000-01-01', p_end date default '2100-12-31')
 returns table(transaction_date date, transaction_type text, reference text, debit numeric, credit numeric, running_balance numeric)

@@ -423,7 +423,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           setSelectedClientId={setSelectedClientId}
         />
       )}
-      {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} />}
+      {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} onNew={()=>window.dispatchEvent(new Event("finance:new-project"))} />}
       {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
       {activeView === "migrations" && (
         <OrganizationMigrationView

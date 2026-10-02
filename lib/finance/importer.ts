@@ -150,18 +150,39 @@ export function inferImportMapping(headers: string[]): ImportMapping {
   return mapping;
 }
 
+function valueSignal(field:keyof ImportMapping, values:unknown[]){
+  const nonEmpty=values.filter(v=>cleanValue(v));
+  if(!nonEmpty.length)return 0;
+  if(field==="issueDate"||field==="dueDate"||field==="paymentDate")return nonEmpty.filter(looksLikeDate).length/nonEmpty.length;
+  if(field==="amount"||field==="paymentAmount")return nonEmpty.filter(looksLikeAmount).length/nonEmpty.length;
+  if(field==="invoiceNumber")return nonEmpty.filter(v=>/^(?:inv(?:oice)?|bill|doc(?:ument)?)?[-\\s#_]*[a-z0-9/]+$/i.test(String(v).trim())).length/nonEmpty.length;
+  if(field==="status"){const allowed=new Set(["draft","sent","partially paid","paid","void","cancelled","canceled","overdue"]);return nonEmpty.filter(v=>allowed.has(normalize(v))).length/nonEmpty.length;}
+  if(field==="description")return Math.min(1,nonEmpty.reduce((s,v)=>s+String(v).length,0)/(nonEmpty.length*28));
+  return 0;
+}
+const cleanValue=(v:unknown)=>String(v??"").trim();
+
 export function analyzeImportSource(source: ImportSource): ImportAnalysis {
   const mapping = inferImportMapping(source.headers);
+  const used = new Set(Object.values(mapping).filter(Boolean));
   const fields = (Object.keys(labels) as (keyof ImportMapping)[]).map(field => {
     const header = mapping[field];
     if (header) return { field, label: labels[field], header, confidence: source.headerDetected ? 0.92 : 0.64, reason: "Matched source heading" };
-    const values = source.rows.map(row => valueFor(row, source.headers.find(Boolean))).filter(Boolean);
-    if (field === "issueDate" && values.length && values.filter(looksLikeDate).length / values.length > .7) return { field,label:labels[field],confidence:.7,reason:"Detected date-like values" };
-    if (field === "amount" && values.length && values.filter(looksLikeAmount).length / values.length > .7) return { field,label:labels[field],confidence:.68,reason:"Detected currency/amount values" };
-    return { field,label:labels[field],confidence:0,reason:"Needs review" };
+    let best:{header:string;score:number}|null=null;
+    for(const candidate of source.headers){
+      if(used.has(candidate))continue;
+      const values=source.rows.map(row=>valueFor(row,candidate));
+      const scoreValue=valueSignal(field,values);
+      if(!best||scoreValue>best.score)best={header:candidate,score:scoreValue};
+    }
+    if(best&&best.score>=0.72){
+      mapping[field]=best.header;used.add(best.header);
+      return {field,label:labels[field],header:best.header,confidence:Math.round(best.score*100)/100,reason:"Inferred from column values"};
+    }
+    return {field,label:labels[field],confidence:0,reason:"Needs review"};
   });
-  const confidence = Math.round((fields.filter(f => f.confidence >= .78).length / fields.length) * 100);
-  return { mapping, fields, headerRow:source.headerRow, confidence, sourceShape:source.headerDetected ? "tabular" : "headerless" };
+  const confidence=Math.round((fields.filter(f=>f.confidence>=.78).length/fields.length)*100);
+  return {mapping,fields,headerRow:source.headerRow,confidence,sourceShape:source.headerDetected?"tabular":"headerless"};
 }
 
 export async function parseSpreadsheet(file: File): Promise<ImportSource[]> {

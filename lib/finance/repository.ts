@@ -80,40 +80,122 @@ export async function saveInvoice(next: Invoice) {
 export async function createInvoice(draft: {
   number: string;
   client: string;
-  project: string;
+  project?: string;
   date: string;
   dueDate: string;
   organizationId?: string | null;
   contents: Content[];
 }) {
   if (!draft.organizationId) return { id: null, error: "Select a billing organisation before creating an invoice." };
+  if (!draft.client.trim()) return { id: null, error: "Select or enter a client before creating an invoice." };
 
-  let { data: client } = await supabase.from("clients").select("id").eq("name", draft.client).eq("organization_id", draft.organizationId ?? "").maybeSingle();
+  let { data: client, error: clientError } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("name", draft.client.trim())
+    .eq("organization_id", draft.organizationId)
+    .maybeSingle();
+
+  if (clientError) return { id: null, error: clientError.message };
+
   if (!client) {
-    const result = await supabase.from("clients").insert({ name: draft.client, organization_id: draft.organizationId ?? null }).select("id").single();
-    if (result.error) return { id: null, error: result.error.message };
+    const result = await supabase
+      .from("clients")
+      .insert({ name: draft.client.trim(), organization_id: draft.organizationId })
+      .select("id")
+      .single();
+    if (result.error || !result.data) return { id: null, error: result.error?.message ?? "Client could not be created." };
     client = result.data;
   }
-  let { data: project } = await supabase.from("projects").select("id").eq("name", draft.project).eq("client_id", client.id).eq("organization_id", draft.organizationId ?? "").maybeSingle();
-  if (!project) {
-    const result = await supabase.from("projects").insert({ name: draft.project, client_id: client.id, organization_id: draft.organizationId ?? null }).select("id").single();
-    if (result.error) return { id: null, error: result.error.message };
-    project = result.data;
+
+  let projectId: string | null = null;
+  if (draft.project?.trim()) {
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("name", draft.project.trim())
+      .eq("client_id", client.id)
+      .eq("organization_id", draft.organizationId)
+      .maybeSingle();
+
+    if (projectError) return { id: null, error: projectError.message };
+
+    if (project) {
+      projectId = project.id;
+    } else {
+      const result = await supabase
+        .from("projects")
+        .insert({
+          name: draft.project.trim(),
+          client_id: client.id,
+          organization_id: draft.organizationId,
+        })
+        .select("id")
+        .single();
+      if (result.error || !result.data) return { id: null, error: result.error?.message ?? "Project could not be created." };
+      projectId = result.data.id;
+    }
   }
-  const allocation=await supabase.rpc("allocate_invoice_number",{p_organization_id:draft.organizationId});
-  if(allocation.error)return {id:null,error:allocation.error.message};
-  const number=String(allocation.data||draft.number.trim());
-  const total = draft.contents.reduce((sum,c)=>sum+(c.priced?(c.amount??c.quantity*(c.rate??0)):0),0);
-  const result=await supabase.from("invoices").insert({
-    invoice_number:number,client_id:client.id,project_id:project.id,issue_date:draft.date,due_date:draft.dueDate||null,
-    status:"draft",source_total:total,organization_id:draft.organizationId??null
-  }).select("id").single();
-  if(result.error)return {id:null,error:result.error.message};
-  const rows=draft.contents.map((c,index)=>({invoice_id:result.data.id,position:index,kind:c.kind,title:c.title,quantity:c.quantity||1,rate:c.rate??null,amount:c.priced?(c.amount??c.quantity*(c.rate??0)):null,priced:c.priced,note:c.note??null}));
-  if(rows.length){const inserted=await supabase.from("invoice_contents").insert(rows);if(inserted.error)return {id:result.data.id,error:inserted.error.message};}
-  const activityError=await logActivity(result.data.id,"invoice_created",{invoice_number:number,total});
-  return {id:result.data.id,error:activityError};
+
+  const allocation = await supabase.rpc("allocate_invoice_number", {
+    p_organization_id: draft.organizationId,
+  });
+  if (allocation.error) return { id: null, error: allocation.error.message };
+
+  const number = String(allocation.data || draft.number.trim());
+  const total = draft.contents.reduce(
+    (sum, item) => sum + (item.priced ? (item.amount ?? item.quantity * (item.rate ?? 0)) : 0),
+    0,
+  );
+
+  const result = await supabase
+    .from("invoices")
+    .insert({
+      invoice_number: number,
+      client_id: client.id,
+      project_id: projectId,
+      issue_date: draft.date,
+      due_date: draft.dueDate || null,
+      status: "draft",
+      source_total: total,
+      organization_id: draft.organizationId,
+    })
+    .select("id")
+    .single();
+
+  if (result.error || !result.data) return { id: null, error: result.error?.message ?? "Invoice could not be created." };
+
+  const rows = draft.contents.map((item, index) => ({
+    invoice_id: result.data.id,
+    position: index,
+    kind: item.kind,
+    title: item.title.trim(),
+    quantity: item.quantity || 1,
+    rate: item.rate ?? null,
+    amount: item.priced ? (item.amount ?? item.quantity * (item.rate ?? 0)) : null,
+    priced: item.priced,
+    note: item.note ?? null,
+  })).filter(item => item.title);
+
+  if (rows.length) {
+    const inserted = await supabase.from("invoice_contents").insert(rows);
+    if (inserted.error) {
+      await supabase.from("invoices").delete().eq("id", result.data.id);
+      return { id: null, error: inserted.error.message };
+    }
+  }
+
+  const activityError = await logActivity(result.data.id, "invoice_created", {
+    invoice_number: number,
+    total,
+    organization_id: draft.organizationId,
+    client_id: client.id,
+    project_id: projectId,
+  });
+
+  return { id: result.data.id, error: activityError };
 }
+
 export async function recordPayment(
   invoice: Invoice,
   amount: number,
@@ -123,30 +205,19 @@ export async function recordPayment(
 ) {
   if (!Number.isFinite(amount) || amount <= 0) return "Enter a valid payment amount.";
 
-  const balance = Math.max(
-    invoice.contents.reduce((sum, c) => sum + (c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : 0), 0)
-      - invoice.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0),
-    0,
-  );
-
+  const balance = invoiceBalance(invoice);
   if (amount > balance) return "Payment cannot exceed the current invoice balance.";
 
-  const { error } = await supabase.from("payments").insert({
-    invoice_id: invoice.id,
-    amount,
-    payment_date: date || null,
-    method,
-    reference: reference || null,
+  const { error } = await supabase.rpc("record_invoice_payment", {
+    p_invoice_id: invoice.id,
+    p_amount: amount,
+    p_payment_date: date || null,
+    p_method: method,
+    p_reference: reference || null,
+    p_notes: null,
   });
 
-  if (error) return error.message;
-
-  return logActivity(invoice.id, "payment_recorded", {
-    amount,
-    payment_date: date || null,
-    method,
-    reference: reference || null,
-  });
+  return error?.message ?? null;
 }
 
 export async function getInvoiceFinancials() {

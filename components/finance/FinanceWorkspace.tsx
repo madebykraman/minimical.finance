@@ -84,7 +84,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      const target = event.target as HTMLElement | null;
+      const editing = !!target?.closest("input, textarea, select, [contenteditable='true']");
+      if (!editing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCommandOpen(v => !v);
       }

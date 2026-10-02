@@ -58,26 +58,26 @@ export async function saveInvoice(next: Invoice) {
 
   const { error } = await supabase.rpc("save_invoice", {
     p_invoice_id: next.id,
-    p_client_id: next.clientId ?? null,
-    p_project_id: next.projectId ?? null,
-    p_notes: next.notes ?? null,
-    p_adjustment_note: next.adjustment ?? null,
+    p_client_id: next.clientId ???? undefined,
+    p_project_id: next.projectId ???? undefined,
+    p_notes: next.notes ???? undefined,
+    p_adjustment_note: next.adjustment ???? undefined,
     p_issue_date: next.date,
-    p_due_date: next.dueDate ?? null,
+    p_due_date: next.dueDate ???? undefined,
     p_status: next.status,
     p_organization_id: next.organizationId,
     p_contents: next.contents.map((c) => ({
       kind: c.kind,
       title: c.title,
       quantity: c.quantity || 1,
-      rate: c.rate ?? null,
-      amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : null,
+      rate: c.rate ???? undefined,
+      amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) :?? undefined,
       priced: c.priced,
-      note: c.note ?? null,
+      note: c.note ???? undefined,
     })),
   });
 
-  return error?.message ?? null;
+  return error?.message ???? undefined;
 }
 
 // FinOS organisation-aware invoice creation
@@ -233,10 +233,10 @@ export async function recordPayment(
   const { error } = await supabase.rpc("record_invoice_payment", {
     p_invoice_id: invoice.id,
     p_amount: amount,
-    p_payment_date: date || undefined,
+    p_payment_date: date,
     p_method: method,
-    p_reference: reference || null,
-    p_notes: null,
+    p_reference: reference || undefined,
+    p_notes: undefined,
   });
 
   return error?.message ?? null;

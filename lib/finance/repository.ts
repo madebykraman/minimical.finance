@@ -263,9 +263,9 @@ export type ImportInvoiceRow = {
 };
 
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
-  if (!rows.length) return [];
+  if (!rows.length) return { ok: false, created: 0, error: "No rows to import." };
 
-  const { error } = await supabase.rpc("import_invoice_batch", {
+  const { data, error } = await supabase.rpc("import_invoice_batch", {
     p_rows: rows.map(row => ({
       organizationId: row.organizationId,
       clientName: row.clientName,
@@ -282,9 +282,7 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
     })),
   });
 
-  if (error) {
-    return rows.map(row => ({ row, error: error.message }));
-  }
-
-  return rows.map(row => ({ row, id: "batch", error: undefined }));
+  if (error) return { ok: false, created: 0, error: error.message };
+  const created = Number((data as any)?.created ?? rows.length);
+  return { ok: true, created };
 }

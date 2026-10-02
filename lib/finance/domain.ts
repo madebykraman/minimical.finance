@@ -15,6 +15,7 @@ export type Content = {
   amount?: number | null;
   priced: boolean;
   note?: string | null;
+  assignedBy?: string | null;
 };
 
 export type Payment = {
@@ -103,6 +104,7 @@ export function mapInvoice(row: any): Invoice {
         amount: c.amount == null ? null : Number(c.amount),
         priced: c.priced,
         note: c.note,
+        assignedBy: c.assigned_by ?? null,
       })),
     payments: (row.payments ?? []).map((p: any) => ({
       id: p.id,

@@ -265,7 +265,7 @@ export type ImportInvoiceRow = {
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
   if (!rows.length) return [];
 
-  const { data, error } = await supabase.rpc("import_invoice_batch", {
+  const { error } = await supabase.rpc("import_invoice_batch", {
     p_rows: rows.map(row => ({
       organizationId: row.organizationId,
       clientName: row.clientName,

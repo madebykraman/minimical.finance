@@ -662,6 +662,7 @@ export type Database = {
       invoice_contents: {
         Row: {
           amount: number | null
+          assigned_by: string | null
           created_at: string
           description: string | null
           id: string
@@ -677,6 +678,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          assigned_by?: string | null
           created_at?: string
           description?: string | null
           id?: string

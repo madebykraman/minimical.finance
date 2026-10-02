@@ -28,7 +28,7 @@ function icon(page:any,x:number,y:number,type:"document"|"person"|"bank"|"mail"|
     return;
   }
   if(type==="phone"){
-    page.drawSvgPath("M20.4 15.1c-1.2 1.2-2.6 2-4.1 2.4-3.5-1.7-6.2-4.4-7.9-7.9.4-1.5 1.2-2.9 2.4-4.1l1.8 1.8c.4.4.5.9.3 1.4l-.7 1.7c1.2 2 2.9 3.7 4.9 4.9l1.7-.7c.5-.2 1-.1 1.4.3l1.8 1.8Z",{x,y,scale:.42,borderColor:MUTED,fillColor:undefined,borderWidth:stroke});
+    page.drawSvgPath("M20.4 15.1c-1.2 1.2-2.6 2-4.1 2.4-3.5-1.7-6.2-4.4-7.9-7.9.4-1.5 1.2-2.9 2.4-4.1l1.8 1.8c.4.4.5.9.3 1.4l-.7 1.7c1.2 2 2.9 3.7 4.9 4.9l1.7-.7c.5-.2 1-.1 1.4.3l1.8 1.8Z",{x,y,scale:.42,borderColor:MUTED,borderWidth:stroke});
     return;
   }
   if(type==="calendar"){

@@ -156,11 +156,7 @@ export function FinanceShell({
             {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}><span className="workspace-option-mark">{mark(o)}</span><span className="workspace-option-copy"><strong>{o.name}</strong><small>{o.id===ALL_ORGANIZATIONS_ID?"Read-only aggregate":"Organisation"}</small></span>{activeOrganization?.id===o.id&&<Check size={13}/>}</button>)}
           </div>}
         </div>
-        <div className="topbar-tools">
-          {!isAggregate&&activeView==="invoices"&&<button className="primary compact-action" onClick={onNewInvoice}><Plus size={15}/><span>New invoice</span></button>}
-          {!isAggregate&&activeView==="clients"&&<button className="primary compact-action" onClick={onNewClient}><Plus size={15}/><span>New client</span></button>}
-          {!isAggregate&&activeView==="projects"&&<button className="primary compact-action" onClick={onNewProject}><Plus size={15}/><span>New project</span></button>}
-        </div>
+
       </header>
       <div className="page-frame">{children}</div>
     </section>

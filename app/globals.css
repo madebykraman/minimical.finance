@@ -929,3 +929,5 @@ button{-webkit-tap-highlight-color:transparent}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
+
+.portal-access-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.portal-access-head>b{font-size:12px}.portal-access-head p{margin:4px 0 0;color:var(--text-tertiary);font-size:9px;max-width:430px}.portal-link-box{margin-top:10px;min-height:42px;padding:5px 6px 5px 10px;border:1px solid var(--line);border-radius:7px;background:#0d0d0f;display:flex;align-items:center;gap:7px}.portal-link-box code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aaa;font:9px var(--font-data)}.portal-link-box .secondary{min-height:30px;font-size:9px}

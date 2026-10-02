@@ -250,7 +250,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }
 
   const activeOrganization = useMemo(
-    () => organizations.find(o => o.id === organizationId) ?? null,
+    () => organizationId === ALL_ORGANIZATIONS_ID
+      ? { id: ALL_ORGANIZATIONS_ID, name: "All organisations", status: "aggregate" }
+      : organizations.find(o => o.id === organizationId) ?? null,
     [organizations, organizationId]
   );
 

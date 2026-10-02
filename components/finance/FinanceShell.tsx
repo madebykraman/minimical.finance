@@ -4,7 +4,7 @@ import type { ReactNode, CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileInput, FileText, FolderKanban,
-  LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt, RefreshCw, Search,
+  LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt, Search,
   Settings2, WalletCards, X, ArrowLeftRight
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";

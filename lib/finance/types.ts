@@ -7,6 +7,7 @@ export type FinanceView =
   | "reports"
   | "documents"
   | "imports"
+  | "migrations"
   | "settings";
 
 export const ALL_ORGANIZATIONS_ID = "__all__" as const;
@@ -21,5 +22,6 @@ export const financeViewLabel: Record<FinanceView, string> = {
   reports: "Reports",
   documents: "Documents",
   imports: "Import",
+  migrations: "Migrations",
   settings: "Settings",
 };

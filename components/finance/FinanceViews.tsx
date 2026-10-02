@@ -358,10 +358,10 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
     </div>
   </div>;
 }
-export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void}) {
+export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus,onNew}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void}) {
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0), overdue=filtered.filter(i=>daysOverdue(i)>0).length;
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-count"><b>{filtered.length}</b><span>records</span></div></section>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{filtered.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New invoice</button></div></section>
     <section className="register-summary"><div><span>OPEN</span><b>{money(open)}</b></div><div><span>OVERDUE</span><b>{overdue}</b></div><div><span>VIEW</span><b>{status==="all"?"All":statusLabel(status)}</b></div></section>
     <section className="data-panel operations-register">
       <div className="data-panel-head"><div><h2>Register</h2></div><div className="invoice-toolbar"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoice, client or project" aria-label="Search invoices"/></div><SegmentedTabs
@@ -409,7 +409,7 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
     </section>
   </div>;
 }
-export function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
+export function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId,onNew}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void;onNew:()=>void}) {
   const [clients,setClients]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
   async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}let query=supabase.from("clients").select("*").is("archived_at",null).order("name");if(organizationId!==ALL_ORGANIZATIONS_ID)query=query.eq("organization_id",organizationId);const {data}=await query;setClients(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[organizationId]);
@@ -417,7 +417,7 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
   if(selectedClientId)return <ClientWorkspace clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
   const billed=stats.reduce((s,x)=>s+x.billed,0),open=stats.reduce((s,x)=>s+x.open,0);
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Relationships</span><h2>Clients</h2></div><div className="operations-count"><b>{clients.length}</b><span>active</span></div></section>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Relationships</span><h2>Clients</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{clients.length}</b><span>active</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New client</button></div></section>
     <section className="register-summary"><div><span>BILLED</span><b>{money(billed)}</b></div><div><span>OUTSTANDING</span><b>{money(open)}</b></div><div><span>CLIENTS</span><b>{clients.length}</b></div></section>
     <section className="data-panel"><div className="data-panel-head"><div><h2>Directory</h2></div></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading clients…</div>:stats.length?<div className="client-directory">{stats.map(x=><button className="client-directory-row" key={x.c.id} onClick={()=>setSelectedClientId(x.c.id)}><div className="client-avatar">{x.c.logo_path?<img src={x.c.logo_path} alt=""/>:String(x.c.name||"?").slice(0,1).toUpperCase()}</div><div className="client-main"><b>{x.c.name}</b><span>{x.c.email||x.c.legal_name||"Billing profile incomplete"}</span></div><div className="client-financials"><div><b>{x.rows.length}</b><span>invoices</span></div><div><b>{money(x.billed)}</b><span>billed</span></div><div><b>{money(x.open)}</b><span>open</span></div></div><ChevronRight size={14}/></button>)}</div>:<div className="empty-state"><Building2 size={18}/><b>No clients yet.</b><span>Create a client workspace.</span></div>}
@@ -542,7 +542,7 @@ export function ReportsView({invoices}:{invoices:Invoice[]}) {
     </div>
   </div>;
 }
-export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
+export function ProjectsView({invoices,organizationId,onOpen,onNew}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;onNew:()=>void}) {
   const [projects,setProjects]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
   async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}let query=supabase.from("projects").select("*, clients(name), organizations(name)").order("name");if(organizationId!==ALL_ORGANIZATIONS_ID)query=query.eq("organization_id",organizationId);const {data}=await query;setProjects(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
@@ -551,7 +551,7 @@ export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[
   const revenue=projects.reduce((s,p)=>s+invoices.filter(i=>i.projectId===p.id).reduce((a,i)=>a+invoiceTotal(i),0),0)+derived.reduce((s,p)=>s+p.billed,0);
   const cost=projects.reduce((s,p)=>s+Number(p.actual_cost||0),0);
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Production</span><h2>Projects</h2></div><div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div></section>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Production</span><h2>Projects</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New project</button></div></section>
     <section className="register-summary"><div><span>ACTIVE</span><b>{projects.filter(p=>p.status==="active").length+derived.length}</b></div><div><span>REVENUE</span><b>{money(revenue)}</b></div><div><span>RECORDED COST</span><b>{money(cost)}</b></div></section>
     <section className="data-panel"><div className="data-panel-head"><div><h2>Register</h2></div></div>{loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:<div className="client-grid">{projects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}{derived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>}</section>
     {creating&&<ProjectCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);void load()}}/>}

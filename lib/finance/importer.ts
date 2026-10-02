@@ -14,6 +14,7 @@ export type ImportSource = {
 export type ImportMapping = {
   organization?: string;
   client?: string;
+  assignedBy?: string;
   lineItem?: string;
   project?: string;
   invoiceNumber?: string;
@@ -46,6 +47,7 @@ export type ImportAnalysis = {
 
 const aliases: Record<keyof ImportMapping, string[]> = {
   organization: ["organisation","organization","org","company","entity","business","billing entity","billing organisation","billing organization"],
+  assignedBy: ["assigned by","assigned","owner","producer","coordinator"],
   client: ["client","client name","customer","customer name","party","buyer","billed to","bill to"],
   lineItem: ["name / project","name/project","line item","service","item","deliverable"],
   project: ["project","project name","job","engagement","work","campaign"],
@@ -62,7 +64,7 @@ const aliases: Record<keyof ImportMapping, string[]> = {
 };
 
 const labels: Record<keyof ImportMapping,string> = {
-  organization:"Organisation",client:"Client",project:"Project",invoiceNumber:"Invoice number",
+  organization:"Organisation",client:"Client",assignedBy:"Assigned by",project:"Project",invoiceNumber:"Invoice number",
   issueDate:"Issue date",dueDate:"Due date",amount:"Amount",status:"Status",
   paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",notes:"Notes",
 };

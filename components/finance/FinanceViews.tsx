@@ -9,7 +9,7 @@ import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
-import type { FinanceView } from "@/lib/finance/types";
+import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
@@ -351,7 +351,7 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
 }
 export function ClientsView({invoices,organizationId,onOpen,selectedClientId,setSelectedClientId}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;selectedClientId:string|null;setSelectedClientId:(id:string|null)=>void}) {
   const [clients,setClients]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
-  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}const {data}=await supabase.from("clients").select("*").is("archived_at",null).eq("organization_id",organizationId||"").order("name");setClients(data||[]);setLoading(false)}
+  async function load(){setLoading(true);if(!organizationId){setClients([]);setLoading(false);return}let query=supabase.from("clients").select("*").is("archived_at",null).order("name");if(organizationId!==ALL_ORGANIZATIONS_ID)query=query.eq("organization_id",organizationId);const {data}=await query;setClients(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-client",h);return()=>window.removeEventListener("finance:new-client",h)},[organizationId]);
   const stats=clients.map(c=>{const rows=invoices.filter(i=>i.clientId===c.id);const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0),open=rows.reduce((s,i)=>s+invoiceBalance(i),0);return {c,rows,billed,open}});
   if(selectedClientId)return <ClientWorkspace clientId={selectedClientId} invoices={invoices} onBack={()=>setSelectedClientId(null)} onOpenInvoice={onOpen} onSaved={load} onArchived={()=>setSelectedClientId(null)}/>;
@@ -424,7 +424,7 @@ export function ReportsView({invoices}:{invoices:Invoice[]}) {
 }
 export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {
   const [projects,setProjects]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
-  async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}const {data}=await supabase.from("projects").select("*, clients(name), organizations(name)").eq("organization_id",organizationId).order("name");setProjects(data||[]);setLoading(false)}
+  async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}let query=supabase.from("projects").select("*, clients(name), organizations(name)").order("name");if(organizationId!==ALL_ORGANIZATIONS_ID)query=query.eq("organization_id",organizationId);const {data}=await query;setProjects(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
   const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const x=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};x.invoices.push(i);x.billed+=invoiceTotal(i);x.paid+=paidTotal(i);fallback.set(key,x)});
   const derived=[...fallback.values()].filter(x=>!projects.some(p=>p.name===x.name&&p.clients?.name===x.client));

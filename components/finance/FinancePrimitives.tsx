@@ -136,7 +136,8 @@ export function MobileSheet({
         className="finance-sheet"
         role="dialog"
         aria-modal="true"
-        aria-labelledby={labelledBy ?? titleId}
+        aria-labelledby={title ? (labelledBy ?? titleId) : undefined}
+        aria-label={title ? undefined : "Sheet"}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="finance-sheet-grab" aria-hidden />

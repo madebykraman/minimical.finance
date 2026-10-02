@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileInput, FileText, FolderKanban,
   LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt, RefreshCw, Search,
-  Settings2, WalletCards, X
+  Settings2, WalletCards, X, ArrowLeftRight
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";
 import { ALL_ORGANIZATIONS_ID, financeViewLabel } from "@/lib/finance/types";
@@ -31,6 +31,7 @@ const secondary:Array<[FinanceView,typeof LayoutDashboard]> = [
   ["reports",BarChart3],
   ["documents",FileText],
   ["imports",FileInput],
+  ["migrations",ArrowLeftRight],
   ["settings",Settings2],
 ];
 

@@ -38,8 +38,8 @@ export function SegmentedTabs<T extends string>({
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!items.length) return;
     let next = activeIndex;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (activeIndex + 1) % items.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (activeIndex - 1 + items.length) % items.length;
+    if (event.key === "ArrowRight") next = (activeIndex + 1) % items.length;
+    else if (event.key === "ArrowLeft") next = (activeIndex - 1 + items.length) % items.length;
     else if (event.key === "Home") next = 0;
     else if (event.key === "End") next = items.length - 1;
     else return;
@@ -51,7 +51,7 @@ export function SegmentedTabs<T extends string>({
   };
 
   return (
-    <div className="finance-segmented-tabs" role="tablist" aria-label={ariaLabel}>
+    <div className="finance-segmented-tabs" role="group" aria-label={ariaLabel}>
       {items.map((item) => {
         const id = `${tabGroupId}-tab-${item.value}`;
         return (
@@ -59,8 +59,7 @@ export function SegmentedTabs<T extends string>({
             key={item.value}
             id={id}
             type="button"
-            role="tab"
-            aria-selected={value === item.value}
+            aria-pressed={value === item.value}
             tabIndex={value === item.value ? 0 : -1}
             className={value === item.value ? "active" : ""}
             onClick={() => onChange(item.value)}

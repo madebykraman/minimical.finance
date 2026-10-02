@@ -92,7 +92,7 @@ export function AuthScreen() {
     <div className="auth-neutral-mark"><Building2 size={18}/></div>
     <div className="eyebrow">SECURE WORKSPACE</div>
     <h1>{mode === "signin" ? "Welcome back." : "Create access."}</h1>
-    <p>Internal invoicing, collections and financial records for the studio.</p>
+    <p>Invoices, receipts, statements and financial records — in one workspace.</p>
     {verified && <div className="auth-success"><Check size={15}/> Email verified. You can sign in.</div>}
     <form onSubmit={submit}>
       <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@studio.com"/></label>

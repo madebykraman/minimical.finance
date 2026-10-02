@@ -347,23 +347,42 @@ export async function GET(
       .maybeSingle();
 
     if (document?.id) {
+      const fileName = `INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf`;
+      const filePath = `organizations/${invoice.organization_id}/invoices/${invoice.id}/v${versionNumber}.pdf`;
+      const upload = await supabase.storage.from("finos-documents").upload(filePath, bytes, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      const stored = !upload.error;
+      const generatedAt = new Date().toISOString();
+
       await supabase.from("documents").update({
-        status: "generated",
-        generated_at: new Date().toISOString(),
+        status: stored ? "stored" : "generated",
+        file_path: stored ? filePath : "",
+        file_name: fileName,
+        storage_bucket: "finos-documents",
+        generated_at: generatedAt,
         checksum_sha256: checksum,
         source_hash: issuedVersion.snapshot_hash,
         template_key: templateKey,
+        size_bytes: bytes.length,
       }).eq("id", document.id);
 
       await supabase.from("document_versions").upsert({
         document_id: document.id,
         version_number: versionNumber,
-        file_name: `INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf`,
+        file_path: stored ? filePath : null,
+        file_name: fileName,
+        storage_bucket: "finos-documents",
         mime_type: "application/pdf",
         size_bytes: bytes.length,
         checksum_sha256: checksum,
-        generated_at: new Date().toISOString(),
-        metadata: { source_hash: issuedVersion.snapshot_hash, template_key: templateKey },
+        generated_at: generatedAt,
+        metadata: {
+          source_hash: issuedVersion.snapshot_hash,
+          template_key: templateKey,
+          storage_error: upload.error?.message ?? null,
+        },
       }, { onConflict: "document_id,version_number" });
     }
   }

@@ -152,3 +152,121 @@ export async function recordPayment(
 export async function getInvoiceFinancials() {
   return supabase.from("invoice_financials").select("*");
 }
+
+
+export type ImportInvoiceRow = {
+  organizationId: string;
+  clientName: string;
+  projectName?: string;
+  invoiceNumber?: string;
+  issueDate: string;
+  dueDate?: string;
+  amount: number;
+  description?: string;
+  status?: Status;
+};
+
+export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
+  const results: { row: ImportInvoiceRow; id?: string; error?: string }[] = [];
+  for (const row of rows) {
+    if (!row.organizationId || !row.clientName || !row.issueDate) {
+      results.push({ row, error: "Organisation, client and issue date are required." });
+      continue;
+    }
+    const { data: existing } = row.invoiceNumber
+      ? await supabase.from("invoices").select("id").eq("organization_id", row.organizationId).eq("invoice_number", row.invoiceNumber).maybeSingle()
+      : { data: null };
+    if (existing) {
+      results.push({ row, error: "Invoice number already exists in this organisation." });
+      continue;
+    }
+
+    let { data: client } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("organization_id", row.organizationId)
+      .eq("name", row.clientName)
+      .maybeSingle();
+
+    if (!client) {
+      const created = await supabase.from("clients")
+        .insert({ organization_id: row.organizationId, name: row.clientName })
+        .select("id").single();
+      if (created.error || !created.data) {
+        results.push({ row, error: created.error?.message ?? "Client creation failed." });
+        continue;
+      }
+      client = created.data;
+    }
+
+    let projectId: string | null = null;
+    if (row.projectName?.trim()) {
+      const project = await supabase.from("projects")
+        .select("id")
+        .eq("organization_id", row.organizationId)
+        .eq("client_id", client.id)
+        .eq("name", row.projectName.trim())
+        .maybeSingle();
+      if (project.error) {
+        results.push({ row, error: project.error.message });
+        continue;
+      }
+      if (project.data) projectId = project.data.id;
+      else {
+        const createdProject = await supabase.from("projects")
+          .insert({ organization_id: row.organizationId, client_id: client.id, name: row.projectName.trim() })
+          .select("id").single();
+        if (createdProject.error || !createdProject.data) {
+          results.push({ row, error: createdProject.error?.message ?? "Project creation failed." });
+          continue;
+        }
+        projectId = createdProject.data.id;
+      }
+    }
+
+    const allocated = await supabase.rpc("allocate_invoice_number", { p_organization_id: row.organizationId });
+    const number = row.invoiceNumber?.trim() || String(allocated.data ?? "");
+    if (allocated.error && !row.invoiceNumber) {
+      results.push({ row, error: allocated.error.message });
+      continue;
+    }
+
+    const created = await supabase.from("invoices").insert({
+      organization_id: row.organizationId,
+      client_id: client.id,
+      project_id: projectId,
+      invoice_number: number,
+      issue_date: row.issueDate,
+      due_date: row.dueDate || null,
+      source_total: row.amount,
+      status: row.status ?? "draft",
+    }).select("id").single();
+
+    if (created.error || !created.data) {
+      results.push({ row, error: created.error?.message ?? "Invoice creation failed." });
+      continue;
+    }
+
+    const content = await supabase.from("invoice_contents").insert({
+      invoice_id: created.data.id,
+      position: 0,
+      kind: "service",
+      title: row.description?.trim() || "Imported invoice",
+      quantity: 1,
+      rate: row.amount,
+      amount: row.amount,
+      priced: true,
+    });
+    if (content.error) {
+      results.push({ row, id: created.data.id, error: content.error.message });
+      continue;
+    }
+
+    await logActivity(created.data.id, "invoice_imported", {
+      source: "spreadsheet",
+      invoice_number: number,
+    });
+    results.push({ row, id: created.data.id });
+  }
+  return results;
+}

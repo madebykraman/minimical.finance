@@ -18,6 +18,7 @@ import type { Content, Invoice, PaymentMethod, Status } from "@/lib/finance/doma
 import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { ImportCenter } from "./ImportCenter";
 import { FinanceShell } from "./FinanceShell";
+import { FinanceCommandPalette } from "./FinanceCommandPalette";
 import {
   AuthScreen,
   Overview,
@@ -72,12 +73,24 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizationsReady, setOrganizationsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const allOrganizations = organizationId === ALL_ORGANIZATIONS_ID;
   const router = useRouter();
 
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
     document.documentElement.style.colorScheme = "dark";
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(v => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   useEffect(() => {
@@ -298,6 +311,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     setPaymentFor(null);
     setComposer(false);
     setMobileMoreOpen(false);
+    setCommandOpen(false);
     setQuery("");
     setStatus("all");
     if (typeof window !== "undefined") {
@@ -369,6 +383,12 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       setMobileMoreOpen={setMobileMoreOpen}
       overlays={
         <>
+          <FinanceCommandPalette
+            open={commandOpen}
+            onClose={() => setCommandOpen(false)}
+            onNavigate={navigateTo}
+            onNewInvoice={openInvoiceComposer}
+          />
           {selected && (
             <InvoiceDrawer
               invoice={selected}

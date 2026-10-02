@@ -310,7 +310,7 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
         <strong>{money(stats.outstanding)}</strong>
         <p>{overdue.length ? money(overdueValue)+" overdue across "+overdue.length+" invoice"+(overdue.length===1?"":"s") : "No overdue receivables in this workspace."}</p>
       </div>
-      <div className="overview-hero-ring" aria-label={collection+" percent collected"}>
+      <div className="overview-hero-ring" style={{background:`conic-gradient(#a58aff ${collection}%,#2b2632 0)`}} aria-label={collection+" percent collected"}>
         <div><strong>{collection}%</strong><span>collected</span></div>
       </div>
       <div className="overview-hero-facts">

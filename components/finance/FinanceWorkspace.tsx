@@ -351,17 +351,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       activeOrganization={activeOrganization}
       invoiceCount={orgInvoices.length}
       session={session}
-      query={query}
-      setQuery={setQuery}
       actionError={actionError}
       clearError={() => setActionError("")}
-      onRefresh={() => { void loadInvoices(); }}
       onSelectWorkspace={selectOrganization}
       organizations={organizations}
       onSignOut={() => { void supabase.auth.signOut(); }}
-      onNewInvoice={() => setComposer(true)}
-      onNewClient={() => window.dispatchEvent(new Event("finance:new-client"))}
-      onNewProject={() => window.dispatchEvent(new Event("finance:new-project"))}
       mobileMoreOpen={mobileMoreOpen}
       setMobileMoreOpen={setMobileMoreOpen}
       overlays={
@@ -399,6 +393,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           organization={activeOrganization ?? { id: ALL_ORGANIZATIONS_ID, name: "All organisations", status: "aggregate" }}
           onOpen={setSelected}
           onNavigate={navigateTo}
+          onNewInvoice={() => setComposer(true)}
         />
       )}
       {activeView === "invoices" && (

@@ -847,8 +847,8 @@ body{font-size:14px;line-height:1.5}
   .editor-content-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;padding:12px 34px 12px 8px;border-bottom:1px solid var(--line)}
   .editor-content-row .editor-index{position:absolute;left:0;top:15px;transform:translateX(-2px);font-size:9px}
   .editor-content-row input:first-of-type{grid-column:1/-1;min-height:42px;font-size:13px}
-  .editor-content-row input[type=number]:nth-of-type(1){grid-column:1;min-height:38px}
-  .editor-content-row input[type=number]:nth-of-type(2){grid-column:2;min-height:38px}
+  .editor-content-row input[type=number]{grid-column:1;min-height:38px}
+  .editor-content-row input[type=number] + input[type=number]{grid-column:2;min-height:38px}
   .editor-content-row b{grid-column:1/-1;min-height:34px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:var(--text-secondary);font-size:12px}
   .editor-content-row .editor-delete{position:absolute;right:5px;top:9px;width:28px;height:28px}
   .editor-total{padding:12px 0 0}

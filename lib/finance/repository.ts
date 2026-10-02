@@ -71,7 +71,7 @@ export async function saveInvoice(next: Invoice) {
       title: c.title,
       quantity: c.quantity || 1,
       rate: c.rate ?? undefined,
-      amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) :?? undefined,
+      amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : undefined,
       priced: c.priced,
       note: c.note ?? undefined,
     })),

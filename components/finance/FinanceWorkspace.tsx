@@ -329,10 +329,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   if (!authReady) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <div className="loading-mark"><RefreshCw size={18} /></div>
-          <p>Loading workspace…</p>
-        </div>
+        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo">M</div><div><b>MinBooks</b><span>Preparing your workspace</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
       </div>
     );
   }
@@ -342,10 +339,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   if (!organizationsReady) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <div className="loading-mark"><RefreshCw size={18} /></div>
-          <p>Loading organisations…</p>
-        </div>
+        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo">M</div><div><b>MinBooks</b><span>Loading organisations</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
       </div>
     );
   }

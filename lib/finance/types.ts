@@ -5,6 +5,7 @@ export type FinanceView =
   | "clients"
   | "projects"
   | "reports"
+  | "documents"
   | "imports"
   | "settings";
 
@@ -18,6 +19,7 @@ export const financeViewLabel: Record<FinanceView, string> = {
   clients: "Clients",
   projects: "Projects",
   reports: "Reports",
+  documents: "Documents",
   imports: "Import",
   settings: "Settings",
 };

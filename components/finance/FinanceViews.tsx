@@ -203,7 +203,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
         <label>Branch code<input value={organization.branch_code||""} onChange={e=>setOrganization((p:any)=>({...p,branch_code:e.target.value}))}/></label>
         <label>IFSC code<input value={organization.ifsc_code||""} onChange={e=>setOrganization((p:any)=>({...p,ifsc_code:e.target.value}))}/></label>
         <label className="full-span">Footer line 1<input value={organization.invoice_footer_line_1||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label>
-        <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label>
+        <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label><label className="settings-toggle-row full-span"><span><b>Show MinBooks attribution</b><small>New organisations have this enabled by default. Turn it off for your own documents.</small></span><input type="checkbox" checked={organization.show_minbooks_branding!==false} onChange={e=>setOrganization((p:any)=>({...p,show_minbooks_branding:e.target.checked}))}/></label>
       </div></div>}
     </section>
     {message&&<div className="auth-success">{message}</div>}

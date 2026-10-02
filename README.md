@@ -1,106 +1,72 @@
-# minimical.finance
+# MinBooks
 
-Internal finance and invoicing OS for Minimical.
+MinBooks is a private, authenticated finance workspace for invoicing, payments, documents, client records and financial reporting.
 
-## Current build
-- Supabase-backed invoice records; no spreadsheet/local-state source of truth
-- Authenticated workspace with Supabase Auth
-- Overview dashboard with billed, collected, outstanding and collection-rate KPIs
-- Invoice search and status filters
-- Invoice detail editor
-- Structured invoice Contents: service, adjustment and note rows
-- Priced and unpriced/TBD contents
-- Source-total mismatch warnings
-- Payment recording with balance validation and automatic partial/paid status
-- Payments ledger
-- Client/project aggregation
-- Print-to-PDF invoice output
-- Existing Elle tracker data migrated into Supabase
-- GitHub Actions build verification workflow
+Production: https://finance.minimical.online
+
+## Product
+- Organisation-aware finance workspace
+- Invoice creation, editing and status management
+- Structured line items with pricing and provenance
+- Payment recording and balance validation
+- Client and project workspaces
+- Receipts, statements and invoice PDFs
+- Document history and version tracking
+- Spreadsheet/CSV invoice import and reconciliation
+- Aggregate multi-organisation reporting
+- Password-protected client portal
+- Responsive desktop and mobile interface
 
 ## Stack
+Next.js App Router, TypeScript, React, Supabase, Supabase SSR, Lucide, PDF-Lib and Geist.
 
-Next.js App Router + TypeScript + Supabase + @supabase/ssr + Lucide.
+The UI uses source-level adaptations of selected open-source component patterns where they improve a real workflow. See [UI library integration](docs/UI_LIBRARY_INTEGRATION.md).
 
-## Local environment
+## Development
+Create a local environment file from `.env.example` and provide the required Supabase values.
 
-Copy .env.example to .env.local and fill:
+```bash
+npm install
+npm run dev
+```
 
-    NEXT_PUBLIC_SUPABASE_URL=https://aemshepgkvjlblpjezmx.supabase.co
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
+Production builds:
 
-Never add a service-role key to the browser app or commit secrets.
+```bash
+npm run build
+npm test
+```
 
-## Vercel deployment
+## Environment
+Required:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-1. Import madebykraman/minimical.finance into Vercel.
-2. Framework preset: Next.js. The repository root is the project root.
-3. Add these Production environment variables:
-   - NEXT_PUBLIC_SUPABASE_URL
-   - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-4. Use the values from the Supabase project dashboard. The URL is the project URL shown in .env.example.
-5. Deploy the main branch.
-6. Open the deployed app and create/sign in to the private finance account.
-7. In Supabase Auth, make sure the deployed site URL is configured as the site URL/redirect URL if email confirmation or password-reset flows are enabled.
+Optional server-only credential:
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-The database is already provisioned and seeded; deployment should not require running SQL manually.
+Never commit credentials, tokens, private keys or production secrets. Store deployment credentials in the deployment platform's environment/secret store. GitHub recommends environment variables or secret-management systems rather than hardcoding authentication credentials.
 
-## Data model
+## Deployment
+The canonical production hostname is:
 
-clients → projects → invoices → invoice_contents, with payments, documents and activity_log attached where needed.
+https://finance.minimical.online
 
-Invoice totals are calculated from priced contents. Unpriced contents remain visible but contribute ₹0 until priced. This is intentional so unknown work is not silently treated as billed revenue.
-
-## Important source-history handling
-
-- Invoice 180 retains its recorded ₹10,000 source total while its structured contents calculate to ₹13,000; the UI surfaces this mismatch.
-- Invoice 186 contains ₹4,000 of priced work plus three unpriced/TBD items.
-- Invoice 172 retains the ₹2,000 Bridgerton reduction as adjustment context.
-- Paid invoices have payment records, even when the original tracker did not contain an exact payment date.
+Deployment configuration and credentials are intentionally kept outside this public project documentation.
 
 ## Security
+MinBooks is intended to run behind authenticated access with database-enforced access controls.
 
-All finance tables have Row Level Security enabled and are accessible through the authenticated role only. The database security advisor currently reports no security lints.
+Security-sensitive operational configuration is not documented in this repository. Do not add:
+- Supabase service-role keys
+- API tokens
+- passwords
+- database credentials
+- private deployment credentials
+- private customer or financial records
+- internal migration/recovery notes containing operational secrets
 
-## Before expanding the product
+For repository security, enable secret scanning/push protection where available and keep sensitive configuration in GitHub/deployment secrets.
 
-Next logical modules are: document storage, proper invoice PDF generation, client/project CRUD, activity timeline, reporting, recurring invoices, and optional email delivery.
-
-## Auth hardening
-
-- Production confirmation redirects are handled by `/auth/confirm` using Supabase PKCE/token-hash verification.
-- The finance tables are restricted to the seeded workspace owner through `workspace_members`.
-- The browser uses only the Supabase publishable key; credentials are supplied through environment variables.
-- The UI enforces a strong signup password before calling Supabase.
-
-Supabase Dashboard configuration still required for the production auth boundary:
-1. Authentication → URL Configuration → set Site URL to `https://minimical-finance.vercel.app`.
-2. Add `https://minimical-finance.vercel.app/auth/confirm` to Redirect URLs. Keep `http://localhost:3000/**` only if local development is needed.
-3. Authentication → Password Security → enable leaked-password protection and set strong password requirements.
-4. Because this is an internal single-owner finance system, disable “Allow new users to sign up” after the owner account is established.
-
-
-<!-- FinOS client/account layer verified: 2026-09-30T23:28:17.731Z -->
-
-
-### Wishlist
-
-- Private client document storage is now session-gated and signed for portal delivery.
-
-
-## Backup / recovery strategy
-
-FinOS has two backup layers.
-
-1. Database backup: use the authenticated Settings → Workspace defaults → Data export action. The export is a versioned JSON envelope containing clients, projects, invoices, invoice contents, payments, documents metadata, organisations, invoice activity, project activity and client-portal activity. It includes a SHA-256 checksum in the manifest and response header.
-
-2. Storage backup: the JSON export intentionally contains storage metadata and paths, not the private file bytes. The finos-documents and finos-assets buckets therefore require a separate scheduled Supabase Storage/object backup. Keep at least one off-site copy.
-
-Recommended operational cadence:
-- Daily: database JSON export.
-- Daily/continuous: private storage object backup.
-- Weekly: verify a restore into a non-production Supabase project.
-- Before schema migrations: export database + storage snapshot.
-- Retention: keep daily copies for 30 days and monthly snapshots for 12 months.
-
-Recovery verification must include invoice totals, payment balances, organisation assignment, document paths and portal configuration. Never treat a successful JSON download as proof that private storage objects are recoverable.
+## License
+Private product code. See the repository's access and licensing terms.

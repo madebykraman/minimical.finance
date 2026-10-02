@@ -1134,3 +1134,28 @@ button{-webkit-tap-highlight-color:transparent}
     border-radius: 16px;
   }
 }
+
+
+/* Invoice provenance field: keeps tracker assignment visible without widening the editor grid. */
+.content-title-stack { min-width: 0; display: grid; gap: 3px; }
+.content-assigned-input {
+  min-width: 0;
+  height: 21px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-tertiary, #66636d);
+  font: 500 9px var(--font-data, monospace);
+}
+.content-assigned-input::placeholder { color: #4f4c55; }
+.content-assigned-input:hover,
+.content-assigned-input:focus {
+  border-color: var(--line, #27242d);
+  background: #111014;
+  color: var(--text-secondary, #aaa7b1);
+}
+@media(max-width:720px) {
+  .content-title-stack { gap: 2px; }
+  .content-assigned-input { height: 19px; font-size: 8px; }
+}

@@ -637,6 +637,16 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const requestClose = () => {
     if (!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
   };
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "s" || event.key === "Enter")) {
+        event.preventDefault();
+        if (dirty) onSave(draft);
+      }
+    };
+    document.addEventListener("keydown", onShortcut);
+    return () => document.removeEventListener("keydown", onShortcut);
+  }, [dirty, draft, onSave]);
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
   const add = (kind:ContentKind = "service") => setDraft(d => ({...d,contents:[...d.contents,{id:crypto.randomUUID(),title:kind === "note" ? "Note" : "New content",kind,quantity:1,priced:kind === "note"}]}));
   const remove = (id:string) => setDraft(d => ({...d,contents:d.contents.filter(c => c.id !== id)}));
@@ -675,7 +685,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
-    <div className="drawer-foot"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary" onClick={requestClose}>Close</button><button className="primary" disabled={!dirty} onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose}>Close</button><button className="primary invoice-save-action" disabled={!dirty} onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
   </aside></div>;
 }
 

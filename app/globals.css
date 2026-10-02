@@ -863,3 +863,7 @@ body{font-size:14px;line-height:1.5}
   .invoice-right .status{font-size:7px}
   .invoice-composer .drawer-foot .primary,.invoice-composer .drawer-foot .secondary{font-size:11px}
 }
+
+.invoice-register-header{min-height:34px;padding:0 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:72px minmax(0,1fr) 90px 110px 100px 90px;align-items:center;gap:18px;background:#0d0d0f;color:var(--text-tertiary);font:600 8px var(--font-data);letter-spacing:.07em}
+.invoice-register-header span:nth-last-child(-n+3){text-align:right}
+@media(max-width:720px){.invoice-register-header{display:none}}

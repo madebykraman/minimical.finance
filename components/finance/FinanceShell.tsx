@@ -63,15 +63,25 @@ export function FinanceShell({
 
   useEffect(()=>{
     if(!workspaceMenuOpen) return;
+    const restoreFocus=()=>{
+      setWorkspaceMenuOpen(false);
+      setWorkspaceFilter("");
+      requestAnimationFrame(()=>{
+        const desktop=desktopWorkspaceTriggerRef.current;
+        const mobile=mobileWorkspaceTriggerRef.current;
+        const target=desktop && desktop.getClientRects().length ? desktop : mobile;
+        target?.focus();
+      });
+    };
     const key=(e:KeyboardEvent)=>{
       if(e.key==="Escape"){
         e.preventDefault();
-        setWorkspaceMenuOpen(false);
+        restoreFocus();
       }
     };
     const click=(e:MouseEvent)=>{
       const t=e.target as Node;
-      if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))setWorkspaceMenuOpen(false);
+      if(!(t instanceof Element)||!t.closest(".workspace-switcher-wrap"))restoreFocus();
     };
     document.addEventListener("keydown",key);
     document.addEventListener("mousedown",click);

@@ -19,6 +19,7 @@ export type ImportMapping = {
   issueDate?: string;
   dueDate?: string;
   amount?: string;
+  invoiceTotal?: string;
   status?: string;
   paymentDate?: string;
   paymentAmount?: string;
@@ -48,7 +49,8 @@ const aliases: Record<keyof ImportMapping, string[]> = {
   invoiceNumber: ["invoice","invoice no","invoice number","invoice #","invoice id","bill no","bill number","document number"],
   issueDate: ["issue date","invoice date","issued","created","created date","date raised","bill date"],
   dueDate: ["due date","payment due","due","due on"],
-  amount: ["amount","total","invoice total","grand total","gross total","net total","value","invoice value"],
+  amount: ["amount","line amount","item amount","value","line value"],
+  invoiceTotal: ["total","invoice total","grand total","gross total","net total","bill total","invoice value"],
   status: ["status","invoice status","state","payment status"],
   paymentDate: ["payment date","paid date","received date","date paid","settled date"],
   paymentAmount: ["payment","paid","paid amount","received","received amount","amount paid","amount received"],
@@ -154,7 +156,7 @@ function valueSignal(field:keyof ImportMapping, values:unknown[]){
   const nonEmpty=values.filter(v=>cleanValue(v));
   if(!nonEmpty.length)return 0;
   if(field==="issueDate"||field==="dueDate"||field==="paymentDate")return nonEmpty.filter(looksLikeDate).length/nonEmpty.length;
-  if(field==="amount"||field==="paymentAmount")return nonEmpty.filter(looksLikeAmount).length/nonEmpty.length;
+  if(field==="amount"||field==="invoiceTotal"||field==="paymentAmount")return nonEmpty.filter(looksLikeAmount).length/nonEmpty.length;
   if(field==="invoiceNumber")return nonEmpty.filter(v=>/^(?:inv(?:oice)?|bill|doc(?:ument)?)?[-\\s#_]*[a-z0-9/]+$/i.test(String(v).trim())).length/nonEmpty.length;
   if(field==="status"){const allowed=new Set(["draft","sent","partially paid","paid","void","cancelled","canceled","overdue"]);return nonEmpty.filter(v=>allowed.has(normalize(v))).length/nonEmpty.length;}
   if(field==="description")return Math.min(1,nonEmpty.reduce((s,v)=>s+String(v).length,0)/(nonEmpty.length*28));
@@ -235,6 +237,13 @@ export function normalizeAmount(value: unknown): number | null {
   const n = Number(raw.replace(/[()]/g,""));
   if (!Number.isFinite(n)) return null;
   return negative ? -n : n;
+}
+
+export function normalizeInvoiceNumber(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw || /^(?:n\\/?a|na|none|-)$/i.test(raw)) return "";
+  const prefixed = raw.match(/^(?:inv(?:oice)?|bill|document)\\.?\\s*#?\\s*(.+)$/i);
+  return (prefixed?.[1] ?? raw).trim();
 }
 
 export function fingerprint(row: Record<string, unknown>, mapping: ImportMapping): string {

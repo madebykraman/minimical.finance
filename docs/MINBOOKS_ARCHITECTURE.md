@@ -38,18 +38,19 @@ Receipts are organisation-scoped and sequential through the database. Payments c
 `documents` is the register; `document_versions` is the generated-file history. The document register can therefore distinguish an issued-but-not-yet-rendered document from a generated immutable file version. PDF renderers remain separate by document type.
 
 ## Import architecture
-1. Detect CSV/XLS/XLSX workbook and available sheets.
-2. Preview source rows without mutating data.
-3. Infer source columns from aliases.
-4. Let the user confirm or override mappings.
-5. Normalize organisation/client/project/document fields.
-6. Detect duplicates and ambiguous organisation matches.
-7. Validate rows.
-8. Reconcile totals and report skipped/changed/created records.
-9. Commit only after explicit confirmation.
-10. Log the import source and result.
+1. Read CSV/XLS/XLSX locally without mutating the financial database.
+2. Inspect the workbook as a matrix and detect the most likely semantic header row instead of assuming row 1 is the header.
+3. Classify the source as structured or headerless/irregular and score analysis confidence.
+4. Infer financial fields with one-to-one column assignment; never reuse a source column simply because it is the closest textual match.
+5. Inspect values as well as headings for date, amount, invoice-number, status and other semantic signals.
+6. Resolve organisation ownership against the current workspace; use the active organisation automatically when that is unambiguous.
+7. Normalize client/project/invoice/payment data and distinguish new entities from unresolved entities.
+8. Detect existing invoice duplicates and duplicates inside the import batch; offer deterministic auto-number or skip resolution.
+9. Show the operator only the remaining exceptions, with mapping review available as an advanced override rather than the default workflow.
+10. Reconcile ready/skipped/blocked/warning counts and commit only after explicit confirmation.
+11. Persist the source, analysis, row-level decisions and final outcome in the import register.
 
-The import UI is designed for phone-first capture and desktop batch work.
+The importer is intentionally “analyse → reconcile exceptions → commit”, not “fill a mapping form”. It is designed for phone-first review and desktop batch work.
 
 ## UX doctrine
 - Mobile is a first-class workflow, not a collapsed desktop layout.

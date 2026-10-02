@@ -480,6 +480,8 @@ export function ReportsView({invoices}:{invoices:Invoice[]}) {
   const [client,setClient]=useState("all");
   const [organization,setOrganization]=useState("all");
   const [projects,setProjects]=useState<any[]>([]);
+  const drawerRef=useRef<HTMLElement>(null);
+  const previousFocusRef=useRef<HTMLElement|null>(null);
   const [organizations,setOrganizations]=useState<any[]>([]);
   useEffect(()=>{
     Promise.all([
@@ -634,6 +636,23 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     ]).then(([c,p])=>{setClients(c.data||[]);setProjects(p.data||[])});
   },[draft.organizationId]);
   useEffect(() => setDraft(invoice), [invoice]);
+  useEffect(()=>{
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root=drawerRef.current;
+    const selector="button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex='-1'])";
+    requestAnimationFrame(()=>root?.querySelector<HTMLElement>(selector)?.focus());
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){event.preventDefault();requestClose();return}
+      if(event.key!=="Tab"||!root)return;
+      const focusable=Array.from(root.querySelectorAll<HTMLElement>(selector));
+      if(!focusable.length)return;
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+    };
+    document.addEventListener("keydown",onKey);
+    return()=>{document.removeEventListener("keydown",onKey);const previous=previousFocusRef.current;if(previous&&document.contains(previous))previous.focus();previousFocusRef.current=null};
+  },[]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   const [saving, setSaving] = useState(false);
@@ -678,8 +697,8 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const patch = (id:string,p:Partial<Content>) => setDraft(d => ({...d,contents:d.contents.map(c => c.id === id ? {...c,...p,amount:p.amount ?? ((p.quantity ?? c.quantity) * (p.rate ?? c.rate ?? 0))} : c)}));
   const add = (kind:ContentKind = "service") => setDraft(d => ({...d,contents:[...d.contents,{id:crypto.randomUUID(),title:kind === "note" ? "Note" : "New content",kind,quantity:1,priced:kind === "note"}]}));
   const remove = (id:string) => setDraft(d => ({...d,contents:d.contents.filter(c => c.id !== id)}));
-  return <div className="overlay invoice-edit-overlay" onMouseDown={requestClose}><aside className="drawer invoice-edit-drawer" onMouseDown={e => e.stopPropagation()}>
-    <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2>#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={requestClose} aria-label="Close invoice editor"><X size={18}/></button></div>
+  return <div className="overlay invoice-edit-overlay" onMouseDown={requestClose}><aside ref={drawerRef} className="drawer invoice-edit-drawer" role="dialog" aria-modal="true" aria-labelledby="invoice-editor-title" onMouseDown={e => e.stopPropagation()}>
+    <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2 id="invoice-editor-title">#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={requestClose} aria-label="Close invoice editor"><X size={18}/></button></div>
     <div className="drawer-body">
       <div className="invoice-drawer-lockup">
         <span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span>

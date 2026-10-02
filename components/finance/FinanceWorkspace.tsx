@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createInvoice as createInvoiceRecord,

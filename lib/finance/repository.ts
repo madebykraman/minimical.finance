@@ -263,169 +263,28 @@ export type ImportInvoiceRow = {
 };
 
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
-  const results: { row: ImportInvoiceRow; id?: string; error?: string }[] = [];
+  if (!rows.length) return [];
 
-  for (const row of rows) {
-    if (!row.organizationId || !row.clientName.trim() || !row.issueDate) {
-      results.push({ row, error: "Organisation, client and issue date are required." });
-      continue;
-    }
-    if (!Number.isFinite(row.amount) || row.amount < 0) {
-      results.push({ row, error: "Invoice amount must be a valid non-negative number." });
-      continue;
-    }
-    if (row.paymentAmount != null && (!Number.isFinite(row.paymentAmount) || row.paymentAmount < 0 || row.paymentAmount > row.amount)) {
-      results.push({ row, error: "Imported payment cannot exceed the invoice amount." });
-      continue;
-    }
-
-    const { data: existing, error: existingError } = row.invoiceNumber
-      ? await supabase
-          .from("invoices")
-          .select("id")
-          .eq("organization_id", row.organizationId)
-          .ilike("invoice_number", row.invoiceNumber.trim())
-          .maybeSingle()
-      : { data: null, error: null };
-
-    if (existingError) {
-      results.push({ row, error: existingError.message });
-      continue;
-    }
-    if (existing) {
-      results.push({ row, error: "Invoice number already exists in this organisation." });
-      continue;
-    }
-
-    let { data: client, error: clientError } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("organization_id", row.organizationId)
-      .eq("name", row.clientName.trim())
-      .maybeSingle();
-
-    if (clientError) {
-      results.push({ row, error: clientError.message });
-      continue;
-    }
-
-    if (!client) {
-      const created = await supabase
-        .from("clients")
-        .insert({ organization_id: row.organizationId, name: row.clientName.trim() })
-        .select("id")
-        .single();
-      if (created.error || !created.data) {
-        results.push({ row, error: created.error?.message ?? "Client creation failed." });
-        continue;
-      }
-      client = created.data;
-    }
-
-    let projectId: string | null = null;
-    if (row.projectName?.trim()) {
-      const project = await supabase
-        .from("projects")
-        .select("id")
-        .eq("organization_id", row.organizationId)
-        .eq("client_id", client.id)
-        .eq("name", row.projectName.trim())
-        .maybeSingle();
-
-      if (project.error) {
-        results.push({ row, error: project.error.message });
-        continue;
-      }
-
-      if (project.data) {
-        projectId = project.data.id;
-      } else {
-        const createdProject = await supabase
-          .from("projects")
-          .insert({ organization_id: row.organizationId, client_id: client.id, name: row.projectName.trim() })
-          .select("id")
-          .single();
-
-        if (createdProject.error || !createdProject.data) {
-          results.push({ row, error: createdProject.error?.message ?? "Project creation failed." });
-          continue;
-        }
-        projectId = createdProject.data.id;
-      }
-    }
-
-    let number = row.invoiceNumber?.trim() || "";
-    if (!number) {
-      const allocated = await supabase.rpc("allocate_invoice_number", { p_organization_id: row.organizationId });
-      if (allocated.error || !allocated.data) {
-        results.push({ row, error: allocated.error?.message ?? "Could not allocate invoice number." });
-        continue;
-      }
-      number = String(allocated.data);
-    }
-
-    const created = await supabase
-      .from("invoices")
-      .insert({
-        organization_id: row.organizationId,
-        client_id: client.id,
-        project_id: projectId,
-        invoice_number: number,
-        issue_date: row.issueDate,
-        due_date: row.dueDate || null,
-        source_total: row.amount,
-        status: "draft",
-      })
-      .select("id")
-      .single();
-
-    if (created.error || !created.data) {
-      results.push({ row, error: created.error?.message ?? "Invoice creation failed." });
-      continue;
-    }
-
-    const content = await supabase.from("invoice_contents").insert({
-      invoice_id: created.data.id,
-      position: 0,
-      kind: "service",
-      title: row.description?.trim() || "Imported invoice",
-      quantity: 1,
-      rate: row.amount,
+  const { data, error } = await supabase.rpc("import_invoice_batch", {
+    p_rows: rows.map(row => ({
+      organizationId: row.organizationId,
+      clientName: row.clientName,
+      projectName: row.projectName ?? null,
+      invoiceNumber: row.invoiceNumber ?? null,
+      issueDate: row.issueDate,
+      dueDate: row.dueDate ?? null,
       amount: row.amount,
-      priced: true,
-    });
+      description: row.description ?? null,
+      status: row.status ?? "draft",
+      paymentDate: row.paymentDate ?? null,
+      paymentAmount: row.paymentAmount ?? 0,
+      paymentMethod: row.paymentMethod ?? "bank_transfer",
+    })),
+  });
 
-    if (content.error) {
-      await supabase.from("invoices").delete().eq("id", created.data.id);
-      results.push({ row, error: content.error.message });
-      continue;
-    }
-
-    if (row.paymentAmount && row.paymentAmount > 0) {
-      const payment = await supabase.rpc("record_invoice_payment", {
-        p_invoice_id: created.data.id,
-        p_amount: row.paymentAmount,
-        p_payment_date: row.paymentDate || null,
-        p_method: row.paymentMethod ?? "other",
-        p_reference: null,
-        p_notes: "Imported payment",
-      });
-
-      if (payment.error) {
-        await supabase.from("invoices").delete().eq("id", created.data.id);
-        results.push({ row, error: payment.error.message });
-        continue;
-      }
-    }
-
-    const activityError = await logActivity(created.data.id, "invoice_imported", {
-      source: "spreadsheet",
-      invoice_number: number,
-      payment_imported: Boolean(row.paymentAmount && row.paymentAmount > 0),
-    });
-
-    results.push({ row, id: created.data.id, error: activityError });
+  if (error) {
+    return rows.map(row => ({ row, error: error.message }));
   }
 
-  return results;
+  return rows.map(row => ({ row, id: "batch", error: undefined }));
 }

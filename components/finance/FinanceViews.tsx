@@ -13,6 +13,7 @@ import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
+import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
 
 const supabase = createClient();
 
@@ -194,7 +195,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
         <label>Brand accent<input value={organization.accent_hex||"#7046dd"} onChange={e=>setOrganization((p:any)=>({...p,accent_hex:e.target.value}))}/></label>
         <label>Invoice prefix<input value={organization.invoice_prefix||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label>
         <label>Next invoice number<input type="number" value={organization.next_invoice_number||1} onChange={e=>setOrganization((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label>
-        <label>Invoice template<select value={organization.invoice_template_key||"legacy_elle"} onChange={e=>setOrganization((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Approved legacy template</option><option value="clean">Workspace Clean</option></select></label>
+        <label>Invoice template<select value={organization.invoice_template_key||"legacy_elle"} onChange={e=>setOrganization((p:any)=>({...p,invoice_template_key:e.target.value}))}>{DOCUMENT_TEMPLATES.filter(t=>t.kind==="invoice").map(t=><option key={t.key} value={t.key}>{t.name}</option>)}</select></label>
         <label>Payee name<input value={organization.payee_name||""} onChange={e=>setOrganization((p:any)=>({...p,payee_name:e.target.value}))} placeholder="Name printed under PAY TO"/></label>
         <label>Account number<input value={organization.account_number||""} onChange={e=>setOrganization((p:any)=>({...p,account_number:e.target.value}))}/></label>
         <label>Bank name<input value={organization.bank_name||""} onChange={e=>setOrganization((p:any)=>({...p,bank_name:e.target.value}))}/></label>

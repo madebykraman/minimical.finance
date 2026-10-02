@@ -762,28 +762,47 @@ export function OrganizationMigrationView({invoices,organizations,activeOrganiza
 export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf"|"statement_pdf">("all");
   const [documents,setDocuments]=useState<any[]>([]);
+  const [selected,setSelected]=useState<any|null>(null);
+  const [versions,setVersions]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents").select("id,document_type,file_name,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
-    if(organizationId) query=query.eq("organization_id",organizationId);
-    const {data}=await query; setDocuments(data||[]); setLoading(false);
+    let query=supabase.from("documents").select("id,document_type,file_name,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
+    if(organizationId)query=query.eq("organization_id",organizationId);
+    const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  async function openHistory(doc:any){
+    setSelected(doc);
+    const {data}=await supabase.from("document_versions").select("*").eq("document_id",doc.id).order("version_number",{ascending:false});
+    setVersions(data||[]);
+  }
+  async function versionUrl(version:any){
+    if(!version.file_path)return null;
+    const {data}=await supabase.storage.from(version.storage_bucket||"finos-documents").createSignedUrl(version.file_path,60);
+    return data?.signedUrl||null;
+  }
   const docs=documents.filter(d=>kind==="all"||d.document_type===kind);
   const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
-  const label=(d:any)=>d.document_type==="invoice_pdf" ? "#"+String(d.invoices?.invoice_number||"invoice") : d.document_type==="statement_pdf" ? (d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement") : (d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
+  const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
-    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents and their generated versions.</p></div></section>
+    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, immutable source snapshots and generated file versions.</p></div></section>
     <div className="document-tabs">{(Object.keys(labels) as (keyof typeof labels)[]).map(k=><button key={k} className={kind===k?"active":""} onClick={()=>setKind(k)}>{labels[k]}</button>)}</div>
     <section className="data-panel">
-      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading ? "Loading…" : docs.length+" registered"}</p></div></div>
-      {docs.length ? <div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
+      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" registered"}</p></div></div>
+      {docs.length?<div className="document-register">{docs.map(d=><button className="document-row document-row-button" key={d.id} onClick={()=>void openHistory(d)}>
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
         <div><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}</span></div>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <a className="secondary document-download" href={"/api/documents/"+d.id+"/download"}>Download PDF</a>
-      </div>)}</div> : <div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
+        <span className="secondary document-download">History</span>
+      </button>)}</div>:<div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
     </section>
+    {selected&&<div className="document-history-overlay" onMouseDown={()=>setSelected(null)}><section className="document-history-panel" role="dialog" aria-modal="true" aria-label="Document history" onMouseDown={e=>e.stopPropagation()}>
+      <header className="drawer-head"><div><span className="eyebrow">Document history</span><h2>{label(selected)}</h2><p>{selected.template_key||"Template unspecified"} · {selected.status}</p></div><button className="icon-button" onClick={()=>setSelected(null)} aria-label="Close"><X size={16}/></button></header>
+      <div className="document-history-body">
+        <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
+        <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><button className="secondary" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);if(url)window.open(url,"_blank","noopener,noreferrer")}}>Open</button></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
+      </div>
+    </section></div>}
   </div>;
 }

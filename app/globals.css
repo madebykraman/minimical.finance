@@ -1317,3 +1317,54 @@ button{-webkit-tap-highlight-color:transparent}
   .operations-head-actions .operations-count { display:none; }
   .operations-head-actions .primary { min-height:34px; padding:0 10px; }
 }
+
+/* Source-level adaptation of ObsidianUI's restrained interaction/motion approach.
+   Finance surfaces use short, transform/opacity-only transitions and always honour reduced motion. */
+.page-frame > * {
+  animation: finance-page-enter 180ms cubic-bezier(.22,.61,.36,1) both;
+}
+@keyframes finance-page-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-frame > * { animation: none; }
+}
+
+/* Mobile is an action surface, not a shrunken desktop dashboard.
+   The same underlying flows remain available; this rail exposes the four
+   highest-value recovery actions without adding another permanent toolbar. */
+.mobile-quick-actions { display:none; }
+@media(max-width:720px) {
+  .mobile-quick-actions {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:7px;
+    margin:0 0 2px;
+  }
+  .mobile-quick-action {
+    min-width:0;
+    min-height:58px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:7px 4px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:#111114;
+    color:var(--text-secondary);
+    font-size:9px;
+    font-weight:600;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mobile-quick-action svg { color:#9a9aa3; }
+  .mobile-quick-action.primary {
+    border-color:#5d4aa5;
+    background:#211b31;
+    color:#fff;
+  }
+  .mobile-quick-action.primary svg { color:#c0b2ff; }
+  .mobile-quick-action:active { transform:translateY(1px); }
+}

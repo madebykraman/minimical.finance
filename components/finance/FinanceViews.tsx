@@ -650,32 +650,30 @@ export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onCl
 
 
 export function DocumentsView({organizationId}:{organizationId?:string|null}) {
-  const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf">("all");
+  const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf"|"statement_pdf">("all");
   const [documents,setDocuments]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents")
-      .select("id,document_type,file_name,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,clients(name),invoices(invoice_number)")
-      .order("created_at",{ascending:false});
+    let query=supabase.from("documents").select("id,document_type,file_name,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
     if(organizationId) query=query.eq("organization_id",organizationId);
     const {data}=await query; setDocuments(data||[]); setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
   const docs=documents.filter(d=>kind==="all"||d.document_type===kind);
-  const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts"} as const;
-  const label=(d:any)=>d.document_type==="invoice_pdf" ? "#"+String(d.invoices?.invoice_number||"invoice") : d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt";
+  const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
+  const label=(d:any)=>d.document_type==="invoice_pdf" ? "#"+String(d.invoices?.invoice_number||"invoice") : d.document_type==="statement_pdf" ? (d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement") : (d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
     <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents and their generated versions.</p></div></section>
     <div className="document-tabs">{(Object.keys(labels) as (keyof typeof labels)[]).map(k=><button key={k} className={kind===k?"active":""} onClick={()=>setKind(k)}>{labels[k]}</button>)}</div>
     <section className="data-panel">
-      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":`${docs.length} registered`}</p></div></div>
+      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading ? "Loading…" : docs.length+" registered"}</p></div></div>
       {docs.length ? <div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
-        <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:<WalletCards size={15}/>}</div>
+        <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
         <div><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}</span></div>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <a className="secondary document-download" href={`/api/documents/${d.id}/download`}>Download PDF</a>
-      </div>)}</div> : <div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices and recorded payments create canonical document records.</span></div>}
+        <a className="secondary document-download" href={"/api/documents/"+d.id+"/download"}>Download PDF</a>
+      </div>)}</div> : <div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
     </section>
   </div>;
 }

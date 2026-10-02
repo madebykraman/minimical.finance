@@ -28,13 +28,17 @@ function contactPhone(org:any){return safe(org?.phone)||"+91 87095 39814";}
 export async function GET(request:NextRequest,context:{params:Promise<{id:string}>}){
   const {id}=await context.params;const supabase=await createClient();
   const {data:userData}=await supabase.auth.getUser();if(!userData.user)return new NextResponse("Unauthorized",{status:401});
-  const [{data:rawInvoice,error},{data:settings},{data:issuedVersion}]=await Promise.all([
+  const [{data:rawInvoice,error},{data:settings}]=await Promise.all([
     supabase.from("invoices").select("*,clients(*),projects(name),invoice_contents(*),payments(*),organizations(*)").eq("id",id).maybeSingle(),
-    supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle(),
-    supabase.from("invoice_versions").select("version_number,snapshot,snapshot_hash").eq("invoice_id",id).order("version_number",{ascending:false}).limit(1).maybeSingle()
+    supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle()
   ]);
   if(error||!rawInvoice)return new NextResponse("Invoice not found",{status:404});
-  const live:any=rawInvoice;const snapshot:any=issuedVersion?.snapshot;
+  const live:any=rawInvoice;
+  const issuedVersionNumber=live.issued_version ? Number(live.issued_version) : null;
+  const {data:issuedVersion}=issuedVersionNumber
+    ? await supabase.from("invoice_versions").select("version_number,snapshot,snapshot_hash").eq("invoice_id",id).eq("version_number",issuedVersionNumber).maybeSingle()
+    : {data:null};
+  const snapshot:any=issuedVersion?.snapshot;
   const invoice:any=snapshot?.invoice?{...live,...snapshot.invoice,clients:snapshot.client??live.clients,organizations:snapshot.organization??live.organizations,projects:snapshot.project??live.projects,invoice_contents:snapshot.contents??live.invoice_contents,payments:live.payments}:live;
   const client=invoice.clients||{};const org=invoice.organizations||settings||{};const templateKey=getDocumentTemplate(org.invoice_template_key,"invoice")?.key||"legacy_elle";
   const contents=[...(invoice.invoice_contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));

@@ -3,6 +3,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 
 const PAGE = { width: 595.2756, height: 841.8898 };
@@ -161,18 +162,29 @@ export async function GET(
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const [{ data: rawInvoice, error }, { data: settings }] = await Promise.all([
+  const [{ data: rawInvoice, error }, { data: settings }, { data: issuedVersion }] = await Promise.all([
     supabase
       .from("invoices")
       .select("*, clients(*), projects(name), invoice_contents(*), payments(*), organizations(*)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("workspace_settings").select("*").eq("id", true).maybeSingle(),
+    supabase.from("invoice_versions").select("version_number,snapshot,snapshot_hash").eq("invoice_id", id).order("version_number", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
 
-  const invoice: any = rawInvoice;
+  const liveInvoice: any = rawInvoice;
+  const snapshot: any = issuedVersion?.snapshot;
+  const invoice: any = snapshot?.invoice ? {
+    ...liveInvoice,
+    ...snapshot.invoice,
+    clients: snapshot.client ?? liveInvoice.clients,
+    organizations: snapshot.organization ?? liveInvoice.organizations,
+    projects: snapshot.project ?? liveInvoice.projects,
+    invoice_contents: snapshot.contents ?? liveInvoice.invoice_contents,
+    payments: liveInvoice.payments,
+  } : liveInvoice;
   const billingClient = invoice.clients ?? {};
   const organization = invoice.organizations ?? settings ?? {};
   const templateKey = organization?.invoice_template_key || "legacy_elle";
@@ -322,6 +334,40 @@ export async function GET(
   );
 
   const bytes = await pdf.save();
+
+  if (issuedVersion) {
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    const versionNumber = Number(issuedVersion.version_number || invoice.issued_version || 1);
+    const { data: document } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("invoice_id", id)
+      .eq("document_type", "invoice_pdf")
+      .eq("version_number", versionNumber)
+      .maybeSingle();
+
+    if (document?.id) {
+      await supabase.from("documents").update({
+        status: "generated",
+        generated_at: new Date().toISOString(),
+        checksum_sha256: checksum,
+        source_hash: issuedVersion.snapshot_hash,
+        template_key: templateKey,
+      }).eq("id", document.id);
+
+      await supabase.from("document_versions").upsert({
+        document_id: document.id,
+        version_number: versionNumber,
+        file_name: `INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf`,
+        mime_type: "application/pdf",
+        size_bytes: bytes.length,
+        checksum_sha256: checksum,
+        generated_at: new Date().toISOString(),
+        metadata: { source_hash: issuedVersion.snapshot_hash, template_key: templateKey },
+      }, { onConflict: "document_id,version_number" });
+    }
+  }
+
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": "application/pdf",

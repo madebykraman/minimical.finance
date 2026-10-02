@@ -33,5 +33,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     return NextResponse.redirect(new URL(`/api/payments/${document.payment_id}/receipt`, _request.url));
   }
 
+  if (document.document_type === "statement_pdf" && document.client_id) {
+    return NextResponse.redirect(new URL(`/api/statements/${document.client_id}/pdf`, _request.url));
+  }
+
   return new NextResponse("Document is not available yet", { status: 404 });
 }

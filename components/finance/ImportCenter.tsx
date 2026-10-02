@@ -18,6 +18,8 @@ const fields:Array<[keyof ImportMapping,string,boolean]>=([
   ["amount","Amount",true],
   ["status","Status",false],
   ["description","Description",false],
+  ["paymentDate","Payment date",false],
+  ["paymentAmount","Payment amount",false],
 ]);
 
 export function ImportCenter({organizations,activeOrganizationId,onComplete}:{organizations:Organization[];activeOrganizationId:string|null;onComplete:()=>void}) {
@@ -77,6 +79,8 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       amount:v.amount!,
       description:String(valueFor(v.row,mapping.description)).trim() || undefined,
       status:(["draft","sent","partially_paid","paid","void"].includes(String(valueFor(v.row,mapping.status)).toLowerCase()) ? String(valueFor(v.row,mapping.status)).toLowerCase() : "draft") as Status,
+      paymentDate:normalizeDate(valueFor(v.row,mapping.paymentDate)) || undefined,
+      paymentAmount:normalizeAmount(valueFor(v.row,mapping.paymentAmount)) ?? undefined,
     }));
     const imported=await importInvoiceRows(rows);
     const failed=imported.filter(r=>r.error).length;

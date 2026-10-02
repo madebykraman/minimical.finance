@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export type FinanceStatus = "draft" | "sent" | "partially_paid" | "paid" | "void";
@@ -33,21 +33,42 @@ export function SegmentedTabs<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
+  const activeIndex = Math.max(0, items.findIndex((item) => item.value === value));
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!items.length) return;
+    let next = activeIndex;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (activeIndex + 1) % items.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (activeIndex - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+    event.preventDefault();
+    onChange(items[next].value);
+    requestAnimationFrame(() => {
+      document.getElementById(`finance-tab-${items[next].value}`)?.focus();
+    });
+  };
+
   return (
     <div className="finance-segmented-tabs" role="tablist" aria-label={ariaLabel}>
-      {items.map((item) => (
-        <button
-          key={item.value}
-          type="button"
-          role="tab"
-          aria-selected={value === item.value}
-          tabIndex={value === item.value ? 0 : -1}
-          className={value === item.value ? "active" : ""}
-          onClick={() => onChange(item.value)}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item) => {
+        const id = `finance-tab-${item.value}`;
+        return (
+          <button
+            key={item.value}
+            id={id}
+            type="button"
+            role="tab"
+            aria-selected={value === item.value}
+            tabIndex={value === item.value ? 0 : -1}
+            className={value === item.value ? "active" : ""}
+            onClick={() => onChange(item.value)}
+            onKeyDown={onKeyDown}
+          >
+            {item.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

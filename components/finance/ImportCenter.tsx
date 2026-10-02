@@ -34,7 +34,7 @@ type ImportRecord = {
 
 const supabase=createClient();
 const fieldLabels:Record<keyof ImportMapping,string>={
-  organization:"Organisation",client:"Client",lineItem:"Line item / project",project:"Project",invoiceNumber:"Invoice number",
+  organization:"Organisation",client:"Client",assignedBy:"Assigned by",lineItem:"Line item / project",project:"Project",invoiceNumber:"Invoice number",
   issueDate:"Issue date",dueDate:"Due date",amount:"Line amount",invoiceTotal:"Invoice total",
   status:"Status",paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",
 };
@@ -263,6 +263,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     const normalized=ready.map(v=>({
       organizationId:v.org!.id,
       clientName:v.client,
+      assignedBy:clean(valueFor(v.primaryRow,mapping.assignedBy))||undefined,
       projectName:v.project||undefined,
       invoiceNumber:v.invoiceNumber||undefined,
       issueDate:v.issueDate,

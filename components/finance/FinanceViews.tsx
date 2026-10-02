@@ -635,6 +635,32 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   useEffect(() => setDraft(invoice), [invoice]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState("");
+  const validate = () => {
+    if (!draft.organizationId) return "Select a billing organisation before saving.";
+    if (!draft.clientId || !draft.client.trim()) return "Select a client before saving.";
+    if (!draft.number.trim()) return "Invoice number is required.";
+    if (!draft.date) return "Issue date is required.";
+    if (draft.dueDate && draft.dueDate < draft.date) return "Due date cannot be earlier than the issue date.";
+    if (!draft.contents.some(c => c.title.trim())) return "Add at least one invoice content line.";
+    if (draft.contents.some(c => c.title.trim() && c.kind !== "note" && c.priced && Number(c.rate) < 0)) return "Line-item rates cannot be negative.";
+    return "";
+  };
+  const save = async () => {
+    const error = validate();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError("");
+    setSaving(true);
+    try {
+      await onSave(draft);
+    } finally {
+      setSaving(false);
+    }
+  };
   const requestClose = () => {
     if (!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
   };
@@ -642,7 +668,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     const onShortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "s" || event.key === "Enter")) {
         event.preventDefault();
-        if (dirty) onSave(draft);
+        if (dirty) void save();
       }
     };
     document.addEventListener("keydown", onShortcut);
@@ -686,7 +712,8 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       </div>
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
-    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose}>Close</button><button className="primary invoice-save-action" disabled={!dirty} onClick={() => onSave(draft)}><Check size={16}/>Save changes</button></div>
+    {validationError && <div className="auth-message invoice-validation-message" role="alert">{validationError}</div>}
+    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? "Saving…" : "Save changes"}</button></div>
   </aside></div>;
 }
 

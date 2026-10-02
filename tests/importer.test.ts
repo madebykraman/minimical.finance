@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { analyzeImportSource, detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, normalizeInvoiceNumber, fingerprint } from "../lib/finance/importer";
 
 test("import mapping recognises common invoice headers without reusing one source column",()=>{
-  const mapping=inferImportMapping(["Organisation","Client Name","Invoice No","Invoice Date","Due Date","Grand Total","Paid Amount"]);
+  const mapping=inferImportMapping(["Organisation","Client Name","Invoice No","Invoice Date","Due Date","Line Amount","Grand Total","Paid Amount"]);
   assert.equal(mapping.organization,"Organisation");
   assert.equal(mapping.client,"Client Name");
   assert.equal(mapping.invoiceNumber,"Invoice No");
   assert.equal(mapping.issueDate,"Invoice Date");
   assert.equal(mapping.dueDate,"Due Date");
-  assert.equal(mapping.amount,"Grand Total");
+  assert.equal(mapping.amount,"Line Amount");
+  assert.equal(mapping.invoiceTotal,"Grand Total");
   assert.equal(mapping.paymentAmount,"Paid Amount");
   assert.equal(new Set(Object.values(mapping)).size,Object.values(mapping).length);
 });

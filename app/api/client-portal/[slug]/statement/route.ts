@@ -3,7 +3,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { hashPortalSession } from "@/lib/portal/auth";
 
 const A4:[number,number]=[595.2756,841.8898]; const BLACK=rgb(0,0,0); const MUTED=rgb(.42,.42,.40); const LINE=rgb(.86,.85,.82);
@@ -18,7 +18,7 @@ function label(period:string){if(period==="month")return "This month";if(period=
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string}>}){
   const {slug}=await context.params; const session=request.cookies.get("portal_session")?.value||""; const period=request.nextUrl.searchParams.get("period")||"all";
   if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient(); const [{data,error},{data:orgData}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
+  const supabase=createServiceClient(); const [{data,error},{data:orgData}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"statement_downloaded",p_resource_type:"statement"});
   const payload:any=data; const org:any=orgData||{}; const [start,end]=bounds(period); const invoices=payload.invoices||[]; const payments=payload.payments||[];

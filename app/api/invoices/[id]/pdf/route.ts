@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
+import { getDocumentTemplate } from "@/lib/finance/document-templates";
 
 const PAGE = { width: 595.2756, height: 841.8898 };
 const BLACK = rgb(0, 0, 0);
@@ -187,7 +188,7 @@ export async function GET(
   } : liveInvoice;
   const billingClient = invoice.clients ?? {};
   const organization = invoice.organizations ?? settings ?? {};
-  const templateKey = organization?.invoice_template_key || "legacy_elle";
+  const templateKey = getDocumentTemplate(organization?.invoice_template_key, "invoice")?.key || "legacy_elle";
   const contents = [...(invoice.invoice_contents ?? [])].sort(
     (a: any, b: any) => Number(a.position) - Number(b.position),
   );

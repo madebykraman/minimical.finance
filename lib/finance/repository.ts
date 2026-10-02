@@ -142,15 +142,14 @@ export async function createInvoice(draft: {
     }
   }
 
-  const suppliedNumber = draft.number.trim();
-  let number = suppliedNumber;
-  if (!number) {
-    const allocation = await supabase.rpc("allocate_invoice_number", {
-      p_organization_id: draft.organizationId,
-    });
-    if (allocation.error) return { id: null, error: allocation.error.message };
-    number = String(allocation.data || "");
-  }
+  // Normal invoice creation must use the database allocator so numbering remains
+  // authoritative and race-safe. Imported/historical invoice numbers are handled
+  // by the import path and are intentionally preserved there.
+  const allocation = await supabase.rpc("allocate_invoice_number", {
+    p_organization_id: draft.organizationId,
+  });
+  if (allocation.error) return { id: null, error: allocation.error.message };
+  const number = String(allocation.data || "");
   if (!number) return { id: null, error: "Invoice number could not be allocated." };
   const total = draft.contents.reduce(
     (sum, item) => sum + (item.priced ? (item.amount ?? item.quantity * (item.rate ?? 0)) : 0),

@@ -8,6 +8,7 @@ import {
   Settings2, WalletCards, X, ArrowLeftRight
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";
+import { MobileSheet } from "./FinancePrimitives";
 import { ALL_ORGANIZATIONS_ID, financeViewLabel } from "@/lib/finance/types";
 
 type WorkspaceOrganization = {
@@ -171,11 +172,11 @@ export function FinanceShell({
       {primary.map(([key,Icon])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
       <button className={mobileMoreOpen||secondary.some(([key])=>key===activeView)?"active":""} onClick={()=>setMobileMoreOpen(!mobileMoreOpen)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={17}/><span>More</span></button>
     </nav>
-    {mobileMoreOpen&&<div className="mobile-more-sheet" role="dialog" aria-label="More workspace sections" onMouseDown={()=>setMobileMoreOpen(false)}>
-      <div className="mobile-more-panel" onMouseDown={e=>e.stopPropagation()}>
+    <MobileSheet open={mobileMoreOpen} onClose={()=>setMobileMoreOpen(false)} title="Workspace">
+      <div className="mobile-more-panel">
         {secondary.map(([key,Icon])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
       </div>
-    </div>}
+    </MobileSheet>
     {overlays}
   </main>;
 }

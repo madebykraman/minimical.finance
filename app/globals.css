@@ -882,3 +882,20 @@ body{font-size:14px;line-height:1.5}
 .field-inline-action{justify-self:start;border:0;background:transparent;color:#9d89ef;padding:0;font-size:9px;font-weight:600}
 .field-inline-action:hover{text-decoration:underline}
 @media(max-width:720px){.field-inline-action{font-size:10px;padding:2px 0 1px}}
+
+.migration-page{display:grid;gap:12px}
+.migration-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1.5fr) auto;gap:10px;align-items:end;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface)}
+.migration-toggle{min-height:38px;display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:#0d0d0f}
+.migration-toggle input{width:15px;min-height:15px;accent-color:var(--accent)}
+.migration-toggle span{display:grid;gap:2px}.migration-toggle b{font-size:10px;color:var(--text)}.migration-toggle small{font-size:9px;color:var(--text-tertiary);font-weight:400}
+.migration-list{background:var(--surface)}
+.migration-row{min-height:64px;padding:8px 14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:10px;cursor:pointer}
+.migration-row input{width:15px;min-height:15px;accent-color:var(--accent)}
+.migration-row span{min-width:0;display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;column-gap:10px}
+.migration-row b{font:650 10px var(--font-data);color:#9e8ae9}.migration-row strong{font-size:11px}.migration-row small{grid-column:2;color:var(--text-tertiary);font-size:9px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.migration-row em{font:650 11px var(--font-data);font-style:normal}
+.migration-safety{padding:12px 14px;border:1px solid #2c2738;border-radius:var(--radius-lg);background:#121017;color:var(--text-secondary)}.migration-safety>div{display:flex;align-items:center;gap:7px;color:#c9baff;font-size:11px}.migration-safety p{margin:7px 0;color:var(--text-tertiary);font-size:10px;line-height:1.5}.migration-safety small{font:600 9px var(--font-data);color:#8d7db5}
+@media(max-width:720px){
+ .migration-toolbar{grid-template-columns:1fr;align-items:stretch}.migration-toolbar .primary{min-height:42px}
+ .migration-row{grid-template-columns:18px minmax(0,1fr) auto;padding:10px 11px}.migration-row span{grid-template-columns:52px minmax(0,1fr)}
+ .migration-row strong{font-size:12px}.migration-row em{font-size:10px}
+}

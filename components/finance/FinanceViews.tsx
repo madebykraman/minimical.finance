@@ -194,7 +194,13 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
         <label>Brand accent<input value={organization.accent_hex||"#7046dd"} onChange={e=>setOrganization((p:any)=>({...p,accent_hex:e.target.value}))}/></label>
         <label>Invoice prefix<input value={organization.invoice_prefix||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_prefix:e.target.value}))}/></label>
         <label>Next invoice number<input type="number" value={organization.next_invoice_number||1} onChange={e=>setOrganization((p:any)=>({...p,next_invoice_number:Number(e.target.value)||1}))}/></label>
-        <label>Invoice template<select value={organization.invoice_template_key||"legacy_elle"} onChange={e=>setOrganization((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Legacy template</option><option value="clean">Workspace Clean</option></select></label>
+        <label>Invoice template<select value={organization.invoice_template_key||"legacy_elle"} onChange={e=>setOrganization((p:any)=>({...p,invoice_template_key:e.target.value}))}><option value="legacy_elle">Approved legacy template</option><option value="clean">Workspace Clean</option></select></label>
+        <label>Payee name<input value={organization.payee_name||""} onChange={e=>setOrganization((p:any)=>({...p,payee_name:e.target.value}))} placeholder="Name printed under PAY TO"/></label>
+        <label>Account number<input value={organization.account_number||""} onChange={e=>setOrganization((p:any)=>({...p,account_number:e.target.value}))}/></label>
+        <label>Bank name<input value={organization.bank_name||""} onChange={e=>setOrganization((p:any)=>({...p,bank_name:e.target.value}))}/></label>
+        <label>Branch name<input value={organization.branch_name||""} onChange={e=>setOrganization((p:any)=>({...p,branch_name:e.target.value}))}/></label>
+        <label>Branch code<input value={organization.branch_code||""} onChange={e=>setOrganization((p:any)=>({...p,branch_code:e.target.value}))}/></label>
+        <label>IFSC code<input value={organization.ifsc_code||""} onChange={e=>setOrganization((p:any)=>({...p,ifsc_code:e.target.value}))}/></label>
         <label className="full-span">Footer line 1<input value={organization.invoice_footer_line_1||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label>
         <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label>
       </div></div>}

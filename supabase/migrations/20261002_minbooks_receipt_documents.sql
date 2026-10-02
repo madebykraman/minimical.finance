@@ -24,12 +24,12 @@ begin
   values(p_invoice_id,p_amount,p_payment_date,p_method,nullif(trim(p_reference),''),nullif(trim(p_notes),''),inv_org)
   returning * into new_payment;
 
-  insert into public.documents(invoice_id,client_id,organization_id,document_type,file_path,file_name,visible_to_client,description,mime_type,status,version_number,issued_at)
-  select p_invoice_id,i.client_id,inv_org,'receipt_pdf','',
+  insert into public.documents(invoice_id,client_id,organization_id,payment_id,document_type,file_path,file_name,visible_to_client,description,mime_type,status,version_number,issued_at)
+  select p_invoice_id,i.client_id,inv_org,new_payment.id,'receipt_pdf','',
          'Receipt-'||coalesce(new_payment.receipt_number,new_payment.id::text)||'.pdf',
          true,'Canonical payment receipt','application/pdf','pending',1,coalesce(new_payment.receipt_issued_at,now())
   from public.invoices i where i.id=p_invoice_id
-  on conflict (invoice_id,document_type,version_number) where invoice_id is not null do nothing;
+  on conflict (payment_id,document_type,version_number) where payment_id is not null and document_type='receipt_pdf' do nothing;
 
   insert into public.activity_log(invoice_id,action,metadata)
   values(p_invoice_id,'payment_recorded',jsonb_build_object(
@@ -39,3 +39,5 @@ begin
   return new_payment.id;
 end;
 $$;
+
+-- Existing payment receipts are backfilled by the document identity migration.

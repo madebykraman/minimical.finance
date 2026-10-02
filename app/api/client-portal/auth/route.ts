@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { hashPortalPassword, verifyPortalPassword, hashPortalSession } from "@/lib/portal/auth";
 
 export async function POST(request:NextRequest){
   const body=await request.json().catch(()=>({}));
   const slug=String(body.slug||""); const token=String(body.token||""); const password=String(body.password||"");
   if(!slug||!token||!password) return NextResponse.json({error:"Portal, access link and password are required."},{status:400});
-  const supabase=await createClient();
+  const supabase=createServiceClient();
   const {data:secret,error}=await supabase.rpc("get_client_portal_secret",{p_slug:slug,p_token:token});
   const secretAny:any=secret;
   if(error||!secretAny?.client_id||!secretAny?.password_hash) return NextResponse.json({error:"This portal link is invalid, disabled, or has no password configured."},{status:401});

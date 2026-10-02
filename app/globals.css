@@ -1567,3 +1567,33 @@ button{-webkit-tap-highlight-color:transparent}
 @media(prefers-reduced-motion:reduce){
   .command-palette-backdrop{animation:none}
 }
+
+
+/* Mobile invoice entry is intentionally not a compressed desktop table.
+   Line items become two-row touch targets: description/amount first, quantity/rate second. */
+@media(max-width:720px){
+  .invoice-composer .editor-content-row{
+    grid-template-columns:22px minmax(0,1fr) 72px 28px;
+    grid-template-rows:auto auto;
+    align-items:center;
+    min-height:78px;
+    padding:8px 10px;
+    gap:5px 7px;
+  }
+  .invoice-composer .editor-content-row .editor-index{grid-column:1;grid-row:1 / span 2;align-self:start;padding-top:7px}
+  .invoice-composer .editor-content-row .content-title-stack{grid-column:2;grid-row:1;min-width:0}
+  .invoice-composer .editor-content-row > b{grid-column:3;grid-row:1;text-align:right}
+  .invoice-composer .editor-content-row > input[type=number]:nth-of-type(1){grid-column:2;grid-row:2}
+  .invoice-composer .editor-content-row > input[type=number]:nth-of-type(2){grid-column:3;grid-row:2}
+  .invoice-composer .editor-content-row .editor-delete{grid-column:4;grid-row:2;align-self:center}
+  .invoice-composer .editor-footer{
+    position:sticky;bottom:0;z-index:9;
+    background:rgba(14,14,16,.98);backdrop-filter:blur(16px);
+    box-shadow:0 -12px 30px rgba(0,0,0,.25);
+  }
+  .invoice-composer .editor-footer .secondary{display:none}
+  .invoice-composer .editor-footer .primary{width:100%;min-height:46px}
+  .invoice-composer .editor-footer .primary:disabled{opacity:.45}
+  .invoice-composer .editor-content-row input{min-height:38px}
+  .invoice-composer .content-assigned-input{height:20px}
+}

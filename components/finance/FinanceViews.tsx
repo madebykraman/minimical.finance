@@ -583,7 +583,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const patch=(id:string,p:Partial<Content>)=>setContents(v=>v.map(c=>c.id===id?{...c,...p}:c));
   const add=()=>setContents(v=>[...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   const clientProjects=projects.filter(p=>{const selected=clients.find(c=>c.name===client);return !selected||p.client_id===selected.id});
-  const canCreate=Boolean(number&&organizationId&&client.trim()&&project.trim()&&contents.some(c=>c.title.trim()));
+  const canCreate=Boolean(number&&organizationId&&client.trim()&&contents.some(c=>c.title.trim()));
 
   return <div className="overlay invoice-editor-overlay" onMouseDown={requestClose}>
     <div className="composer invoice-composer" onMouseDown={e=>e.stopPropagation()}>
@@ -596,7 +596,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
           <div className="editor-section-head"><div><span className="section-kicker">IDENTITY</span><h3>Invoice details</h3></div><span className="editor-number">#{number}</span></div>
           <div className="form-grid invoice-detail-grid">
             <label>Client<input list="invoice-client-options" required value={client} onChange={e=>{setClient(e.target.value);setProject("")}} placeholder="Select or enter client"/></label>
-            <label>Project<input list="invoice-project-options" required value={project} onChange={e=>setProject(e.target.value)} placeholder="Select or enter project"/></label>
+            <label>Project<input list="invoice-project-options" required value={project} onChange={e=>setProject(e.target.value)} placeholder="Optional project / engagement"/></label>
             <label>Issue date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
             <label>Due date<input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></label>
           </div>

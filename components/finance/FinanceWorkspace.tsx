@@ -464,7 +464,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       )}
       {activeView === "imports" && (
         <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />
-      )}\n      {activeView === "settings" && (
+      )}
+      {activeView === "settings" && (
         <SettingsView
           email={session.user?.email ?? ""}
           activeOrganizationId={allOrganizations ? null : organizationId}

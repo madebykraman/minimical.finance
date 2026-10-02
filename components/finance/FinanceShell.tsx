@@ -29,6 +29,7 @@ const primary:Array<[FinanceView,typeof LayoutDashboard]> = [
 const secondary:Array<[FinanceView,typeof LayoutDashboard]> = [
   ["projects",FolderKanban],
   ["reports",BarChart3],
+  ["documents",FileText],
   ["imports",FileInput],
   ["settings",Settings2],
 ];

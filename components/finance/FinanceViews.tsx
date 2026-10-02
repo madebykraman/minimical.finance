@@ -733,7 +733,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
           <div className="editor-content-list">{contents.map((c,idx)=>
             <div className="editor-content-row" key={c.id}>
               <span className="editor-index">{String(idx+1).padStart(2,"0")}</span>
-              <input value={c.title} onChange={e=>patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/>
+              <div className="content-title-stack"><input value={c.title} onChange={e=>patch(c.id,{title:e.target.value})} placeholder="Content / deliverable name"/><input className="content-assigned-input" value={c.assignedBy ?? ""} onChange={e=>patch(c.id,{assignedBy:e.target.value || null})} placeholder="Assigned by"/></div>
               <input type="number" min="1" value={c.quantity??""} onChange={e=>patch(c.id,{quantity:Number(e.target.value)||1})} placeholder="1" aria-label={"Quantity "+(idx+1)}/>
               <input type="number" min="0" value={c.rate??""} onChange={e=>patch(c.id,{rate:e.target.value?Number(e.target.value):null,priced:!!e.target.value})} placeholder="Rate" aria-label={"Rate "+(idx+1)}/>
               <b className={!c.priced?"unpriced":""}>{c.priced&&c.rate!=null?money(contentAmount(c)):"TBD"}</b>

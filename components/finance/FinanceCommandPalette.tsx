@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";
+import { SpotlightSurface } from "./FinanceUI";
 
 type Command = {
   id: string;
@@ -40,11 +41,42 @@ export function FinanceCommandPalette({
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const paletteRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
     setActive(0);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root = paletteRef.current;
+    const selector = "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
+    requestAnimationFrame(() => root?.querySelector<HTMLElement>(selector)?.focus());
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !root) return;
+      const focusable = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(el => !el.hasAttribute("aria-hidden"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onTab);
+    return () => {
+      document.removeEventListener("keydown", onTab);
+      const previous = previousFocusRef.current;
+      if (previous && document.contains(previous)) previous.focus();
+      previousFocusRef.current = null;
+    };
   }, [open]);
 
   const commands = useMemo<Command[]>(() => {
@@ -102,7 +134,8 @@ export function FinanceCommandPalette({
 
   return (
     <div className="command-palette-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
+      <SpotlightSurface className="command-palette-shell">
+      <section ref={paletteRef}
         className="command-palette"
         role="dialog"
         aria-modal="true"
@@ -152,6 +185,7 @@ export function FinanceCommandPalette({
           <span><kbd>ESC</kbd> close</span>
         </footer>
       </section>
+      </SpotlightSurface>
     </div>
   );
 }

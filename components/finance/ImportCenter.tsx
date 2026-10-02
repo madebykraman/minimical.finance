@@ -5,6 +5,7 @@ import { Check, FileSpreadsheet, Upload, AlertTriangle, ArrowRight, RefreshCw } 
 import { inferImportMapping, normalizeAmount, normalizeDate, parseSpreadsheet, valueFor, type ImportMapping, type ImportSource } from "@/lib/finance/importer";
 import { importInvoiceRows } from "@/lib/finance/repository";
 import type { Status } from "@/lib/finance/domain";
+import { ALL_ORGANIZATIONS_ID } from "@/lib/finance/types";
 
 type Organization = { id:string; name?:string|null; status?:string|null };
 
@@ -37,7 +38,11 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   const preview=useMemo(()=>selectedRows.slice(0,8),[selectedRows]);
   const validation=useMemo(()=>selectedRows.map((row,index)=>{
     const orgName=String(valueFor(row,mapping.organization)).trim();
-    const org=orgName ? activeOrgs.find(o=>String(o.name).trim().toLowerCase()===orgName.toLowerCase()) : activeOrgs.find(o=>o.id===activeOrganizationId);
+    const org=orgName
+      ? activeOrgs.find(o=>String(o.name).trim().toLowerCase()===orgName.toLowerCase())
+      : activeOrganizationId && activeOrganizationId !== ALL_ORGANIZATIONS_ID
+        ? activeOrgs.find(o=>o.id===activeOrganizationId)
+        : undefined;
     const amount=normalizeAmount(valueFor(row,mapping.amount));
     const issueDate=normalizeDate(valueFor(row,mapping.issueDate));
     const client=String(valueFor(row,mapping.client)).trim();

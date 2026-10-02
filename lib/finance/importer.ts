@@ -14,6 +14,7 @@ export type ImportSource = {
 export type ImportMapping = {
   organization?: string;
   client?: string;
+  lineItem?: string;
   project?: string;
   invoiceNumber?: string;
   issueDate?: string;
@@ -24,6 +25,7 @@ export type ImportMapping = {
   paymentDate?: string;
   paymentAmount?: string;
   description?: string;
+  notes?: string;
 };
 
 export type ImportFieldAnalysis = {
@@ -45,6 +47,7 @@ export type ImportAnalysis = {
 const aliases: Record<keyof ImportMapping, string[]> = {
   organization: ["organisation","organization","org","company","entity","business","billing entity","billing organisation","billing organization"],
   client: ["client","client name","customer","customer name","party","buyer","billed to","bill to"],
+  lineItem: ["name / project","name/project","line item","service","item","deliverable"],
   project: ["project","project name","job","engagement","work","campaign"],
   invoiceNumber: ["invoice","invoice no","invoice number","invoice #","invoice id","bill no","bill number","document number"],
   issueDate: ["issue date","invoice date","issued","created","created date","date raised","bill date"],
@@ -54,13 +57,14 @@ const aliases: Record<keyof ImportMapping, string[]> = {
   status: ["status","invoice status","state","payment status"],
   paymentDate: ["payment date","paid date","received date","date paid","settled date"],
   paymentAmount: ["payment","paid","paid amount","received","received amount","amount paid","amount received"],
-  description: ["description","service","item","particular","particulars","details","narration","note","line item","deliverable"],
+  description: ["description","particular","particulars","details","narration"],
+  notes: ["notes","note","comments","remark","remarks","memo","audit note"],
 };
 
 const labels: Record<keyof ImportMapping,string> = {
   organization:"Organisation",client:"Client",project:"Project",invoiceNumber:"Invoice number",
   issueDate:"Issue date",dueDate:"Due date",amount:"Amount",status:"Status",
-  paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",
+  paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",notes:"Notes",
 };
 
 const normalize = (value: unknown) =>

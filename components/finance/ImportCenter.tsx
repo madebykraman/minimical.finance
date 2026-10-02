@@ -164,7 +164,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     const row=record.primaryRow;
     const org=resolveOrg(valueFor(row,mapping.organization));
     const client=resolveClient(row);
-    const project=clean(valueFor(row,mapping.project));
+    const project=deriveProjectName(valueFor(row,mapping.project));
     const issueDate=normalizeDate(valueFor(row,mapping.issueDate));
     const dueDate=normalizeDate(valueFor(row,mapping.dueDate));
     const paymentDate=normalizeDate(valueFor(row,mapping.paymentDate));
@@ -207,10 +207,23 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   async function inferClient(sourceName:string,nextMapping:ImportMapping){
     if(nextMapping.client)return nextMapping;
     const {data}=await supabase.from("clients").select("name,organization_id").limit(250);
+    const clients=data||[];
+    const activeOrgId=activeOrganizationId!==ALL_ORGANIZATIONS_ID?activeOrganizationId:null;
+    const scoped=activeOrgId?clients.filter(c=>c.organization_id===activeOrgId):clients;
+    if(scoped.length===1){
+      const name=String(scoped[0].name||"");
+      if(name){setInferredClient(name);return {...nextMapping,client:`__INFERRED_CLIENT__:${name}`};}
+    }
     const needle=norm(sourceName);
-    const match=(data||[]).find(c=>needle.includes(norm(c.name))||norm(c.name).includes(needle));
+    const match=clients.find(c=>needle.includes(norm(c.name))||norm(c.name).includes(needle));
     if(match){setInferredClient(String(match.name));return {...nextMapping,client:`__INFERRED_CLIENT__:${match.name}`};}
     return nextMapping;
+  }
+  function deriveProjectName(value:unknown){
+    const raw=clean(value);
+    if(!raw)return "";
+    const prefix=raw.split("_")[0]?.trim();
+    return prefix&&prefix.length>=3?prefix:raw;
   }
 
   async function load(file:File){

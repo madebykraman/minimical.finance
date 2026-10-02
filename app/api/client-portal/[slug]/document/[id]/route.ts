@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { hashPortalSession } from "@/lib/portal/auth";
 
 export async function GET(request:NextRequest,{params}:{params:Promise<{slug:string;id:string}>}){
  const {slug,id}=await params;
  const session=request.cookies.get("portal_session")?.value||"";
  if(!slug||!id||!session)return new NextResponse("Unauthorized",{status:401});
- const supabase=await createClient();
+ const supabase=createServiceClient();
  const {data,error}=await supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}); const payload:any=data;
  if(error||!data)return new NextResponse("Unauthorized",{status:401});
  await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"document_downloaded",p_resource_type:"document",p_resource_id:id});

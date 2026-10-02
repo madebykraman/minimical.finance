@@ -237,9 +237,9 @@ export function normalizeDate(value: unknown): string {
 
 export function normalizeAmount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const raw = String(value ?? "").replace(/[₹$€£,\\s]/g, "").trim();
+  const raw = String(value ?? "").replace(/[₹$€£,\s]/g, "").trim();
   if (!raw) return null;
-  const negative = /^\\(.*\\)$/.test(raw);
+  const negative = /^\(.*\)$/.test(raw);
   const n = Number(raw.replace(/[()]/g,""));
   if (!Number.isFinite(n)) return null;
   return negative ? -n : n;
@@ -247,7 +247,7 @@ export function normalizeAmount(value: unknown): number | null {
 
 export function normalizeInvoiceNumber(value: unknown): string {
   const raw = String(value ?? "").trim();
-  if (!raw || /^(?:n\\/?a|na|none|-)$/i.test(raw)) return "";
+  if (!raw || /^(?:n\/?a|na|none|-)$/i.test(raw)) return "";
   const prefixed = raw.match(/^(?:inv(?:oice)?|bill|document)\\.?\\s*#?\\s*(.+)$/i);
   return (prefixed?.[1] ?? raw).trim();
 }

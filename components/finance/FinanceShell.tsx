@@ -37,7 +37,7 @@ const secondary:Array<[FinanceView,typeof LayoutDashboard]> = [
 ];
 
 export function FinanceShell({
-  activeView,onNavigate,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,
+  activeView,onNavigate,activeOrganization,invoiceCount,session,actionError,clearError,
   onSelectWorkspace,organizations,onSignOut,
   mobileMoreOpen,setMobileMoreOpen,children,overlays
 }:{
@@ -46,8 +46,6 @@ export function FinanceShell({
   activeOrganization:WorkspaceOrganization|null;
   invoiceCount:number;
   session:WorkspaceSession;
-  query:string;
-  setQuery:(v:string)=>void;
   actionError:string;
   clearError:()=>void;
   onSelectWorkspace:(id:string)=>void;

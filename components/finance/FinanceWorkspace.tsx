@@ -15,7 +15,8 @@ import {
   calculateStats,
 } from "@/lib/finance/domain";
 import type { Content, Invoice, PaymentMethod, Status } from "@/lib/finance/domain";
-import type { FinanceView } from "@/lib/finance/types";
+import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
+import { ImportCenter } from "./ImportCenter";
 import { FinanceShell } from "./FinanceShell";
 import {
   AuthScreen,
@@ -69,6 +70,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [organizationsReady, setOrganizationsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const allOrganizations = organizationId === ALL_ORGANIZATIONS_ID;
   const router = useRouter();
 
   useEffect(() => {
@@ -134,9 +136,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           ? window.localStorage.getItem(WORKSPACE_KEY)
           : null;
         const stored = urlWorkspace ?? namespaced ?? legacy;
-        const urlMatchesActive = !urlWorkspace || activeRows.some(o => o.id === urlWorkspace);
+        const urlMatchesActive = !urlWorkspace || urlWorkspace === ALL_ORGANIZATIONS_ID || activeRows.some(o => o.id === urlWorkspace);
         const resolvedStored = urlMatchesActive ? stored : (namespaced ?? legacy);
-        const remembered = activeRows.find(o => o.id === resolvedStored);
+        const remembered = resolvedStored === ALL_ORGANIZATIONS_ID ? { id: ALL_ORGANIZATIONS_ID, name: "All organisations", status: "aggregate" } : activeRows.find(o => o.id === resolvedStored);
         if (remembered) {
           setOrganizationId(remembered.id);
           setWorkspaceReady(true);
@@ -253,7 +255,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   );
 
   const orgInvoices = useMemo(
-    () => organizationId ? invoices.filter(i => i.organizationId === organizationId) : invoices,
+    () => allOrganizations ? invoices : invoices.filter(i => i.organizationId === organizationId),
     [invoices, organizationId]
   );
 
@@ -289,7 +291,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       const params = new URLSearchParams(window.location.search);
       if (organizationId) params.set("organization", organizationId); else params.delete("organization");
       const queryString = params.toString();
-      router.push(`/${view}${queryString ? `?${queryString}` : ""}`, { scroll: false });
+      router.push(`/admin/${view}${queryString ? `?${queryString}` : ""}`, { scroll: false });
     }
   };
 
@@ -312,7 +314,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       window.localStorage.setItem(workspaceStorageKey, workspace);
       const params = new URLSearchParams(window.location.search);
       params.set("organization", workspace);
-      router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+      router.replace(`/admin/${activeView}?${params.toString()}`, { scroll: false });
       if (workspaceStorageKey !== WORKSPACE_KEY) {
         window.localStorage.removeItem(WORKSPACE_KEY);
       }
@@ -392,11 +394,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
         </>
       }
     >
-      {activeView === "overview" && activeOrganization && (
+      {activeView === "overview" && (
         <Overview
           stats={stats}
           invoices={orgInvoices}
-          organization={activeOrganization}
+          organization={activeOrganization ?? { id: ALL_ORGANIZATIONS_ID, name: "All organisations", status: "aggregate" }}
           onOpen={setSelected}
           onNavigate={navigateTo}
         />
@@ -425,7 +427,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       )}
       {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} />}
       {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
-      {activeView === "settings" && (
+      {activeView === "imports" && (\n        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />\n      )}\n      {activeView === "settings" && (
         <SettingsView
           email={session.user?.email ?? ""}
           activeOrganizationId={organizationId}

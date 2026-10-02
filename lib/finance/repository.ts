@@ -74,6 +74,7 @@ export async function saveInvoice(next: Invoice) {
       amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) : undefined,
       priced: c.priced,
       note: c.note ?? undefined,
+      assignedBy: c.assignedBy ?? undefined,
     })),
   });
 
@@ -183,6 +184,7 @@ export async function createInvoice(draft: {
     amount: item.priced ? (item.amount ?? item.quantity * (item.rate ?? 0)) : null,
     priced: item.priced,
     note: item.note ?? null,
+    assigned_by: item.assignedBy ?? null,
   })).filter(item => item.title);
 
   if (rows.length) {

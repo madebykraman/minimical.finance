@@ -56,7 +56,7 @@ const aliases: Record<keyof ImportMapping, string[]> = {
   invoiceTotal: ["total","invoice total","grand total","gross total","net total","bill total","invoice value"],
   status: ["status","invoice status","state","payment status"],
   paymentDate: ["payment date","paid date","received date","date paid","settled date"],
-  paymentAmount: ["payment","paid","paid amount","received","received amount","amount paid","amount received"],
+  paymentAmount: ["payment amount","paid amount","received amount","amount paid","amount received","payment received"],
   description: ["description","particular","particulars","details","narration"],
   notes: ["notes","note","comments","remark","remarks","memo","audit note"],
 };

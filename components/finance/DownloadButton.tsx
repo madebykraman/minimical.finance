@@ -56,7 +56,7 @@ export function DownloadButton({
       disabled={disabled || busy}
       aria-busy={busy || undefined}
       onClick={handleClick}
-      className={"state-action-button " + (busy ? "is-loading " : "") + (done ? "is-done " : "") + (props.className ?? "")}
+      className={"state-action-button ui-pressable " + (busy ? "is-loading " : "") + (done ? "is-done " : "") + (props.className ?? "")}
     >
       <span className="state-action-icon" aria-hidden>
         {busy ? <Loader2 size={14} className="spin" /> : done ? <Check size={14} /> : <ArrowDownToLine size={14} />}

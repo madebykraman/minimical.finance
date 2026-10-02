@@ -647,3 +647,28 @@ export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onCl
     <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!Number(amount)||Number(amount)<=0||Number(amount)>balance} onClick={()=>onCreate(invoice,Number(amount),date,method,reference)}>Record payment</button></div>
   </div></div>;
 }
+
+
+export function DocumentsView({invoices}:{invoices:Invoice[]}) {
+  const [kind,setKind]=useState<"all"|"invoice"|"receipt"|"statement">("all");
+  const invoiceDocs=invoices.map(i=>({kind:"invoice" as const,id:i.id,label:"#"+i.number,title:i.client,meta:dateLabel(i.date),amount:invoiceTotal(i),href:"/api/invoices/"+i.id+"/pdf"}));
+  const receiptDocs=invoices.flatMap(i=>i.payments.map(p=>({kind:"receipt" as const,id:p.id,label:"Receipt",title:i.client,meta:dateLabel(p.payment_date),amount:p.amount,href:"/api/payments/"+p.id+"/receipt"})));
+  const clientMap=new Map<string,{id:string;name:string}>();
+  invoices.forEach(i=>{if(i.clientId&&!clientMap.has(i.clientId))clientMap.set(i.clientId,{id:i.clientId,name:i.client})});
+  const statementDocs=[...clientMap.values()].map(c=>({kind:"statement" as const,id:c.id,label:"Statement",title:c.name,meta:"Account statement",amount:invoices.filter(i=>i.clientId===c.id).reduce((s,i)=>s+invoiceBalance(i),0),href:"/api/client-portal/"+c.id+"/statement"}));
+  const docs=[...invoiceDocs,...receiptDocs,...statementDocs].filter(d=>kind==="all"||d.kind===kind);
+  const labels={all:"All documents",invoice:"Invoices",receipt:"Receipts",statement:"Statements"} as const;
+  return <div className="operations-page documents-page">
+    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Generate the canonical PDF for any recorded financial document without changing its underlying record.</p></div></section>
+    <div className="document-tabs">{(Object.keys(labels) as (keyof typeof labels)[]).map(k=><button key={k} className={kind===k?"active":""} onClick={()=>setKind(k)}>{labels[k]}</button>)}</div>
+    <section className="data-panel">
+      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{docs.length} available</p></div></div>
+      {docs.length ? <div className="document-register">{docs.map(d=><div className="document-row" key={d.kind+"-"+d.id}>
+        <div className="document-type-mark">{d.kind==="invoice"?<Receipt size={15}/>:d.kind==="receipt"?<WalletCards size={15}/>:<FileText size={15}/>}</div>
+        <div><b>{d.label}</b><span>{d.title} · {d.meta}</span></div>
+        <strong>{money(d.amount)}</strong>
+        <a className="secondary document-download" href={d.href}>Download PDF</a>
+      </div>)}</div> : <div className="empty-state"><FileText size={18}/><b>No documents in this scope.</b><span>Documents become available as financial records are created.</span></div>}
+    </section>
+  </div>;
+}

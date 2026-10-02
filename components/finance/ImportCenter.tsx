@@ -43,64 +43,70 @@ const clean=(v:unknown)=>String(v??"").trim();
 const norm=(v:unknown)=>clean(v).toLowerCase().replace(/[_-]+/g," ").replace(/\\s+/g," ");
 
 function buildRecords(rows:Record<string,unknown>[],mapping:ImportMapping):ImportRecord[]{
-  const records:ImportRecord[]=[];
-  let current:ImportRecord|null=null;
-  let currentLineTotal=0;
-  let currentInvoiceTotal:number|null=null;
+  const headerIndexes=rows.map((row,index)=>normalizeInvoiceNumber(valueFor(row,mapping.invoiceNumber))?index:-1).filter(index=>index>=0);
+  if(!headerIndexes.length){
+    return rows.map((row,index)=>({kind:"unassigned",key:`unassigned-${index}`,primaryIndex:index,sourceIndexes:[index],primaryRow:row,
+      items:[{index,title:clean(valueFor(row,mapping.lineItem))||clean(valueFor(row,mapping.description))||"Imported line item",amount:normalizeAmount(valueFor(row,mapping.amount)),note:clean(valueFor(row,mapping.notes))}],
+      invoiceNumber:"",invoiceTotal:null,lineTotal:normalizeAmount(valueFor(row,mapping.amount))??0}));
+  }
 
-  const makeItem=(index:number,row:Record<string,unknown>)=>({
-    index,
-    title:clean(valueFor(row,mapping.lineItem))||clean(valueFor(row,mapping.description))||clean(valueFor(row,mapping.client))||"Imported line item",
-    amount:normalizeAmount(valueFor(row,mapping.amount)),
-    note:clean(valueFor(row,mapping.notes)),
+  const segments=headerIndexes.map((headerIndex,segmentIndex)=>{
+    const endIndex=headerIndexes[segmentIndex+1]??rows.length;
+    return {headerIndex,indexes:Array.from({length:endIndex-headerIndex},(_,n)=>headerIndex+n)};
+  });
+  const built=segments.map(segment=>{
+    const primary=rows[segment.headerIndex];
+    const invoiceNumber=normalizeInvoiceNumber(valueFor(primary,mapping.invoiceNumber));
+    const invoiceTotal=normalizeAmount(valueFor(primary,mapping.invoiceTotal));
+    let running=0;const kept:number[]=[];const carry:number[]=[];
+    for(const index of segment.indexes){
+      const amount=normalizeAmount(valueFor(rows[index],mapping.amount))??0;
+      if(invoiceTotal!=null&&running>=invoiceTotal)carry.push(index);
+      else {kept.push(index);running+=amount;}
+    }
+    return {segment,invoiceNumber,invoiceTotal,kept,carry,lineTotal:running};
   });
 
-  const pushUnassigned=(index:number,row:Record<string,unknown>)=>{
-    const item=makeItem(index,row);
+  for(let i=1;i<built.length;i++){
+    const previous=built[i-1];const current=built[i];
+    if(!previous.carry.length||current.invoiceTotal==null)continue;
+    const carryTotal=previous.carry.reduce((sum,index)=>sum+(normalizeAmount(valueFor(rows[index],mapping.amount))??0),0);
+    const deficit=current.invoiceTotal-current.lineTotal;
+    if(Math.abs(carryTotal-deficit)<0.01){
+      current.kept=[...previous.carry,...current.kept].sort((a,b)=>a-b);
+      current.lineTotal+=carryTotal;
+      previous.carry=[];
+    }
+  }
+
+  const records:ImportRecord[]=[];
+  const assigned=new Set<number>();
+  for(const group of built){
+    const sourceIndexes=group.kept;
+    sourceIndexes.forEach(index=>assigned.add(index));
+    const primaryIndex=group.segment.headerIndex;
+    const items=sourceIndexes.map(index=>({
+      index,
+      title:clean(valueFor(rows[index],mapping.lineItem))||clean(valueFor(rows[index],mapping.description))||"Imported line item",
+      amount:normalizeAmount(valueFor(rows[index],mapping.amount)),
+      note:clean(valueFor(rows[index],mapping.notes)),
+    }));
     records.push({
-      kind:"unassigned",key:`unassigned-${index}`,primaryIndex:index,sourceIndexes:[index],primaryRow:row,
-      items:[item],invoiceNumber:"",invoiceTotal:null,lineTotal:item.amount??0,
+      kind:"invoice",key:`invoice-${group.invoiceNumber}-${primaryIndex}`,primaryIndex,sourceIndexes,
+      primaryRow:rows[primaryIndex],items,invoiceNumber:group.invoiceNumber,
+      invoiceTotal:group.invoiceTotal,lineTotal:group.lineTotal,
     });
-  };
+  }
 
   rows.forEach((row,index)=>{
-    const invoiceNumber=normalizeInvoiceNumber(valueFor(row,mapping.invoiceNumber));
-    const issueDate=normalizeDate(valueFor(row,mapping.issueDate));
-    const status=clean(valueFor(row,mapping.status));
-    const paymentDate=normalizeDate(valueFor(row,mapping.paymentDate));
-    const paymentAmount=normalizeAmount(valueFor(row,mapping.paymentAmount));
-
-    if(invoiceNumber){
-      current={
-        kind:"invoice",key:`invoice-${invoiceNumber}-${index}`,primaryIndex:index,sourceIndexes:[index],
-        primaryRow:row,items:[makeItem(index,row)],invoiceNumber,invoiceTotal:normalizeAmount(valueFor(row,mapping.invoiceTotal)),
-        lineTotal:normalizeAmount(valueFor(row,mapping.amount))??0,
-      };
-      currentLineTotal=current.lineTotal;
-      currentInvoiceTotal=current.invoiceTotal;
-      records.push(current);
-      return;
-    }
-
-    if(current){
-      if((currentInvoiceTotal!=null&&currentLineTotal>=currentInvoiceTotal)||(issueDate||status||paymentDate||paymentAmount!=null)){
-        current=null;currentLineTotal=0;currentInvoiceTotal=null;
-        pushUnassigned(index,row);
-        return;
-      }
-      const item=makeItem(index,row);
-      current.items.push(item);current.sourceIndexes.push(index);currentLineTotal+=item.amount??0;current.lineTotal=currentLineTotal;
-      if(currentInvoiceTotal==null){
-        const candidate=normalizeAmount(valueFor(row,mapping.invoiceTotal));
-        if(candidate!=null){current.invoiceTotal=candidate;currentInvoiceTotal=candidate;}
-      }
-      return;
-    }
-
-    pushUnassigned(index,row);
+    if(assigned.has(index))return;
+    records.push({
+      kind:"unassigned",key:`unassigned-${index}`,primaryIndex:index,sourceIndexes:[index],primaryRow:row,
+      items:[{index,title:clean(valueFor(row,mapping.lineItem))||clean(valueFor(row,mapping.description))||"Imported line item",amount:normalizeAmount(valueFor(row,mapping.amount)),note:clean(valueFor(row,mapping.notes))}],
+      invoiceNumber:"",invoiceTotal:null,lineTotal:normalizeAmount(valueFor(row,mapping.amount))??0,
+    });
   });
-
-  return records;
+  return records.sort((a,b)=>a.primaryIndex-b.primaryIndex);
 }
 
 export function ImportCenter({organizations,activeOrganizationId,onComplete}:{organizations:Organization[];activeOrganizationId:string|null;onComplete:()=>void}) {

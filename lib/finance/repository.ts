@@ -250,6 +250,7 @@ export async function getInvoiceFinancials() {
 export type ImportInvoiceRow = {
   organizationId: string;
   clientName: string;
+  assignedBy?: string;
   projectName?: string;
   invoiceNumber?: string;
   issueDate: string;
@@ -270,6 +271,7 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
     p_rows: rows.map(row => ({
       organizationId: row.organizationId,
       clientName: row.clientName,
+      assignedBy: row.assignedBy ?? null,
       projectName: row.projectName ?? null,
       invoiceNumber: row.invoiceNumber ?? null,
       issueDate: row.issueDate,

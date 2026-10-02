@@ -295,16 +295,40 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
   const recent=[...invoices].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
   const attention=[...overdue.map(i=>({tone:"danger",label:"#"+i.number+" · "+i.client,meta:daysOverdue(i)+"d overdue",invoice:i})),...dueSoon.filter(i=>!overdue.includes(i)).map(i=>({tone:"warning",label:"#"+i.number+" · "+i.client,meta:"Due soon",invoice:i}))].slice(0,5);
   const overdueValue=overdue.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const collection=stats.billed>0?Math.round(stats.collected/stats.billed*100):0;
-  return <div className="overview-minimal">
-    <header className="overview-minimal-head"><div><span className="eyebrow">Financial position</span><h2>{organization?.name}</h2></div><button className="primary" onClick={()=>onNavigate("invoices")}><Receipt size={14}/>Invoices</button></header>
-    <section className="overview-position">
-      <div><span>Outstanding</span><strong>{money(stats.outstanding)}</strong><small>{overdue.length ? overdue.length+" overdue" : "No overdue invoices"}</small></div>
-      <div className="overview-position-facts"><div><span>Collected</span><b>{money(stats.collected)}</b></div><div><span>Overdue</span><b>{money(overdueValue)}</b></div><div><span>Collection</span><b>{collection}%</b></div></div>
-      <button className="secondary" onClick={()=>onNavigate("payments")}><WalletCards size={14}/>Payments</button>
+  const collection=stats.billed>0?Math.min(100,Math.round(stats.collected/stats.billed*100)):0;
+  const healthy=attention.length===0;
+  return <div className="overview-command">
+    <header className="overview-command-head">
+      <div><span className="eyebrow">COMMAND CENTER</span><h1>{organization?.name}</h1><p>Financial position, receivables and the next actions that matter.</p></div>
+      <div className="overview-command-meta"><span className={healthy?"pulse-dot":"pulse-dot warning"}></span><span>{healthy?"Workspace on track":attention.length+" item"+(attention.length===1?"":"s")+" need attention"}</span></div>
+    </header>
+
+    <section className="overview-hero">
+      <div className="overview-hero-glow" aria-hidden />
+      <div className="overview-hero-main">
+        <span className="kicker">OUTSTANDING</span>
+        <strong>{money(stats.outstanding)}</strong>
+        <p>{overdue.length ? money(overdueValue)+" overdue across "+overdue.length+" invoice"+(overdue.length===1?"":"s") : "No overdue receivables in this workspace."}</p>
+      </div>
+      <div className="overview-hero-ring" aria-label={collection+" percent collected"}>
+        <div><strong>{collection}%</strong><span>collected</span></div>
+      </div>
+      <div className="overview-hero-facts">
+        <div><span>Collected</span><b>{money(stats.collected)}</b></div>
+        <div><span>Billed</span><b>{money(stats.billed)}</b></div>
+        <div><span>Invoices</span><b>{invoices.length}</b></div>
+      </div>
     </section>
-    <div className="overview-grid">
-      <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Latest</span><h2>Invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
+
+    <section className="overview-action-grid" aria-label="Quick actions">
+      <button onClick={()=>onNavigate("invoices")}><span className="overview-action-icon"><Receipt size={17}/></span><span><b>Invoices</b><small>Create, issue and review</small></span><ArrowUpRight size={14}/></button>
+      <button onClick={()=>onNavigate("payments")}><span className="overview-action-icon"><WalletCards size={17}/></span><span><b>Payments</b><small>Record money received</small></span><ArrowUpRight size={14}/></button>
+      <button onClick={()=>onNavigate("imports")}><span className="overview-action-icon"><Upload size={17}/></span><span><b>Smart import</b><small>Analyse a spreadsheet</small></span><ArrowUpRight size={14}/></button>
+      <button onClick={()=>onNavigate("documents")}><span className="overview-action-icon"><FileText size={17}/></span><span><b>Documents</b><small>Versions and generated files</small></span><ArrowUpRight size={14}/></button>
+    </section>
+
+    <div className="overview-grid overview-grid-command">
+      <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Latest movement</span><h2>Invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
         <div className="invoice-register minimal-register">{recent.length?recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project||"No project"} · {dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>):<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><span>Create the first invoice for this organisation.</span></div>}</div>
       </section>
       <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Action queue</span><h2>Needs attention</h2></div><span className="panel-count">{attention.length}</span></div>

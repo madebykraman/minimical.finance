@@ -13,6 +13,7 @@ import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
+import { MobileQuickActions } from "@/components/finance/MobileQuickActions";
 import { SegmentedTabs, StatusPill, type FinanceStatus } from "@/components/finance/FinancePrimitives";
 import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
 
@@ -288,7 +289,7 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
   </div>;
 }
 
-export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:any;invoices:Invoice[];organization:any;onOpen:(i:Invoice)=>void;onNavigate:(view:FinanceView)=>void}) {
+export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInvoice}:{stats:any;invoices:Invoice[];organization:any;onOpen:(i:Invoice)=>void;onNavigate:(view:FinanceView)=>void;onNewInvoice:()=>void}) {
   const today=new Date();
   const open=invoices.filter(i=>invoiceBalance(i)>0);
   const overdue=open.filter(i=>daysOverdue(i)>0);
@@ -309,9 +310,11 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
       </div>
       <div className="overview-welcome-actions">
         <button className="secondary" onClick={()=>onNavigate("imports")}><Upload size={15}/>Import</button>
-        <button className="primary" onClick={()=>onNavigate("invoices")}><Plus size={15}/>New invoice</button>
+        <button className="primary" onClick={onNewInvoice}><Plus size={15}/>New invoice</button>
       </div>
     </header>
+
+    <MobileQuickActions onNewInvoice={onNewInvoice} onPayments={()=>onNavigate("payments")} onImport={()=>onNavigate("imports")} onInvoices={()=>onNavigate("invoices")} />
 
     <section className="overview-financial">
       <div className="overview-balance">

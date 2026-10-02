@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
-  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut
+  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
 } from "lucide-react";
 import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
@@ -713,6 +713,51 @@ export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onCl
   </div></div>;
 }
 
+
+export function OrganizationMigrationView({invoices,organizations,activeOrganizationId}:{invoices:Invoice[];organizations:any[];activeOrganizationId:string|null}) {
+  const [selected,setSelected]=useState<string[]>([]);
+  const [target,setTarget]=useState("");
+  const [moveRelated,setMoveRelated]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState("");
+  const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
+  const candidates=invoices.filter(i=>!activeOrganizationId||i.organizationId===activeOrganizationId);
+  const selectedRows=candidates.filter(i=>selected.includes(i.id));
+  const targetOrg=activeOrgs.find(o=>o.id===target);
+  const toggle=(id:string)=>setSelected(rows=>rows.includes(id)?rows.filter(x=>x!==id):[...rows,id]);
+  const allSelected=selected.length>0&&selected.length===candidates.length;
+  async function migrate(){
+    if(!selected.length||!target)return;
+    setBusy(true);setMessage("");
+    const {data,error}=await supabase.rpc("migrate_invoice_organizations",{p_invoice_ids:selected,p_target_organization_id:target,p_move_related:moveRelated});
+    if(error){setMessage(error.message.includes("unresolved conflicts")?"Migration blocked: one or more invoices have organisation, client/project, or invoice-number conflicts. Resolve those rows before moving the batch.":error.message);setBusy(false);return}
+    const moved=Number((data as any)?.moved||0),skipped=Number((data as any)?.skipped||0);
+    setMessage(`Migration complete: ${moved} moved · ${skipped} already assigned.`);
+    setSelected([]);setBusy(false);
+    window.dispatchEvent(new Event("finance:organization-updated"));
+  }
+  return <div className="migration-page">
+    <section className="compact-page-head"><div><span className="eyebrow">Data migration</span><h2>Historical organisation assignment</h2><p>Move historical invoices between billing organisations without silently breaking client, project, payment or document relationships.</p></div></section>
+    <section className="migration-toolbar">
+      <label>Move selected invoices to<select value={target} onChange={e=>setTarget(e.target.value)}><option value="">Choose target organisation</option>{activeOrgs.filter(o=>o.id!==activeOrganizationId).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+      <label className="migration-toggle"><input type="checkbox" checked={moveRelated} onChange={e=>setMoveRelated(e.target.checked)}/><span><b>Move linked client/project when safe</b><small>Only moves related records when no other invoice outside this selection would be affected.</small></span></label>
+      <button className="primary" disabled={busy||!selected.length||!target} onClick={()=>void migrate()}><ArrowLeftRight size={14}/>{busy?"Migrating…":`Migrate ${selected.length||""} invoice${selected.length===1?"":"s"}`}</button>
+    </section>
+    <section className="data-panel">
+      <div className="data-panel-head"><div><h2>Historical invoices</h2><p>{candidates.length} invoices in the current organisation scope · {selected.length} selected</p></div><button className="text-action" onClick={()=>setSelected(allSelected?[]:candidates.map(i=>i.id))}>{allSelected?"Clear selection":"Select all"}</button></div>
+      <div className="migration-list">
+        {candidates.map(i=><label className="migration-row" key={i.id}><input type="checkbox" checked={selected.includes(i.id)} onChange={()=>toggle(i.id)}/><span><b>#{i.number}</b><strong>{i.client}</strong><small>{i.project||"No project"} · {dateLabel(i.date)}</small></span><em>{money(invoiceTotal(i))}</em></label>)}
+        {!candidates.length&&<div className="empty-state"><FileText size={18}/><b>No historical invoices in this scope.</b></div>}
+      </div>
+    </section>
+    <section className="migration-safety">
+      <div><ShieldCheck size={15}/><b>Financial safety boundary</b></div>
+      <p>Invoice numbers remain unique in the destination organisation. Linked clients/projects are checked before migration. Payments and generated documents follow the invoice to the new organisation. The operation is atomic: conflicts stop the batch instead of partially moving it.</p>
+      {targetOrg&&<small>Target: {targetOrg.name} · {selectedRows.length} selected</small>}
+    </section>
+    {message&&<div className={message.startsWith("Migration complete")?"auth-success":"auth-message"}>{message}</div>}
+  </div>;
+}
 
 export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf"|"statement_pdf">("all");

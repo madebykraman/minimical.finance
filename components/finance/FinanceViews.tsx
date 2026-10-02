@@ -410,16 +410,75 @@ export function periodLabel(p:Period){if(p==="month")return "This month";if(p===
 export function withinPeriod(date:string,p:Period,today=new Date()){if(p==="all")return true;const d=new Date(date+"T00:00:00"),end=new Date(today.getFullYear(),today.getMonth()+1,0);if(p==="month")return d>=new Date(today.getFullYear(),today.getMonth(),1)&&d<=end;if(p==="quarter"){const start=new Date(today.getFullYear(),today.getMonth()-2,1);return d>=start&&d<=end;}if(p==="half"){const start=new Date(today.getFullYear(),today.getMonth()-5,1);return d>=start&&d<=end;}const fy=new Date(today.getMonth()>=3?today.getFullYear():today.getFullYear()-1,3,1);return d>=fy&&d<=new Date(fy.getFullYear()+1,2,31);}
 
 export function ReportsView({invoices}:{invoices:Invoice[]}) {
-  const [period,setPeriod]=useState<Period>("year");const [client,setClient]=useState("all");
+  const [period,setPeriod]=useState<Period>("year");
+  const [client,setClient]=useState("all");
+  const [organization,setOrganization]=useState("all");
+  const [projects,setProjects]=useState<any[]>([]);
+  const [organizations,setOrganizations]=useState<any[]>([]);
+  useEffect(()=>{
+    Promise.all([
+      supabase.from("projects").select("id,name,organization_id,actual_cost,status,clients(name),organizations(name)"),
+      supabase.from("organizations").select("id,name").order("name")
+    ]).then(([p,o])=>{setProjects(p.data||[]);setOrganizations(o.data||[])});
+  },[]);
   const clients=[...new Set(invoices.map(i=>i.client))].sort();
-  const scoped=invoices.filter(i=>(client==="all"||i.client===client)&&withinPeriod(i.date,period));
-  const billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0),paid=scoped.reduce((s,i)=>s+paidTotal(i),0),open=scoped.reduce((s,i)=>s+invoiceBalance(i),0);
-  const aging={current:0,d1_30:0,d31_60:0,d61_90:0,d90:0};scoped.forEach(i=>{const b=invoiceBalance(i);if(!b)return;const d=daysOverdue(i);if(d<=0)aging.current+=b;else if(d<=30)aging.d1_30+=b;else if(d<=60)aging.d31_60+=b;else if(d<=90)aging.d61_90+=b;else aging.d90+=b});
-  const byClient=new Map<string,number>();scoped.forEach(i=>byClient.set(i.client,(byClient.get(i.client)||0)+invoiceTotal(i)));
-  return <div className="reports-page"><section className="compact-page-head"><div><span className="eyebrow">Analysis</span><h2>Reports</h2></div></section>
-    <div className="report-toolbar"><div className="period-strip">{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div><div className="report-filters"><select value={client} onChange={e=>setClient(e.target.value)}><option value="all">All clients</option>{clients.map(c=><option key={c}>{c}</option>)}</select></div></div>
-    <section className="kpis compact-kpis"><Kpi label="Billed" value={money(billed)} detail={periodLabel(period)}/><Kpi label="Collected" value={money(paid)} detail="Recorded"/><Kpi label="Outstanding" value={money(open)} detail="Open balance"/><Kpi label="Collection" value={billed?Math.round(paid/billed*100)+"%":"0%"} detail="Collected / billed"/></section>
-    <div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><h2>AR ageing</h2></div><div className="simple-list">{[["Current",aging.current],["1–30 days",aging.d1_30],["31–60 days",aging.d31_60],["61–90 days",aging.d61_90],[">90 days",aging.d90]].map(([label,value])=><div className="simple-row" key={String(label)}><b>{label}</b><span>Receivable</span><span></span><strong>{money(Number(value))}</strong><em>Open</em></div>)}</div></section><section className="data-panel"><div className="data-panel-head"><h2>Revenue by client</h2></div><div className="simple-list">{[...byClient.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=><div className="simple-row" key={name}><b>{name}</b><span>Client</span><span></span><strong>{money(value)}</strong><em>Billed</em></div>)}{!byClient.size&&<div className="empty-state">No revenue in this period.</div>}</div></section></div>
+  const scoped=invoices.filter(i=>(client==="all"||i.client===client)&&(organization==="all"||i.organizationId===organization)&&withinPeriod(i.date,period));
+  const billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0);
+  const paid=scoped.reduce((s,i)=>s+paidTotal(i),0);
+  const open=scoped.reduce((s,i)=>s+invoiceBalance(i),0);
+  const overdue=scoped.filter(i=>daysOverdue(i)>0).reduce((s,i)=>s+invoiceBalance(i),0);
+  const aging={current:0,d1_30:0,d31_60:0,d61_90:0,d90:0};
+  scoped.forEach(i=>{const b=invoiceBalance(i);if(!b)return;const d=daysOverdue(i);if(d<=0)aging.current+=b;else if(d<=30)aging.d1_30+=b;else if(d<=60)aging.d31_60+=b;else if(d<=90)aging.d61_90+=b;else aging.d90+=b});
+  const byClient=new Map<string,number>();
+  const byOrganization=new Map<string,number>();
+  const byProject=new Map<string,{billed:number;paid:number;open:number}>();
+  scoped.forEach(i=>{
+    byClient.set(i.client,(byClient.get(i.client)||0)+invoiceTotal(i));
+    const orgName=organizations.find(o=>o.id===i.organizationId)?.name||"Unassigned organisation";
+    byOrganization.set(orgName,(byOrganization.get(orgName)||0)+invoiceTotal(i));
+    const key=i.project||"Unassigned";
+    const x=byProject.get(key)||{billed:0,paid:0,open:0};
+    x.billed+=invoiceTotal(i);x.paid+=paidTotal(i);x.open+=invoiceBalance(i);byProject.set(key,x);
+  });
+  const payments=scoped.flatMap(i=>i.payments.map(p=>({...p,invoice:i})));
+  const cashByMonth=new Map<string,number>();
+  const collectionsByMethod=new Map<string,number>();
+  payments.forEach(p=>{
+    if(!p.payment_date||!withinPeriod(p.payment_date,period))return;
+    const month=p.payment_date.slice(0,7);
+    cashByMonth.set(month,(cashByMonth.get(month)||0)+Number(p.amount||0));
+    const method=p.method.replaceAll("_"," ");
+    collectionsByMethod.set(method,(collectionsByMethod.get(method)||0)+Number(p.amount||0));
+  });
+  const projectCost=new Map(projects.map(p=>[p.id,Number(p.actual_cost||0)]));
+  const projectProfitability=[...byProject.entries()].map(([name,v])=>{
+    const linked=projects.find(p=>p.name===name);
+    const cost=linked?.id?projectCost.get(linked.id)||0:0;
+    return {name,...v,cost,profit:v.billed-cost};
+  }).sort((a,b)=>b.profit-a.profit);
+  const maxOrg=Math.max(...byOrganization.values(),1);
+  const maxProject=Math.max(...projectProfitability.map(x=>x.billed),1);
+  const maxCash=Math.max(...cashByMonth.values(),1);
+  return <div className="reports-page">
+    <section className="compact-page-head"><div><span className="eyebrow">Analysis</span><h2>Reports</h2><p>Receivables, collections, revenue and project economics from the same financial source of truth.</p></div></section>
+    <div className="report-toolbar">
+      <div className="period-strip">{(["month","quarter","half","year","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div>
+      <div className="report-filters"><select value={organization} onChange={e=>setOrganization(e.target.value)}><option value="all">All organisations</option>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select><select value={client} onChange={e=>setClient(e.target.value)}><option value="all">All clients</option>{clients.map(c=><option key={c}>{c}</option>)}</select></div>
+    </div>
+    <section className="kpis compact-kpis">
+      <Kpi label="Billed" value={money(billed)} detail={periodLabel(period)}/>
+      <Kpi label="Collected" value={money(paid)} detail="Recorded payments"/>
+      <Kpi label="Outstanding" value={money(open)} detail="Open balance"/>
+      <Kpi label="Overdue" value={money(overdue)} detail={scoped.filter(i=>daysOverdue(i)>0).length+" invoices"}/>
+    </section>
+    <div className="overview-grid">
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Cashflow</h2><p>Actual payments received by month.</p></div></div><div className="report-bars">{[...cashByMonth.entries()].sort().map(([month,value])=><div className="report-bar-row" key={month}><span>{month}</span><div><i style={{width:Math.max(4,Math.round(value/maxCash*100))+"%"}}/></div><strong>{money(value)}</strong></div>)}{!cashByMonth.size&&<div className="empty-state">No recorded cashflow in this period.</div>}</div></section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Collections</h2><p>Received by payment method.</p></div></div><div className="simple-list">{[...collectionsByMethod.entries()].sort((a,b)=>b[1]-a[1]).map(([method,value])=><div className="simple-row" key={method}><b>{method}</b><span>Payment method</span><span></span><strong>{money(value)}</strong><em>Collected</em></div>)}{!collectionsByMethod.size&&<div className="empty-state">No collections in this period.</div>}</div></section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>AR ageing</h2><p>Open receivables by age.</p></div></div><div className="simple-list">{[["Current",aging.current],["1–30 days",aging.d1_30],["31–60 days",aging.d31_60],["61–90 days",aging.d61_90],[">90 days",aging.d90]].map(([label,value])=><div className="simple-row" key={String(label)}><b>{label}</b><span>Receivable</span><span></span><strong>{money(Number(value))}</strong><em>Open</em></div>)}</div></section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Revenue by organisation</h2><p>Billing distribution across the workspace.</p></div></div><div className="report-bars">{[...byOrganization.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=><div className="report-bar-row" key={name}><span>{name}</span><div><i style={{width:Math.max(4,Math.round(value/maxOrg*100))+"%"}}/></div><strong>{money(value)}</strong></div>)}{!byOrganization.size&&<div className="empty-state">No revenue in this period.</div>}</div></section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Revenue by client</h2><p>Gross billed amount.</p></div></div><div className="simple-list">{[...byClient.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=><div className="simple-row" key={name}><b>{name}</b><span>Client</span><span></span><strong>{money(value)}</strong><em>Billed</em></div>)}{!byClient.size&&<div className="empty-state">No revenue in this period.</div>}</div></section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Project profitability</h2><p>Billed less recorded project cost.</p></div></div><div className="simple-list">{projectProfitability.map(x=><div className="simple-row" key={x.name}><b>{x.name}</b><span>{money(x.cost)} cost</span><span>{money(x.open)} open</span><strong>{money(x.profit)}</strong><em>{x.cost?"Profit":"No cost"}</em></div>)}{!projectProfitability.length&&<div className="empty-state">No project revenue in this period.</div>}</div></section>
+    </div>
   </div>;
 }
 export function ProjectsView({invoices,organizationId,onOpen}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void}) {

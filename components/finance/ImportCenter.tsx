@@ -34,7 +34,7 @@ type ImportRecord = {
 
 const supabase=createClient();
 const fieldLabels:Record<keyof ImportMapping,string>={
-  organization:"Organisation",client:"Client",project:"Project",invoiceNumber:"Invoice number",
+  organization:"Organisation",client:"Client",lineItem:"Line item / project",project:"Project",invoiceNumber:"Invoice number",
   issueDate:"Issue date",dueDate:"Due date",amount:"Line amount",invoiceTotal:"Invoice total",
   status:"Status",paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",
 };
@@ -50,9 +50,9 @@ function buildRecords(rows:Record<string,unknown>[],mapping:ImportMapping):Impor
 
   const makeItem=(index:number,row:Record<string,unknown>)=>({
     index,
-    title:clean(valueFor(row,mapping.description))||clean(valueFor(row,mapping.client))||"Imported line item",
+    title:clean(valueFor(row,mapping.lineItem))||clean(valueFor(row,mapping.description))||clean(valueFor(row,mapping.client))||"Imported line item",
     amount:normalizeAmount(valueFor(row,mapping.amount)),
-    note:clean(valueFor(row,mapping.description)),
+    note:clean(valueFor(row,mapping.notes)),
   });
 
   const pushUnassigned=(index:number,row:Record<string,unknown>)=>{

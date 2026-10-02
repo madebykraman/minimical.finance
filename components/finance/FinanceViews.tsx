@@ -641,8 +641,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     const root=drawerRef.current;
     const selector="button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex='-1'])";
     requestAnimationFrame(()=>root?.querySelector<HTMLElement>(selector)?.focus());
-    const onKey=(event:KeyboardEvent)=>{
-      if(event.key==="Escape"){event.preventDefault();requestClose();return}
+    const onTab=(event:KeyboardEvent)=>{
       if(event.key!=="Tab"||!root)return;
       const focusable=Array.from(root.querySelectorAll<HTMLElement>(selector));
       if(!focusable.length)return;
@@ -650,9 +649,18 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
     };
-    document.addEventListener("keydown",onKey);
-    return()=>{document.removeEventListener("keydown",onKey);const previous=previousFocusRef.current;if(previous&&document.contains(previous))previous.focus();previousFocusRef.current=null};
+    document.addEventListener("keydown",onTab);
+    return()=>{document.removeEventListener("keydown",onTab);const previous=previousFocusRef.current;if(previous&&document.contains(previous))previous.focus();previousFocusRef.current=null};
   },[]);
+  useEffect(()=>{
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key!=="Escape")return;
+      event.preventDefault();
+      if(!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
+    };
+    document.addEventListener("keydown",onEscape);
+    return()=>document.removeEventListener("keydown",onEscape);
+  },[dirty,onClose]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   const [saving, setSaving] = useState(false);

@@ -619,6 +619,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const [number]=useState(initialNumber);
   const [client,setClient]=useState("");
   const [project,setProject]=useState("");
+  const [clientMode,setClientMode]=useState<"existing"|"new">("existing");
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [dueDate,setDueDate]=useState(new Date(Date.now()+30*86400000).toISOString().slice(0,10));
   const [contents,setContents]=useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
@@ -654,13 +655,11 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
         <section className="editor-section">
           <div className="editor-section-head"><div><span className="section-kicker">IDENTITY</span><h3>Invoice details</h3></div><span className="editor-number">#{number}</span></div>
           <div className="form-grid invoice-detail-grid">
-            <label>Client<input list="invoice-client-options" required value={client} onChange={e=>{setClient(e.target.value);setProject("")}} placeholder="Select or enter client"/></label>
-            <label>Project<input list="invoice-project-options" value={project} onChange={e=>setProject(e.target.value)} placeholder="Optional project / engagement"/></label>
+            <div className="field-stack"><label>Client{clientMode==="existing"?<select required value={client} onChange={e=>{setClient(e.target.value);setProject("")}}><option value="">Select client</option>{clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</select>:<input autoFocus required value={client} onChange={e=>{setClient(e.target.value);setProject("")}} placeholder="New client name"/>}</label><button type="button" className="field-inline-action" onClick={()=>{setClientMode(v=>v==="existing"?"new":"existing");setClient("")}}>{clientMode==="existing"?"+ New client":"← Existing client"}</button></div>
+            <label>Project<input value={project} onChange={e=>setProject(e.target.value)} placeholder="Optional project / engagement"/></label>
             <label>Issue date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
             <label>Due date<input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></label>
           </div>
-          <datalist id="invoice-client-options">{clients.map(c=><option key={c.id} value={c.name}/>)}</datalist>
-          <datalist id="invoice-project-options">{clientProjects.map(p=><option key={p.id} value={p.name}/>)}</datalist>
           <div className="editor-org-lock"><Building2 size={15}/><div><span>Billing organisation</span><b>{organizationId ? (organizationName||"Current organisation") : "No organisation selected"}</b></div><span className="editor-readonly">#{number}</span></div>
         </section>
 

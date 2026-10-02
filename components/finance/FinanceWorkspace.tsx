@@ -282,6 +282,15 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
 
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
+  const openInvoiceComposer = () => {
+    if (!organizationId || allOrganizations) {
+      setActionError("Select a specific organisation before creating an invoice.");
+      return;
+    }
+    setActionError("");
+    setComposer(true);
+  };
+
   const navigateTo = (view: FinanceView) => {
     setActiveView(view);
     setSelectedClientId(null);
@@ -393,7 +402,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           organization={activeOrganization ?? { id: ALL_ORGANIZATIONS_ID, name: "All organisations", status: "aggregate" }}
           onOpen={setSelected}
           onNavigate={navigateTo}
-          onNewInvoice={() => setComposer(true)}
+          onNewInvoice={openInvoiceComposer}
         />
       )}
       {activeView === "invoices" && (
@@ -406,7 +415,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           loading={loading}
           onOpen={setSelected}
           onStatus={markStatus}
-          onNew={()=>setComposer(true)}
+          onNew={openInvoiceComposer}
         />
       )}
       {activeView === "payments" && <PaymentsView invoices={orgInvoices} onOpenPayment={setPaymentFor} />}

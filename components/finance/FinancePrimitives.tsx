@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export type FinanceStatus = "draft" | "sent" | "partially_paid" | "paid" | "void";
@@ -33,6 +33,7 @@ export function SegmentedTabs<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
+  const tabGroupId = useId().replace(/:/g, "");
   const activeIndex = Math.max(0, items.findIndex((item) => item.value === value));
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!items.length) return;
@@ -45,14 +46,14 @@ export function SegmentedTabs<T extends string>({
     event.preventDefault();
     onChange(items[next].value);
     requestAnimationFrame(() => {
-      document.getElementById(`finance-tab-${items[next].value}`)?.focus();
+      document.getElementById(`${tabGroupId}-tab-${items[next].value}`)?.focus();
     });
   };
 
   return (
     <div className="finance-segmented-tabs" role="tablist" aria-label={ariaLabel}>
       {items.map((item) => {
-        const id = `finance-tab-${item.value}`;
+        const id = `${tabGroupId}-tab-${item.value}`;
         return (
           <button
             key={item.value}

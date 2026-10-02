@@ -437,6 +437,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           onOpen={setSelected}
           onStatus={markStatus}
           onNew={openInvoiceComposer}
+          onPayments={() => navigateTo("payments")}
+          onImport={() => navigateTo("imports")}
         />
       )}
       {activeView === "payments" && <PaymentsView invoices={orgInvoices} onOpenPayment={setPaymentFor} />}

@@ -27,3 +27,12 @@ Source: https://panelui.dev/docs
 ## Project rule
 
 Prefer source-level adaptation when a component directly improves a MinBooks workflow. Do not install a library merely to claim library usage, and do not introduce decorative effects that weaken information density or financial clarity.
+
+## Current shipped implementations
+
+The library references are now represented by owned source in the product, not just documentation.
+
+- OpenSource UI: `components/finance/DownloadButton.tsx` is the invoice PDF download interaction, adapted to MinBooks tokens and existing button semantics. It is also reused anywhere a stateful download action is appropriate.
+- ObsidianUI: the page-frame entry transition is implemented as a restrained opacity/translate interaction in `app/globals.css`, with reduced-motion handling. Decorative cursor/WebGL effects are intentionally not used in a finance workflow.
+- PanelUI: `components/finance/FinancePrimitives.tsx` owns the web adaptation of the bottom-sheet interaction model; `MobileSheet` is used by the mobile More surface. The mobile action rail follows the same semantic-token, accessible-control approach in `components/finance/MobileQuickActions.tsx`.
+- The desktop information architecture remains complete; mobile is deliberately an action-first surface that exposes the high-frequency recovery flows rather than duplicating every desktop control in a smaller viewport.

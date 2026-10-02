@@ -13,6 +13,7 @@ import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
+import { InlineLoader } from "@/components/finance/FinanceUI";
 import { MobileQuickActions } from "@/components/finance/MobileQuickActions";
 import { SegmentedTabs, StatusPill, type FinanceStatus } from "@/components/finance/FinancePrimitives";
 import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
@@ -713,7 +714,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
     {validationError && <div className="auth-message invoice-validation-message" role="alert">{validationError}</div>}
-    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? "Saving…" : "Save changes"}</button></div>
+    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
   </aside></div>;
 }
 

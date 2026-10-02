@@ -70,19 +70,39 @@ export function MobileSheet({
 
   useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector =
+      "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panel) return;
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter(element => !element.hasAttribute("aria-hidden"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const first = panelRef.current?.querySelector<HTMLElement>(
-      "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"
-    );
-    first?.focus();
+    const first = panel?.querySelector<HTMLElement>(focusableSelector);
+    requestAnimationFrame(() => first?.focus());
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previous;
+      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
     };
   }, [open, onClose]);
 

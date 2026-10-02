@@ -361,10 +361,11 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInv
     </div>
   </div>;
 }
-export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus,onNew}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void}) {
+export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus,onNew,onPayments,onImport}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void;onPayments:()=>void;onImport:()=>void}) {
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0), overdue=filtered.filter(i=>daysOverdue(i)>0).length;
   return <div className="operations-page">
     <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{filtered.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New invoice</button></div></section>
+    <MobileQuickActions onNewInvoice={onNew} onPayments={onPayments} onImport={onImport} onInvoices={()=>window.scrollTo({top:0,behavior:"smooth"})} />
     <section className="register-summary"><div><span>OPEN</span><b>{money(open)}</b></div><div><span>OVERDUE</span><b>{overdue}</b></div><div><span>VIEW</span><b>{status==="all"?"All":statusLabel(status)}</b></div></section>
     <section className="data-panel operations-register">
       <div className="data-panel-head"><div><h2>Register</h2></div><div className="invoice-toolbar"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoice, client or project" aria-label="Search invoices"/></div><SegmentedTabs

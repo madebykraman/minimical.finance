@@ -1139,6 +1139,7 @@ export type Database = {
       }
       invoice_snapshot: { Args: { p_invoice_id: string }; Returns: Json }
       issue_invoice: { Args: { p_invoice_id: string }; Returns: number }
+      import_invoice_batch: { Args: { p_rows: Json }; Returns: Json }
       log_client_portal_activity: {
         Args: {
           p_action: string

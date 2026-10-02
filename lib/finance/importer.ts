@@ -5,6 +5,10 @@ export type ImportSource = {
   sheet: string;
   headers: string[];
   rows: Record<string, unknown>[];
+  headerRow: number;
+  headerDetected: boolean;
+  confidence: number;
+  skippedRows: number;
 };
 
 export type ImportMapping = {
@@ -21,45 +25,143 @@ export type ImportMapping = {
   description?: string;
 };
 
+export type ImportFieldAnalysis = {
+  field: keyof ImportMapping;
+  label: string;
+  header?: string;
+  confidence: number;
+  reason: string;
+};
+
+export type ImportAnalysis = {
+  mapping: ImportMapping;
+  fields: ImportFieldAnalysis[];
+  headerRow: number;
+  confidence: number;
+  sourceShape: "tabular" | "headerless";
+};
+
 const aliases: Record<keyof ImportMapping, string[]> = {
-  organization: ["organisation","organization","org","company","entity","business"],
-  client: ["client","client name","customer","customer name","party","buyer"],
-  project: ["project","project name","job","engagement","work"],
-  invoiceNumber: ["invoice","invoice no","invoice number","invoice #","number","bill no"],
-  issueDate: ["issue date","invoice date","date","created","created date"],
-  dueDate: ["due date","payment due","due"],
-  amount: ["amount","total","invoice total","grand total","value"],
-  status: ["status","invoice status","state"],
-  paymentDate: ["payment date","paid date","received date"],
-  paymentAmount: ["payment","paid","paid amount","received","received amount"],
-  description: ["description","service","item","particular","particulars","details","narration","note"],
+  organization: ["organisation","organization","org","company","entity","business","billing entity","billing organisation","billing organization"],
+  client: ["client","client name","customer","customer name","party","buyer","billed to","bill to"],
+  project: ["project","project name","job","engagement","work","campaign"],
+  invoiceNumber: ["invoice","invoice no","invoice number","invoice #","invoice id","bill no","bill number","document number"],
+  issueDate: ["issue date","invoice date","issued","created","created date","date raised","bill date"],
+  dueDate: ["due date","payment due","due","due on"],
+  amount: ["amount","total","invoice total","grand total","gross total","net total","value","invoice value"],
+  status: ["status","invoice status","state","payment status"],
+  paymentDate: ["payment date","paid date","received date","date paid","settled date"],
+  paymentAmount: ["payment","paid","paid amount","received","received amount","amount paid","amount received"],
+  description: ["description","service","item","particular","particulars","details","narration","note","line item","deliverable"],
+};
+
+const labels: Record<keyof ImportMapping,string> = {
+  organization:"Organisation",client:"Client",project:"Project",invoiceNumber:"Invoice number",
+  issueDate:"Issue date",dueDate:"Due date",amount:"Amount",status:"Status",
+  paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",
 };
 
 const normalize = (value: unknown) =>
-  String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
 
 function score(header: string, candidate: string) {
   const h = normalize(header);
   const c = normalize(candidate);
-  if (!h) return 0;
+  if (!h || !c) return 0;
   if (h === c) return 1;
-  if (h.includes(c) || c.includes(h)) return 0.75;
+  if (h.replace(/\\b(name|date|no|number)\\b/g, "").trim() === c.replace(/\\b(name|date|no|number)\\b/g, "").trim()) return 0.92;
+  if (h.includes(c) || c.includes(h)) return 0.78;
   return 0;
+}
+
+function nonEmpty(row: unknown[]) {
+  return row.filter(v => String(v ?? "").trim() !== "");
+}
+
+function looksLikeDate(value: unknown) {
+  return Boolean(normalizeDate(value));
+}
+
+function looksLikeAmount(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return true;
+  const raw = String(value ?? "").trim();
+  return Boolean(raw && /(?:₹|rs\\.?|inr|\\$|€|£|,)/i.test(raw) && normalizeAmount(raw) != null);
+}
+
+function rowHeaderScore(row: unknown[]) {
+  const values = nonEmpty(row).map(v => String(v).trim());
+  if (values.length < 2) return 0;
+  const unique = new Set(values.map(normalize)).size;
+  const aliasHits = values.reduce((sum, value) => {
+    return sum + (Object.values(aliases).some(list => list.some(alias => score(value, alias) >= 0.78)) ? 1 : 0);
+  }, 0);
+  const dataPenalty = values.filter(v => looksLikeDate(v) || looksLikeAmount(v)).length;
+  const shortLabelBonus = values.filter(v => v.length <= 34 && !/[.!?]{2,}/.test(v)).length / values.length;
+  return aliasHits * 5 + unique * 0.7 + shortLabelBonus * 2 - dataPenalty * 2;
+}
+
+function dedupeHeaders(values: string[]) {
+  const counts = new Map<string,number>();
+  return values.map((value,index) => {
+    const base = value.trim() || `Column ${String.fromCharCode(65 + (index % 26))}`;
+    const count = (counts.get(base) || 0) + 1;
+    counts.set(base,count);
+    return count === 1 ? base : `${base} ${count}`;
+  });
+}
+
+function matrixToRows(matrix: unknown[][], headers: string[], headerIndex: number) {
+  const rows: Record<string,unknown>[] = [];
+  let skipped = 0;
+  for (const values of matrix.slice(headerIndex + 1)) {
+    if (!nonEmpty(values).length) continue;
+    const row = Object.fromEntries(headers.map((header,index) => [header, values[index] ?? ""]));
+    const normalized = Object.values(row).map(normalize);
+    const repeatedHeader = normalized.length > 1 && normalized.filter((v,i) => normalize(headers[i]) === v).length >= Math.max(2, Math.ceil(headers.length * .6));
+    if (repeatedHeader) { skipped++; continue; }
+    rows.push(row);
+  }
+  return { rows, skipped };
+}
+
+export function detectHeaderRow(matrix: unknown[][]) {
+  const limit = Math.min(matrix.length, 25);
+  let bestIndex = -1;
+  let bestScore = 0;
+  for (let i = 0; i < limit; i++) {
+    const scoreValue = rowHeaderScore(matrix[i] || []);
+    if (scoreValue > bestScore) { bestScore = scoreValue; bestIndex = i; }
+  }
+  return { index: bestIndex, confidence: bestIndex >= 0 ? Math.min(0.99, bestScore / 18) : 0 };
 }
 
 export function inferImportMapping(headers: string[]): ImportMapping {
   const mapping: ImportMapping = {};
-  for (const key of Object.keys(aliases) as (keyof ImportMapping)[]) {
-    let best: { header: string; score: number } | null = null;
-    for (const header of headers) {
-      for (const alias of aliases[key]) {
-        const s = score(header, alias);
-        if (!best || s > best.score) best = { header, score: s };
-      }
-    }
-    if (best && best.score >= 0.75) mapping[key] = best.header;
+  const used = new Set<string>();
+  const ranked = (Object.keys(aliases) as (keyof ImportMapping)[])
+    .flatMap(field => headers.map(header => ({ field, header, score: Math.max(...aliases[field].map(alias => score(header, alias))) })))
+    .sort((a,b) => b.score - a.score);
+
+  for (const candidate of ranked) {
+    if (candidate.score < 0.78 || used.has(candidate.header) || mapping[candidate.field]) continue;
+    mapping[candidate.field] = candidate.header;
+    used.add(candidate.header);
   }
   return mapping;
+}
+
+export function analyzeImportSource(source: ImportSource): ImportAnalysis {
+  const mapping = inferImportMapping(source.headers);
+  const fields = (Object.keys(labels) as (keyof ImportMapping)[]).map(field => {
+    const header = mapping[field];
+    if (header) return { field, label: labels[field], header, confidence: source.headerDetected ? 0.92 : 0.64, reason: "Matched source heading" };
+    const values = source.rows.map(row => valueFor(row, source.headers.find(Boolean))).filter(Boolean);
+    if (field === "issueDate" && values.length && values.filter(looksLikeDate).length / values.length > .7) return { field,label:labels[field],confidence:.7,reason:"Detected date-like values" };
+    if (field === "amount" && values.length && values.filter(looksLikeAmount).length / values.length > .7) return { field,label:labels[field],confidence:.68,reason:"Detected currency/amount values" };
+    return { field,label:labels[field],confidence:0,reason:"Needs review" };
+  });
+  const confidence = Math.round((fields.filter(f => f.confidence >= .78).length / fields.length) * 100);
+  return { mapping, fields, headerRow:source.headerRow, confidence, sourceShape:source.headerDetected ? "tabular" : "headerless" };
 }
 
 export async function parseSpreadsheet(file: File): Promise<ImportSource[]> {
@@ -67,11 +169,23 @@ export async function parseSpreadsheet(file: File): Promise<ImportSource[]> {
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   return workbook.SheetNames.map((sheet) => {
     const ws = workbook.Sheets[sheet];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-    const headers = rows.length
-      ? Object.keys(rows[0])
-      : (XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: "" })[0] ?? []);
-    return { name: file.name, sheet, headers: headers.map(String), rows };
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", raw: true });
+    const detection = detectHeaderRow(matrix);
+    const headerDetected = detection.index >= 0 && rowHeaderScore(matrix[detection.index] || []) >= 4;
+    const headerRow = headerDetected ? detection.index : 0;
+    const rawHeaders = headerDetected ? (matrix[headerRow] || []) : (matrix[0] || []);
+    const headers = dedupeHeaders(rawHeaders.map(String));
+    const parsed = matrixToRows(matrix, headers, headerRow);
+    return {
+      name: file.name,
+      sheet,
+      headers,
+      rows: parsed.rows,
+      headerRow,
+      headerDetected,
+      confidence: detection.confidence,
+      skippedRows: parsed.skipped,
+    };
   });
 }
 
@@ -83,19 +197,23 @@ export function normalizeDate(value: unknown): string {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  const iso = raw.match(/^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})$/);
   if (iso) return iso[1] + "-" + iso[2].padStart(2, "0") + "-" + iso[3].padStart(2, "0");
-  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const dmy = raw.match(/^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})$/);
   if (dmy) return dmy[3] + "-" + dmy[2].padStart(2, "0") + "-" + dmy[1].padStart(2, "0");
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime()) && /[a-z]/i.test(raw)) return parsed.toISOString().slice(0,10);
   return "";
 }
 
 export function normalizeAmount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const raw = String(value ?? "").replace(/[₹$€£,\s]/g, "").trim();
+  const raw = String(value ?? "").replace(/[₹$€£,\\s]/g, "").trim();
   if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
+  const negative = /^\\(.*\\)$/.test(raw);
+  const n = Number(raw.replace(/[()]/g,""));
+  if (!Number.isFinite(n)) return null;
+  return negative ? -n : n;
 }
 
 export function fingerprint(row: Record<string, unknown>, mapping: ImportMapping): string {

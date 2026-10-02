@@ -385,47 +385,124 @@ export type Database = {
           },
         ]
       }
+      document_versions: {
+        Row: {
+          checksum_sha256: string | null
+          document_id: string
+          file_name: string | null
+          file_path: string | null
+          generated_at: string
+          generated_by: string | null
+          id: string
+          metadata: Json
+          mime_type: string
+          size_bytes: number | null
+          storage_bucket: string
+          version_number: number
+        }
+        Insert: {
+          checksum_sha256?: string | null
+          document_id: string
+          file_name?: string | null
+          file_path?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string
+          size_bytes?: number | null
+          storage_bucket?: string
+          version_number: number
+        }
+        Update: {
+          checksum_sha256?: string | null
+          document_id?: string
+          file_name?: string | null
+          file_path?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string
+          size_bytes?: number | null
+          storage_bucket?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
+          checksum_sha256: string | null
           client_id: string | null
           created_at: string
           description: string | null
           document_type: string
           file_name: string
           file_path: string
+          generated_at: string | null
           id: string
           invoice_id: string | null
+          issued_at: string | null
           mime_type: string | null
+          organization_id: string | null
           size_bytes: number | null
+          source_hash: string | null
+          status: string
           storage_bucket: string
+          template_key: string | null
+          version_number: number
           visible_to_client: boolean
         }
         Insert: {
+          checksum_sha256?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
           document_type: string
           file_name: string
           file_path: string
+          generated_at?: string | null
           id?: string
           invoice_id?: string | null
+          issued_at?: string | null
           mime_type?: string | null
+          organization_id?: string | null
           size_bytes?: number | null
+          source_hash?: string | null
+          status?: string
           storage_bucket?: string
+          template_key?: string | null
+          version_number?: number
           visible_to_client?: boolean
         }
         Update: {
+          checksum_sha256?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
           document_type?: string
           file_name?: string
           file_path?: string
+          generated_at?: string | null
           id?: string
           invoice_id?: string | null
+          issued_at?: string | null
           mime_type?: string | null
+          organization_id?: string | null
           size_bytes?: number | null
+          source_hash?: string | null
+          status?: string
           storage_bucket?: string
+          template_key?: string | null
+          version_number?: number
           visible_to_client?: boolean
         }
         Relationships: [
@@ -448,6 +525,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -515,6 +599,61 @@ export type Database = {
           },
         ]
       }
+      invoice_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          organization_id: string
+          snapshot: Json
+          snapshot_hash: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          organization_id: string
+          snapshot: Json
+          snapshot_hash: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+          snapshot?: Json
+          snapshot_hash?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_versions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_versions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           adjustment_note: string | null
@@ -524,6 +663,8 @@ export type Database = {
           id: string
           invoice_number: string
           issue_date: string
+          issued_at: string | null
+          issued_version: number | null
           notes: string | null
           organization_id: string
           project_id: string | null
@@ -539,6 +680,8 @@ export type Database = {
           id?: string
           invoice_number: string
           issue_date?: string
+          issued_at?: string | null
+          issued_version?: number | null
           notes?: string | null
           organization_id: string
           project_id?: string | null
@@ -554,6 +697,8 @@ export type Database = {
           id?: string
           invoice_number?: string
           issue_date?: string
+          issued_at?: string | null
+          issued_version?: number | null
           notes?: string | null
           organization_id?: string
           project_id?: string | null
@@ -607,9 +752,11 @@ export type Database = {
           logo_path: string | null
           name: string
           next_invoice_number: number
+          next_receipt_number: number
           pan: string | null
           payee_name: string | null
           phone: string | null
+          receipt_prefix: string
           status: string
           updated_at: string
         }
@@ -634,9 +781,11 @@ export type Database = {
           logo_path?: string | null
           name: string
           next_invoice_number?: number
+          next_receipt_number?: number
           pan?: string | null
           payee_name?: string | null
           phone?: string | null
+          receipt_prefix?: string
           status?: string
           updated_at?: string
         }
@@ -661,9 +810,11 @@ export type Database = {
           logo_path?: string | null
           name?: string
           next_invoice_number?: number
+          next_receipt_number?: number
           pan?: string | null
           payee_name?: string | null
           phone?: string | null
+          receipt_prefix?: string
           status?: string
           updated_at?: string
         }
@@ -677,7 +828,9 @@ export type Database = {
           invoice_id: string
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
+          organization_id: string | null
           payment_date: string | null
+          receipt_issued_at: string | null
           receipt_number: string | null
           reference: string | null
         }
@@ -688,7 +841,9 @@ export type Database = {
           invoice_id: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
+          organization_id?: string | null
           payment_date?: string | null
+          receipt_issued_at?: string | null
           receipt_number?: string | null
           reference?: string | null
         }
@@ -699,7 +854,9 @@ export type Database = {
           invoice_id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
+          organization_id?: string | null
           payment_date?: string | null
+          receipt_issued_at?: string | null
           receipt_number?: string | null
           reference?: string | null
         }
@@ -716,6 +873,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -889,16 +1053,6 @@ export type Database = {
       }
     }
     Views: {
-      organisation_migration_status: {
-        Row: {
-          assigned_invoice_count: number | null
-          invoice_count: number | null
-          organisation_count: number | null
-          orphaned_organisation_count: number | null
-          unassigned_invoice_count: number | null
-        }
-        Relationships: []
-      }
       invoice_financials: {
         Row: {
           balance: number | null
@@ -932,26 +1086,25 @@ export type Database = {
           },
         ]
       }
+      organisation_migration_status: {
+        Row: {
+          assigned_invoice_count: number | null
+          invoice_count: number | null
+          organisation_count: number | null
+          orphaned_organisation_count: number | null
+          unassigned_invoice_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       allocate_invoice_number: {
         Args: { p_organization_id: string }
         Returns: string
       }
-      save_invoice: {
-        Args: {
-          p_adjustment_note?: string | null
-          p_contents?: Json
-          p_due_date?: string | null
-          p_invoice_id: string
-          p_client_id?: string | null
-          p_project_id?: string | null
-          p_notes?: string | null
-          p_issue_date?: string | null
-          p_organization_id?: string | null
-          p_status?: "draft" | "sent" | "partially_paid" | "paid" | "void"
-        }
-        Returns: undefined
+      allocate_receipt_number: {
+        Args: { p_organization_id: string }
+        Returns: string
       }
       create_client_portal_session: {
         Args: {
@@ -974,6 +1127,8 @@ export type Database = {
         Args: { p_slug: string; p_token: string }
         Returns: Json
       }
+      invoice_snapshot: { Args: { p_invoice_id: string }; Returns: Json }
+      issue_invoice: { Args: { p_invoice_id: string }; Returns: number }
       log_client_portal_activity: {
         Args: {
           p_action: string
@@ -988,6 +1143,47 @@ export type Database = {
       next_invoice_number: {
         Args: { p_organization_id: string }
         Returns: string
+      }
+      record_invoice_payment: {
+        Args: {
+          p_amount: number
+          p_invoice_id: string
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_notes?: string
+          p_payment_date: string
+          p_reference?: string
+        }
+        Returns: string
+      }
+      save_invoice: {
+        Args: {
+          p_adjustment_note?: string
+          p_client_id?: string
+          p_contents?: Json
+          p_due_date?: string
+          p_invoice_id: string
+          p_issue_date?: string
+          p_notes?: string
+          p_organization_id?: string
+          p_project_id?: string
+          p_status?: Database["public"]["Enums"]["invoice_status"]
+        }
+        Returns: undefined
+      }
+      statement_ledger: {
+        Args: { p_client_id: string; p_end?: string; p_start?: string }
+        Returns: {
+          credit: number
+          debit: number
+          reference: string
+          running_balance: number
+          transaction_date: string
+          transaction_type: string
+        }[]
+      }
+      sync_invoice_payment_status: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
       }
       update_client_portal_profile: {
         Args: { p_payload: Json; p_session: string; p_slug: string }

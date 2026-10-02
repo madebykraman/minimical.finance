@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyzeImportSource, detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, fingerprint } from "../lib/finance/importer";
+import { analyzeImportSource, detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, normalizeInvoiceNumber, fingerprint } from "../lib/finance/importer";
 
 test("import mapping recognises common invoice headers without reusing one source column",()=>{
   const mapping=inferImportMapping(["Organisation","Client Name","Invoice No","Invoice Date","Due Date","Grand Total","Paid Amount"]);
@@ -49,4 +49,10 @@ test("value analysis can infer date and amount columns when headings are weak",(
   const analysis=analyzeImportSource(source);
   assert.equal(analysis.mapping.issueDate,"C");
   assert.equal(analysis.mapping.amount,"D");
+});
+
+test("invoice number normalisation strips tracker prefixes",()=>{
+  assert.equal(normalizeInvoiceNumber("Inv. 220"),"220");
+  assert.equal(normalizeInvoiceNumber("Invoice #43"),"43");
+  assert.equal(normalizeInvoiceNumber("N/A"),"");
 });

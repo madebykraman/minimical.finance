@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
-import { mapInvoice, invoiceTotal, paidTotal } from "./domain";
+import { mapInvoice, invoiceTotal, paidTotal, invoiceBalance } from "./domain";
 import type { Content, Invoice, PaymentMethod, Status } from "./domain";
 
 const supabase = createClient();
@@ -233,7 +233,7 @@ export async function recordPayment(
   const { error } = await supabase.rpc("record_invoice_payment", {
     p_invoice_id: invoice.id,
     p_amount: amount,
-    p_payment_date: date || null,
+    p_payment_date: date || undefined,
     p_method: method,
     p_reference: reference || null,
     p_notes: null,

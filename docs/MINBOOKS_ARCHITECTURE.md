@@ -42,13 +42,15 @@ Receipts are organisation-scoped and sequential through the database. Payments c
 2. Inspect the workbook as a matrix and detect the most likely semantic header row instead of assuming row 1 is the header.
 3. Classify the source as structured or headerless/irregular and score analysis confidence.
 4. Infer financial fields with one-to-one column assignment; never reuse a source column simply because it is the closest textual match.
-5. Inspect values as well as headings for date, amount, invoice-number, status and other semantic signals.
-6. Resolve organisation ownership against the current workspace; use the active organisation automatically when that is unambiguous.
-7. Normalize client/project/invoice/payment data and distinguish new entities from unresolved entities.
-8. Detect existing invoice duplicates and duplicates inside the import batch; offer deterministic auto-number or skip resolution.
-9. Show the operator only the remaining exceptions, with mapping review available as an advanced override rather than the default workflow.
-10. Reconcile ready/skipped/blocked/warning counts and commit only after explicit confirmation.
-11. Persist the source, analysis, row-level decisions and final outcome in the import register.
+5. Inspect values as well as headings for date, amount, invoice-number, payment-state, status and other semantic signals.
+6. Reconstruct document groups: an invoice-number header row starts a document and subsequent headerless line rows remain attached until the source invoice total is reconciled or a new document boundary appears.
+7. Preserve multiple line items and unpriced continuation rows instead of collapsing a tracker into one description or one invoice per spreadsheet row.
+8. Resolve organisation ownership against the current workspace; use the active organisation automatically when that is unambiguous.
+9. Normalize client/project/invoice/payment data and distinguish new entities from unresolved entities.
+10. Detect existing invoice duplicates and duplicates inside the import batch; offer deterministic auto-number or skip resolution.
+11. Show the operator only the remaining exceptions, with mapping review available as an advanced override rather than the default workflow.
+12. Reconcile ready/skipped/blocked/warning counts and commit only after explicit confirmation.
+13. Persist the source, analysis, row-level decisions and final outcome in the import register.
 
 The importer is intentionally “analyse → reconcile exceptions → commit”, not “fill a mapping form”. It is designed for phone-first review and desktop batch work.
 

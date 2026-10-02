@@ -9,7 +9,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 
   const { data: document, error } = await supabase
     .from("documents")
-    .select("id,document_type,file_path,file_name,storage_bucket,invoice_id,payment_id")
+    .select("id,document_type,file_path,file_name,storage_bucket,invoice_id,payment_id,client_id")
     .eq("id", id)
     .maybeSingle();
 

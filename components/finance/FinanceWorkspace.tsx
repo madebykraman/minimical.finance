@@ -26,6 +26,7 @@ import {
   ClientsView,
   ProjectsView,
   ReportsView,
+  DocumentsView,
   SettingsView,
   InvoiceDrawer,
   PaymentComposer,
@@ -429,7 +430,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       )}
       {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} />}
       {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
-      {activeView === "imports" && (\n        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />\n      )}\n      {activeView === "settings" && (
+      {activeView === "documents" && (\n        <DocumentsView invoices={orgInvoices} />\n      )}\n      {activeView === "imports" && (\n        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />\n      )}\n      {activeView === "settings" && (
         <SettingsView
           email={session.user?.email ?? ""}
           activeOrganizationId={organizationId}

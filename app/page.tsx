@@ -1,5 +1,10 @@
-import FinanceWorkspace from "@/components/finance/FinanceWorkspace";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { AuthScreen } from "@/components/finance/FinanceViews";
 
-export default function Page() {
-  return <FinanceWorkspace initialView="overview" />;
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (data.user) redirect("/admin");
+  return <AuthScreen />;
 }

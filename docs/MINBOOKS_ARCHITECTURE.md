@@ -52,6 +52,15 @@ Receipts are organisation-scoped and sequential through the database. Payments c
 
 The importer is intentionally “analyse → reconcile exceptions → commit”, not “fill a mapping form”. It is designed for phone-first review and desktop batch work.
 
+## Visual system
+- Geist Sans and Geist Mono are the product-wide typography contract, including generated PDFs.
+- The interface uses a dark-only, dense information language with strong hierarchy, restrained purple accents, semantic tokens and fixed mobile navigation.
+- OpenSource UI is used as an implementation reference for production-ready interaction components; the download-state control is adapted locally so the dependency surface remains small and editable.
+- ObsidianUI informs the composable, minimal panel and navigation architecture.
+- Uiverse informs selective micro-interaction patterns and control treatments rather than a wholesale visual skin.
+- Designeer, Swiped.design, Recent.design, Grainient.supply and the other supplied references are treated as design-intelligence inputs for hierarchy, motion, texture and composition. They are not runtime dependencies.
+- Visual elements must explain or accelerate a financial task. Decorative charts and ornamental dashboard noise remain excluded.
+
 ## UX doctrine
 - Mobile is a first-class workflow, not a collapsed desktop layout.
 - Primary mobile navigation is fixed to the viewport edge and never floats over content.

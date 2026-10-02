@@ -3,7 +3,7 @@ import { PDFDocument,rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { hashPortalSession } from "@/lib/portal/auth";
 
 const PAGE={width:595.2756,height:841.8898};const BLACK=rgb(0,0,0);const FONT_SIZE=9.8;const LEADING=11.8;
@@ -19,7 +19,7 @@ const fitItem=(t:string,font:any,max:number)=>{for(let size=FONT_SIZE;size>=6;si
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;id:string}>}){
   const {slug,id}=await context.params;const session=request.cookies.get("portal_session")?.value||"";if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient();const [{data,error},{data:orgRaw}]=await Promise.all([
+  const supabase=createServiceClient();const [{data,error},{data:orgRaw}]=await Promise.all([
     supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),
     supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})
   ]);

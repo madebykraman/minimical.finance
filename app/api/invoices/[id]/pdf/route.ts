@@ -53,17 +53,17 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
   const mono=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","GeistMono-Regular.ttf")),{subset:true});
   const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,client.logo_path);const W=PAGE.width,L=54,R=W-54;
 
-  const drawFooter=(page:any)=>{const email=contactEmail(org),phone=contactPhone(org);page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,"Thank you for your time.",L,39,bold,8.5);icon(page,L,19,"mail");text(page,email,L+14,19,regular,7.5,MUTED);icon(page,L+185,19,"phone");text(page,phone,L+199,19,regular,7.5,MUTED);text(page,"MinBooks · Generated from the financial record",R-185,19,regular,6.5,MUTED);};
+  const drawFooter=(page:any)=>{const email=contactEmail(org),phone=contactPhone(org);page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,"Thank you for your time.",L,39,bold,8.5);text(page,"EMAIL",L,19,mono,6.5,MUTED);text(page,email,L+28,19,regular,7.5,MUTED);text(page,"WHATSAPP",L+185,19,mono,6.5,MUTED);text(page,phone,L+233,19,regular,7.5,MUTED);text(page,"MinBooks · Generated from the financial record",R-185,19,regular,6.5,MUTED);};
 
   const drawIdentity=(page:any,continuation=false)=>{
     if(continuation){text(page,String(org.name||org.legal_name||"MinBooks"),L,790,bold,11);right(page,`Invoice #${invoice.invoice_number}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}
     const top=788;
     if(orgLogo){const d=orgLogo.scale(Math.min(38/orgLogo.width,22/orgLogo.height));page.drawImage(orgLogo,{x:L,y:top-d.height,width:d.width,height:d.height});}
     if(clientLogo){const d=clientLogo.scale(Math.min(34/clientLogo.width,20/clientLogo.height));page.drawImage(clientLogo,{x:R-d.width,y:top-d.height,width:d.width,height:d.height});}
-    text(page,"BILLED TO",L,top,bold,7.5,MUTED);icon(page,L-12,top-1,"person");text(page,safe(client.legal_name||client.name||"Client"),L,top-19,bold,10.5);
+    text(page,"BILLED TO",L,top,bold,7.5,MUTED);text(page,safe(client.legal_name||client.name||"Client"),L,top-19,bold,10.5);
     const addr=addressLines(client.address_lines);addr.forEach((line,i)=>text(page,line,L,top-32-i*10,regular,8.2,MUTED));const infoY=top-32-addr.length*10;
     if(client.pan)text(page,`PAN ${client.pan}`,L,infoY-3,regular,7.8,MUTED);if(client.gstin)text(page,`GST ${client.gstin}`,L,infoY-15,regular,7.8,MUTED);
-    const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);icon(page,L-12,payTop-1,"bank");
+    const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);
     const pay=[[`NAME  ${org.payee_name||org.legal_name||org.name||""}`,bold],[`A/C NO  ${org.account_number||""}`,regular],[`BANK  ${org.bank_name||""}`,regular],[`BRANCH  ${org.branch_name||""}`,regular],[`IFSC  ${org.ifsc_code||""}`,regular],[`PAN  ${org.pan||""}`,regular]] as const;
     pay.forEach(([line,font],i)=>text(page,line,L,payTop-18-i*10,font,7.8,i===0?BLACK:MUTED));
     const metaX=360;text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),R,top-19,mono,12);text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),R,top-72,regular,9);text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasAuthoritativeTotal?money(total):(hasUnpriced?"₹X,XXX/-":money(total)),R,top-130,bold,16);page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});if(invoice.due_date){text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),R,top-177,regular,8.5);}

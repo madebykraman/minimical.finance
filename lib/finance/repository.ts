@@ -58,26 +58,26 @@ export async function saveInvoice(next: Invoice) {
 
   const { error } = await supabase.rpc("save_invoice", {
     p_invoice_id: next.id,
-    p_client_id: next.clientId ???? undefined,
-    p_project_id: next.projectId ???? undefined,
-    p_notes: next.notes ???? undefined,
-    p_adjustment_note: next.adjustment ???? undefined,
+    p_client_id: next.clientId ?? undefined,
+    p_project_id: next.projectId ?? undefined,
+    p_notes: next.notes ?? undefined,
+    p_adjustment_note: next.adjustment ?? undefined,
     p_issue_date: next.date,
-    p_due_date: next.dueDate ???? undefined,
+    p_due_date: next.dueDate ?? undefined,
     p_status: next.status,
     p_organization_id: next.organizationId,
     p_contents: next.contents.map((c) => ({
       kind: c.kind,
       title: c.title,
       quantity: c.quantity || 1,
-      rate: c.rate ???? undefined,
+      rate: c.rate ?? undefined,
       amount: c.priced ? (c.amount ?? c.quantity * (c.rate ?? 0)) :?? undefined,
       priced: c.priced,
-      note: c.note ???? undefined,
+      note: c.note ?? undefined,
     })),
   });
 
-  return error?.message ???? undefined;
+  return error?.message ?? undefined;
 }
 
 // FinOS organisation-aware invoice creation

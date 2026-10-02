@@ -77,7 +77,7 @@ export async function saveInvoice(next: Invoice) {
     })),
   });
 
-  return error?.message ?? undefined;
+  return error?.message ?? null;
 }
 
 // FinOS organisation-aware invoice creation

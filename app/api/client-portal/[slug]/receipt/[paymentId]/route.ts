@@ -3,7 +3,7 @@ import { PDFDocument,rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { hashPortalSession } from "@/lib/portal/auth";
 
 async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return null;const b=new Uint8Array(await r.arrayBuffer());const t=(r.headers.get("content-type")||"").toLowerCase();return t.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(b):await pdf.embedJpg(b)}catch{return null}}
@@ -14,7 +14,7 @@ const hexRgb=(hex:string)=>{const h=String(hex||"#171716").replace("#","");const
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string;paymentId:string}>}){
   const {slug,paymentId}=await context.params; const session=request.cookies.get("portal_session")?.value||"";
   if(!session)return new NextResponse("Unauthorized",{status:401});
-  const supabase=await createClient(); const [{data,error},{data:orgRaw}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
+  const supabase=createServiceClient(); const [{data,error},{data:orgRaw}]=await Promise.all([supabase.rpc("get_client_portal",{p_slug:slug,p_session:hashPortalSession(session)}),supabase.rpc("get_client_portal_organization",{p_slug:slug,p_session:hashPortalSession(session)})]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"receipt_downloaded",p_resource_type:"payment",p_resource_id:paymentId});
   const payload:any=data; const org:any=orgRaw||{}; const payment=(payload.payments||[]).find((p:any)=>p.id===paymentId);

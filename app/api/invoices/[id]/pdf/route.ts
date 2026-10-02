@@ -8,391 +8,76 @@ import { createClient } from "@/lib/supabase/server";
 import { getDocumentTemplate } from "@/lib/finance/document-templates";
 
 const PAGE = { width: 595.2756, height: 841.8898 };
-const BLACK = rgb(0, 0, 0);
+const BLACK = rgb(0.08,0.08,0.08);
+const MUTED = rgb(0.38,0.38,0.38);
+const LINE = rgb(0.78,0.78,0.78);
+const SOFT = rgb(0.96,0.96,0.95);
 
-// Coordinates are calibrated from the supplied 658×958 reference screenshot.
-// They intentionally preserve the original whitespace, proportions and sparse composition.
-const X = {
-  left: 62.42,
-  right: 536.60,
-  divider: 419.30,
-  metaRight: 520.20,
-  invoiceLabel: 520.20,
-  dateLabel: 520.20,
-  descriptionCenter: 240.86,
-  amountCenter: 477.95,
-};
-const Y = {
-  billedLabel: 772.46,
-  billedFirst: 756.65,
-  payLabel: 671.40,
-  payFirst: 655.58,
-  invoiceLabel: 772.46,
-  invoiceNumber: 756.65,
-  dateLabel: 721.49,
-  dateValue: 706.55,
-  tableTop: 538.70,
-  tableHeader: 511.46,
-  tableTotal: 148.52,
-  tableBottom: 125.67,
-  totalBaseline: 133.65,
-  footer1: 57.12,
-  footer2: 42.18,
-};
+function safe(value: unknown){return String(value??"").replace(/[\r\n\t]+/g," ").trim();}
+function money(value:number){return `₹${Math.round(value||0).toLocaleString("en-IN")}/-`;}
+function formatDate(value?:string|null){if(!value)return "";const d=new Date(value+"T00:00:00");if(Number.isNaN(d.getTime()))return value;return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
+function wrap(textValue:string,font:any,maxWidth:number,size:number){const words=safe(textValue).split(/\s+/).filter(Boolean);const lines:string[]=[];let current="";for(const word of words){const candidate=current?`${current} ${word}`:word;if(!current||font.widthOfTextAtSize(candidate,size)<=maxWidth)current=candidate;else{lines.push(current);current=word;}}if(current)lines.push(current);return lines;}
+function text(page:any,value:string,x:number,y:number,font:any,size=9,color=BLACK){page.drawText(safe(value),{x,y,font,size,color});}
+function right(page:any,value:string,rightX:number,y:number,font:any,size=9,color=BLACK){const v=safe(value);page.drawText(v,{x:rightX-font.widthOfTextAtSize(v,size),y,font,size,color});}
+function icon(page:any,x:number,y:number,type:"document"|"person"|"bank"|"mail"|"phone"){if(type==="mail"){page.drawRectangle({x,y,width:9,height:6,borderWidth:.55,borderColor:MUTED});page.drawLine({start:{x,y:y+6},end:{x:x+4.5,y:y+2.5},thickness:.45,color:MUTED});page.drawLine({start:{x:x+9,y:y+6},end:{x:x+4.5,y:y+2.5},thickness:.45,color:MUTED});return}if(type==="phone"){page.drawCircle({x:x+4.5,y:y+4.5,size:4.5,borderWidth:.55,borderColor:MUTED});page.drawLine({start:{x:x+2.2,y:y+2.1},end:{x:x+6.6,y:y+6.5},thickness:.55,color:MUTED});return}page.drawRectangle({x,y,width:8,height:9,borderWidth:.55,borderColor:MUTED});if(type==="person"){page.drawCircle({x:x+4,y:y+6.3,size:1.7,borderWidth:.45,borderColor:MUTED});page.drawLine({start:{x:x+2,y:y+2},end:{x:x+6,y:y+2},thickness:.5,color:MUTED});}else{page.drawLine({start:{x:x+1.5,y:y+6.5},end:{x:x+6.5,y:y+6.5},thickness:.45,color:MUTED});page.drawLine({start:{x:x+1.5,y:y+4},end:{x:x+6.5,y:y+4},thickness:.45,color:MUTED});}}
+async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const res=await fetch(url,{cache:"no-store"});if(!res.ok)return null;const bytes=new Uint8Array(await res.arrayBuffer());const type=(res.headers.get("content-type")||"").toLowerCase();return type.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);}catch{return null}}
+function addressLines(value:unknown){return (Array.isArray(value)?value.map(safe):[]).filter(Boolean).slice(0,3);}
+function contactEmail(org:any){return safe(org?.email)||"framedbyaman@gmail.com";}
+function contactPhone(org:any){return safe(org?.phone)||"+91 87095 39814";}
 
-const FONT_SIZE = 9.8;
-const LEADING = 11.8;
-const LINE_WIDTH = 0.62;
-
-function safe(value: unknown) {
-  return String(value ?? "").replace(/[\r\n\t]+/g, " ");
-}
-
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString("en-IN")}/-`;
-}
-
-function unknownMoney() {
-  return "₹X,XXX/-";
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "";
-  const d = new Date(value + "T00:00:00");
-  if (Number.isNaN(d.getTime())) return value;
-  const day = d.getDate();
-  const suffix =
-    day % 100 >= 11 && day % 100 <= 13
-      ? "th"
-      : day % 10 === 1
-        ? "st"
-        : day % 10 === 2
-          ? "nd"
-          : day % 10 === 3
-            ? "rd"
-            : "th";
-  return `${day}${suffix} ${d.toLocaleDateString("en-IN", {
-    month: "long",
-    year: "numeric",
-  })}`;
-}
-
-function draw(page: any, text: string, x: number, y: number, font: any, size = FONT_SIZE) {
-  page.drawText(safe(text), { x, y, size, font, color: BLACK });
-}
-
-function drawRight(page: any, text: string, right: number, y: number, font: any, size = FONT_SIZE) {
-  const value = safe(text);
-  page.drawText(value, {
-    x: right - font.widthOfTextAtSize(value, size),
-    y,
-    size,
-    font,
-    color: BLACK,
-  });
-}
-
-function center(page: any, text: string, centerX: number, y: number, font: any, size = FONT_SIZE) {
-  const value = safe(text);
-  page.drawText(value, {
-    x: centerX - font.widthOfTextAtSize(value, size) / 2,
-    y,
-    size,
-    font,
-    color: BLACK,
-  });
-}
-
-function wrap(text: string, font: any, maxWidth: number, size = FONT_SIZE) {
-  const words = safe(text).split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (!current || font.widthOfTextAtSize(candidate, size) <= maxWidth) {
-      current = candidate;
-    } else {
-      lines.push(current);
-      current = word;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
-function fitItem(text: string, font: any, maxWidth: number) {
-  for (let size = FONT_SIZE; size >= 6; size -= 0.5) {
-    const lines = wrap(text, font, maxWidth, size);
-    if (lines.length <= 4) {
-      return { lines, size, leading: Math.max(8, size + 2) };
-    }
-  }
-  return { lines: wrap(text, font, maxWidth, 6), size: 6, leading: 8 };
-}
-
-async function embedLogo(pdf:any,url:string|null|undefined){
-  if(!url) return null;
-  try{
-    const res=await fetch(url,{cache:"no-store"});
-    if(!res.ok)return null;
-    const bytes=new Uint8Array(await res.arrayBuffer());
-    const type=(res.headers.get("content-type")||"").toLowerCase();
-    if(type.includes("png")||url.toLowerCase().includes(".png"))return await pdf.embedPng(bytes);
-    return await pdf.embedJpg(bytes);
-  }catch{return null}
-}
-
-function drawDocIcon(page:any,x:number,y:number,size=7){
-  page.drawRectangle({x,y,width:size,height:size+1,borderColor:BLACK,borderWidth:.45});
-  page.drawLine({start:{x:x+1.6,y:y+size-2},end:{x:x+size-1.4,y:y+size-2},thickness:.4,color:BLACK});
-  page.drawLine({start:{x:x+1.6,y:y+size-4},end:{x:x+size-2,y:y+size-4},thickness:.4,color:BLACK});
-}
-function drawBlock(page: any, lines: string[], x: number, firstY: number, regular: any, bold: any) {
-  lines.forEach((line, index) => {
-    draw(page, line, x, firstY - index * LEADING, index === 0 ? bold : regular);
-  });
-}
-
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
-  const { id } = await context.params;
-  const supabase = await createClient();
-
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return new NextResponse("Unauthorized", { status: 401 });
-
-  const [{ data: rawInvoice, error }, { data: settings }, { data: issuedVersion }] = await Promise.all([
-    supabase
-      .from("invoices")
-      .select("*, clients(*), projects(name), invoice_contents(*), payments(*), organizations(*)")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("workspace_settings").select("*").eq("id", true).maybeSingle(),
-    supabase.from("invoice_versions").select("version_number,snapshot,snapshot_hash").eq("invoice_id", id).order("version_number", { ascending: false }).limit(1).maybeSingle(),
+export async function GET(request:NextRequest,context:{params:Promise<{id:string}>}){
+  const {id}=await context.params;const supabase=await createClient();
+  const {data:userData}=await supabase.auth.getUser();if(!userData.user)return new NextResponse("Unauthorized",{status:401});
+  const [{data:rawInvoice,error},{data:settings},{data:issuedVersion}]=await Promise.all([
+    supabase.from("invoices").select("*,clients(*),projects(name),invoice_contents(*),payments(*),organizations(*)").eq("id",id).maybeSingle(),
+    supabase.from("workspace_settings").select("*").eq("id",true).maybeSingle(),
+    supabase.from("invoice_versions").select("version_number,snapshot,snapshot_hash").eq("invoice_id",id).order("version_number",{ascending:false}).limit(1).maybeSingle()
   ]);
+  if(error||!rawInvoice)return new NextResponse("Invoice not found",{status:404});
+  const live:any=rawInvoice;const snapshot:any=issuedVersion?.snapshot;
+  const invoice:any=snapshot?.invoice?{...live,...snapshot.invoice,clients:snapshot.client??live.clients,organizations:snapshot.organization??live.organizations,projects:snapshot.project??live.projects,invoice_contents:snapshot.contents??live.invoice_contents,payments:live.payments}:live;
+  const client=invoice.clients||{};const org=invoice.organizations||settings||{};const templateKey=getDocumentTemplate(org.invoice_template_key,"invoice")?.key||"legacy_elle";
+  const contents=[...(invoice.invoice_contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
+  const total=contents.reduce((sum:number,item:any)=>sum+(item.priced?Number(item.amount??Number(item.quantity??1)*Number(item.rate??0)):0),0);
+  const hasUnpriced=contents.some((item:any)=>!item.priced);
+  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
+  const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
+  const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
+  const mono=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","GeistMono-Regular.ttf")),{subset:true});
+  const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,client.logo_path);const W=PAGE.width,L=54,R=W-54;
 
-  if (error || !rawInvoice) return new NextResponse("Invoice not found", { status: 404 });
+  const drawFooter=(page:any)=>{const email=contactEmail(org),phone=contactPhone(org);page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,"Thank you for your time.",L,39,bold,8.5);icon(page,L,19,"mail");text(page,email,L+14,19,regular,7.5,MUTED);icon(page,L+185,19,"phone");text(page,phone,L+199,19,regular,7.5,MUTED);text(page,"MinBooks · Generated from the financial record",R-185,19,regular,6.5,MUTED);};
 
-  const liveInvoice: any = rawInvoice;
-  const snapshot: any = issuedVersion?.snapshot;
-  const invoice: any = snapshot?.invoice ? {
-    ...liveInvoice,
-    ...snapshot.invoice,
-    clients: snapshot.client ?? liveInvoice.clients,
-    organizations: snapshot.organization ?? liveInvoice.organizations,
-    projects: snapshot.project ?? liveInvoice.projects,
-    invoice_contents: snapshot.contents ?? liveInvoice.invoice_contents,
-    payments: liveInvoice.payments,
-  } : liveInvoice;
-  const billingClient = invoice.clients ?? {};
-  const organization = invoice.organizations ?? settings ?? {};
-  const templateKey = getDocumentTemplate(organization?.invoice_template_key, "invoice")?.key || "legacy_elle";
-  const contents = [...(invoice.invoice_contents ?? [])].sort(
-    (a: any, b: any) => Number(a.position) - Number(b.position),
-  );
-  const total = contents.reduce(
-    (sum: number, item: any) =>
-      sum + (item.priced ? Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)) : 0),
-    0,
-  );
-  const paid = (invoice.payments ?? []).reduce(
-    (sum: number, payment: any) => sum + Number(payment.amount || 0),
-    0,
-  );
-  const hasUnpriced = contents.some((item: any) => !item.priced);
+  const drawIdentity=(page:any,continuation=false)=>{
+    if(continuation){text(page,String(org.name||org.legal_name||"MinBooks"),L,790,bold,11);right(page,`Invoice #${invoice.invoice_number}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}
+    const top=788;
+    if(orgLogo){const d=orgLogo.scale(Math.min(38/orgLogo.width,22/orgLogo.height));page.drawImage(orgLogo,{x:L,y:top-d.height,width:d.width,height:d.height});}
+    if(clientLogo){const d=clientLogo.scale(Math.min(34/clientLogo.width,20/clientLogo.height));page.drawImage(clientLogo,{x:R-d.width,y:top-d.height,width:d.width,height:d.height});}
+    text(page,"BILLED TO",L,top,bold,7.5,MUTED);icon(page,L-12,top-1,"person");text(page,safe(client.legal_name||client.name||"Client"),L,top-19,bold,10.5);
+    const addr=addressLines(client.address_lines);addr.forEach((line,i)=>text(page,line,L,top-32-i*10,8.2,regular,MUTED));const infoY=top-32-addr.length*10;
+    if(client.pan)text(page,`PAN ${client.pan}`,L,infoY-3,7.8,regular,MUTED);if(client.gstin)text(page,`GST ${client.gstin}`,L,infoY-15,7.8,regular,MUTED);
+    const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);icon(page,L-12,payTop-1,"bank");
+    const pay=[[`NAME  ${org.payee_name||org.legal_name||org.name||""}`,bold],[`A/C NO  ${org.account_number||""}`,regular],[`BANK  ${org.bank_name||""}`,regular],[`BRANCH  ${org.branch_name||""}`,regular],[`IFSC  ${org.ifsc_code||""}`,regular],[`PAN  ${org.pan||""}`,regular]] as const;
+    pay.forEach(([line,font],i)=>text(page,line,L,payTop-18-i*10,font,7.8,i===0?BLACK:MUTED));
+    const metaX=360;text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),R,top-19,mono,12);text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),R,top-72,regular,9);text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasUnpriced?"₹X,XXX/-":money(total),R,top-130,bold,16);page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});if(invoice.due_date){text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),R,top-177,regular,8.5);}
+    return Math.min(payTop-84,top-190);
+  };
 
-  const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
-
-  const regularBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-Regular.ttf"));
-  const boldBytes = await readFile(join(process.cwd(), "public", "fonts", "Geist-SemiBold.ttf"));
-  const monoBytes = await readFile(join(process.cwd(), "public", "fonts", "GeistMono-Regular.ttf"));
-  const regular = await pdf.embedFont(regularBytes, { subset: true });
-  const bold = await pdf.embedFont(boldBytes, { subset: true });
-  const mono = await pdf.embedFont(monoBytes, { subset: true });
-  const organizationLogo = await embedLogo(pdf, organization?.logo_path);
-  const clientLogo = await embedLogo(pdf, billingClient?.logo_path);
-
-  const page = pdf.addPage([PAGE.width, PAGE.height]);
-
-  // Organisation templates share the same canonical financial data. Clean mode adds only
-  // organisation identity treatment; legacy mode preserves the supplied reference geometry.
-  if(templateKey==="clean"){
-    const name=String(organization?.name||organization?.legal_name||"");
-    const identityX=X.left+62;
-    draw(page,name,identityX,805,bold,13);
-    page.drawLine({start:{x:identityX,y:798},end:{x:X.right,y:798},thickness:.7,color:BLACK});
+  let page=pdf.addPage([W,PAGE.height]);let y=drawIdentity(page,false);
+  const drawTableHeader=()=>{page.drawRectangle({x:L,y:y-25,width:R-L,height:25,color:SOFT});page.drawLine({start:{x:L,y:y-25},end:{x:R,y:y-25},thickness:.55,color:LINE});text(page,"DESCRIPTION",L+10,y-16,bold,7.5,MUTED);right(page,"AMOUNT",R-10,y-16,bold,7.5,MUTED);y-=25;};
+  drawTableHeader();
+  const projectName=safe(invoice.projects?.name||"");if(projectName){text(page,projectName,L+10,y-17,bold,8.2);y-=29;}else y-=8;
+  for(const item of contents){
+    const title=safe(item.title||"");const detail=[item.description,item.note].map(safe).filter(Boolean).join(" · ");const lines=wrap(detail?title+" — "+detail:title,regular,350,8.2);const rowH=Math.max(28,Math.min(58,18+lines.length*9));
+    if(y-rowH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
+    page.drawLine({start:{x:L,y:y-rowH},end:{x:R,y:y-rowH},thickness:.35,color:LINE});lines.slice(0,4).forEach((lineText,index)=>text(page,lineText,L+10,y-17-index*9,8.2,regular));const amount=item.priced?money(Number(item.amount??Number(item.quantity??1)*Number(item.rate??0))):"₹X,XXX/-";right(page,amount,R-10,y-17,mono,8.5,item.priced?BLACK:MUTED);y-=rowH;
   }
-  // Optional logos live in the existing top whitespace and never move the canonical text geometry.
-  // Logos occupy only the upper breathing room. Their bounding boxes stop above the
-  // canonical billing/meta blocks, so adding a logo cannot move or collide with invoice geometry.
-  if(organizationLogo){
-    const d=organizationLogo.scale(Math.min(52/organizationLogo.width,24/organizationLogo.height));
-    page.drawImage(organizationLogo,{x:X.left,y:806-d.height,width:d.width,height:d.height});
-  }
-  if(clientLogo){
-    const d=clientLogo.scale(Math.min(52/clientLogo.width,24/clientLogo.height));
-    page.drawImage(clientLogo,{x:X.right-d.width,y:806-d.height,width:d.width,height:d.height});
-  }
+  const totalH=35;if(y-totalH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
+  page.drawRectangle({x:L,y:y-totalH,width:R-L,height:totalH,borderWidth:.65,borderColor:BLACK});text(page,"GRAND TOTAL",L+10,y-22,bold,8.2);right(page,hasUnpriced?"₹X,XXX/-":money(total),R-10,y-22,bold,11);y-=totalH+25;
+  if(invoice.notes){const noteLines=wrap(invoice.notes,regular,R-L,7.8);text(page,"NOTE",L,y,bold,7.2,MUTED);noteLines.slice(0,3).forEach((lineText,i)=>text(page,lineText,L+35,y-i*9,7.8,regular,MUTED));}
+  drawFooter(page);
 
-  // BILLING / PAY-TO BLOCK
-  const addressLines = Array.isArray(billingClient.address_lines)
-    ? billingClient.address_lines.map((line: unknown) => safe(line))
-    : [];
-
-  drawDocIcon(page,X.left-11,Y.billedLabel-1,7);
-  page.drawText("BILLED TO:", { x: X.left, y: Y.billedLabel, size: FONT_SIZE, font: bold, color: BLACK });
-  const billedLines = [
-    billingClient.legal_name || billingClient.name || "Client",
-    ...addressLines,
-    billingClient.pan ? `PAN No. ${billingClient.pan}` : "",
-    billingClient.gstin ? `GSTIN: ${billingClient.gstin}` : "",
-  ].filter(Boolean);
-  billedLines.forEach((line: string, index: number) =>
-    draw(page, line, X.left, Y.billedFirst - index * LEADING, regular),
-  );
-
-  drawDocIcon(page,X.left-11,Y.payLabel-1,7);
-  page.drawText("PAY TO:", { x: X.left, y: Y.payLabel, size: FONT_SIZE, font: bold, color: BLACK });
-  const payLines = [
-    `NAME: ${organization?.payee_name || organization?.legal_name || organization?.name || ""}`,
-    `A/C NO. ${organization?.account_number || ""}`,
-    `BANK: ${organization?.bank_name || ""}`,
-    `BRANCH: ${organization?.branch_name || ""}`,
-    `BRANCH CODE: ${organization?.branch_code || ""}`,
-    `IFSC CODE: ${organization?.ifsc_code || ""}`,
-    `PAN NO. ${organization?.pan || ""}`,
-  ];
-  payLines.forEach((line: string, index: number) =>
-    draw(page, line, X.left, Y.payFirst - index * LEADING, regular),
-  );
-
-  // RIGHT META BLOCK
-  drawDocIcon(page,X.invoiceLabel-8,Y.invoiceLabel-1,7);
-  drawRight(page, "INVOICE NO:", X.invoiceLabel, Y.invoiceLabel, bold);
-  drawRight(page, String(invoice.invoice_number ?? ""), X.metaRight, Y.invoiceNumber, regular);
-  drawDocIcon(page,X.dateLabel-8,Y.dateLabel-1,7);
-  drawRight(page, "DATE:", X.dateLabel, Y.dateLabel, bold);
-  drawRight(page, formatDate(invoice.issue_date), X.metaRight, Y.dateValue, regular);
-
-  // CANONICAL LEGACY TABLE — no card, no fill, no modern invoice treatment.
-  const line = { thickness: LINE_WIDTH, color: BLACK };
-  page.drawRectangle({
-    x: X.left,
-    y: Y.tableBottom,
-    width: X.right - X.left,
-    height: Y.tableTop - Y.tableBottom,
-    borderWidth: LINE_WIDTH,
-    borderColor: BLACK,
-  });
-  page.drawLine({ start: { x: X.divider, y: Y.tableBottom }, end: { x: X.divider, y: Y.tableTop }, ...line });
-  page.drawLine({ start: { x: X.left, y: Y.tableHeader }, end: { x: X.right, y: Y.tableHeader }, ...line });
-  page.drawLine({ start: { x: X.left, y: Y.tableTotal }, end: { x: X.right, y: Y.tableTotal }, ...line });
-
-  center(page, "DESCRIPTION", X.descriptionCenter, Y.tableTop - 17.0, bold);
-  center(page, "AMOUNT", X.amountCenter, Y.tableTop - 17.0, bold);
-
-  // Preserve the canonical sparse table, but reflow the body when an invoice has
-  // more than four contents. Never silently drop billable work.
-  const count = Math.max(contents.length, 1);
-  const bodyTop = Y.tableHeader - 32;
-  const bodyBottom = Y.tableTotal + 24;
-  const step = count === 1 ? 0 : Math.min(43, (bodyTop - bodyBottom) / (count - 1));
-
-  contents.forEach((item: any, index: number) => {
-    const title = String(item.title ?? "");
-    const amount = item.priced
-      ? money(Number(item.amount ?? Number(item.quantity ?? 1) * Number(item.rate ?? 0)))
-      : unknownMoney();
-    const slot = count === 1 ? (bodyTop + bodyBottom) / 2 : bodyTop - index * step;
-    const fitted = fitItem(title, regular, 245);
-    const first = slot + ((fitted.lines.length - 1) * fitted.leading) / 2;
-    fitted.lines.forEach((lineText, lineIndex) =>
-      center(page, lineText, X.descriptionCenter, first - lineIndex * fitted.leading, regular, fitted.size),
-    );
-    center(page, amount, X.amountCenter, slot, mono);
-  });
-  center(page, "TOTAL", X.descriptionCenter, Y.totalBaseline, bold);
-  center(page, hasUnpriced ? unknownMoney() : money(total), X.amountCenter, Y.totalBaseline, bold);
-
-  draw(
-    page,
-    organization?.invoice_footer_line_1 || "Please contact us in case of any queries.",
-    X.left,
-    Y.footer1,
-    regular,
-    9.4,
-  );
-  draw(
-    page,
-    organization?.invoice_footer_line_2 || "Thank you.",
-    X.left,
-    Y.footer2,
-    regular,
-    9.4,
-  );
-
-  const bytes = await pdf.save();
-
-  if (issuedVersion) {
-    const checksum = createHash("sha256").update(bytes).digest("hex");
-    const versionNumber = Number(issuedVersion.version_number || invoice.issued_version || 1);
-    const { data: document } = await supabase
-      .from("documents")
-      .select("id")
-      .eq("invoice_id", id)
-      .eq("document_type", "invoice_pdf")
-      .eq("version_number", versionNumber)
-      .maybeSingle();
-
-    if (document?.id) {
-      const fileName = `INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf`;
-      const filePath = `organizations/${invoice.organization_id}/invoices/${invoice.id}/v${versionNumber}.pdf`;
-      const upload = await supabase.storage.from("finos-documents").upload(filePath, bytes, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-      const stored = !upload.error;
-      const generatedAt = new Date().toISOString();
-
-      await supabase.from("documents").update({
-        status: stored ? "stored" : "generated",
-        file_path: stored ? filePath : "",
-        file_name: fileName,
-        storage_bucket: "finos-documents",
-        generated_at: generatedAt,
-        checksum_sha256: checksum,
-        source_hash: issuedVersion.snapshot_hash,
-        template_key: templateKey,
-        size_bytes: bytes.length,
-      }).eq("id", document.id);
-
-      await supabase.from("document_versions").upsert({
-        document_id: document.id,
-        version_number: versionNumber,
-        file_path: stored ? filePath : null,
-        file_name: fileName,
-        storage_bucket: "finos-documents",
-        mime_type: "application/pdf",
-        size_bytes: bytes.length,
-        checksum_sha256: checksum,
-        generated_at: generatedAt,
-        metadata: {
-          source_hash: issuedVersion.snapshot_hash,
-          template_key: templateKey,
-          storage_error: upload.error?.message ?? null,
-        },
-      }, { onConflict: "document_id,version_number" });
-    }
-  }
-
-  return new NextResponse(bytes, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="INV_${invoice.invoice_number}-${String(organization?.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf"`,
-      "Cache-Control": "private, no-store",
-    },
-  });
+  const bytes=await pdf.save();
+  if(issuedVersion){const checksum=createHash("sha256").update(bytes).digest("hex");const versionNumber=Number(issuedVersion.version_number||invoice.issued_version||1);const {data:document}=await supabase.from("documents").select("id").eq("invoice_id",id).eq("document_type","invoice_pdf").eq("version_number",versionNumber).maybeSingle();if(document?.id){const fileName=`INV_${invoice.invoice_number}-${String(org.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf`;const filePath=`organizations/${invoice.organization_id}/invoices/${invoice.id}/v${versionNumber}.pdf`;const upload=await supabase.storage.from("finos-documents").upload(filePath,bytes,{contentType:"application/pdf",upsert:true});const stored=!upload.error;const generatedAt=new Date().toISOString();await supabase.from("documents").update({status:stored?"stored":"generated",file_path:stored?filePath:"",file_name:fileName,storage_bucket:"finos-documents",generated_at:generatedAt,checksum_sha256:checksum,source_hash:issuedVersion.snapshot_hash,template_key:templateKey,size_bytes:bytes.length}).eq("id",document.id);await supabase.from("document_versions").upsert({document_id:document.id,version_number:versionNumber,file_path:stored?filePath:null,file_name:fileName,storage_bucket:"finos-documents",mime_type:"application/pdf",size_bytes:bytes.length,checksum_sha256:checksum,generated_at:generatedAt,generated_by:userData.user.id,metadata:{source_hash:issuedVersion.snapshot_hash,template_key:templateKey,storage_error:upload.error?.message??null}},{onConflict:"document_id,version_number"});}}
+  return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="INV_${invoice.invoice_number}-${String(org.name||"Invoice").replace(/[^a-z0-9]+/gi,"-")}.pdf"`,"Cache-Control":"private, no-store"}});
 }

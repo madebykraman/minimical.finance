@@ -14,6 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      import_batches: {
+        Row: {
+          id: string
+          organization_id: string | null
+          created_by: string
+          source_name: string
+          source_type: string
+          status: string
+          total_rows: number
+          ready_rows: number
+          imported_rows: number
+          skipped_rows: number
+          blocked_rows: number
+          created_at: string
+          completed_at: string | null
+          metadata: Json
+        }
+        Insert: {
+          id?: string
+          organization_id?: string | null
+          created_by: string
+          source_name: string
+          source_type?: string
+          status?: string
+          total_rows?: number
+          ready_rows?: number
+          imported_rows?: number
+          skipped_rows?: number
+          blocked_rows?: number
+          created_at?: string
+          completed_at?: string | null
+          metadata?: Json
+        }
+        Update: {
+          id?: string
+          organization_id?: string | null
+          created_by?: string
+          source_name?: string
+          source_type?: string
+          status?: string
+          total_rows?: number
+          ready_rows?: number
+          imported_rows?: number
+          skipped_rows?: number
+          blocked_rows?: number
+          created_at?: string
+          completed_at?: string | null
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batch_rows: {
+        Row: {
+          id: string
+          batch_id: string
+          row_number: number
+          source_data: Json
+          normalized_data: Json
+          status: string
+          issue_codes: string[]
+          resolution: Json
+          invoice_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          batch_id: string
+          row_number: number
+          source_data?: Json
+          normalized_data?: Json
+          status?: string
+          issue_codes?: string[]
+          resolution?: Json
+          invoice_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          batch_id?: string
+          row_number?: number
+          source_data?: Json
+          normalized_data?: Json
+          status?: string
+          issue_codes?: string[]
+          resolution?: Json
+          invoice_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_rows_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_profile: {
         Row: {
           address_lines: Json
@@ -1108,6 +1221,14 @@ export type Database = {
       }
     }
     Functions: {
+      migrate_invoice_organizations: {
+        Args: {
+          p_invoice_ids: string[]
+          p_move_related?: boolean
+          p_target_organization_id: string
+        }
+        Returns: Json
+      }
       allocate_invoice_number: {
         Args: { p_organization_id: string }
         Returns: string

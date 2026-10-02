@@ -694,6 +694,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          assigned_by?: string | null
           created_at?: string
           description?: string | null
           id?: string

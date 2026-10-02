@@ -42,7 +42,10 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
   const invoice:any=snapshot?.invoice?{...live,...snapshot.invoice,clients:snapshot.client??live.clients,organizations:snapshot.organization??live.organizations,projects:snapshot.project??live.projects,invoice_contents:snapshot.contents??live.invoice_contents,payments:live.payments}:live;
   const client=invoice.clients||{};const org=invoice.organizations||settings||{};const templateKey=getDocumentTemplate(org.invoice_template_key,"invoice")?.key||"legacy_elle";
   const contents=[...(invoice.invoice_contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
-  const total=contents.reduce((sum:number,item:any)=>sum+(item.priced?Number(item.amount??Number(item.quantity??1)*Number(item.rate??0)):0),0);
+  const calculatedTotal=contents.reduce((sum:number,item:any)=>sum+(item.priced?Number(item.amount??Number(item.quantity??1)*Number(item.rate??0)):0),0);
+  const sourceTotal=Number(invoice.source_total ?? 0);
+  const hasAuthoritativeTotal=Number.isFinite(sourceTotal) && sourceTotal > 0;
+  const total=hasAuthoritativeTotal ? sourceTotal : calculatedTotal;
   const hasUnpriced=contents.some((item:any)=>!item.priced);
   const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
   const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});
@@ -63,21 +66,27 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);icon(page,L-12,payTop-1,"bank");
     const pay=[[`NAME  ${org.payee_name||org.legal_name||org.name||""}`,bold],[`A/C NO  ${org.account_number||""}`,regular],[`BANK  ${org.bank_name||""}`,regular],[`BRANCH  ${org.branch_name||""}`,regular],[`IFSC  ${org.ifsc_code||""}`,regular],[`PAN  ${org.pan||""}`,regular]] as const;
     pay.forEach(([line,font],i)=>text(page,line,L,payTop-18-i*10,font,7.8,i===0?BLACK:MUTED));
-    const metaX=360;text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),R,top-19,mono,12);text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),R,top-72,regular,9);text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasUnpriced?"₹X,XXX/-":money(total),R,top-130,bold,16);page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});if(invoice.due_date){text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),R,top-177,regular,8.5);}
+    const metaX=360;text(page,"INVOICE NO",metaX,top,bold,7.5,MUTED);right(page,String(invoice.invoice_number||""),R,top-19,mono,12);text(page,"DATE",metaX,top-53,bold,7.5,MUTED);right(page,formatDate(invoice.issue_date),R,top-72,regular,9);text(page,"GRAND TOTAL",metaX,top-106,bold,7.5,MUTED);right(page,hasAuthoritativeTotal?money(total):(hasUnpriced?"₹X,XXX/-":money(total)),R,top-130,bold,16);page.drawLine({start:{x:metaX,y:top-143},end:{x:R,y:top-143},thickness:.55,color:LINE});if(invoice.due_date){text(page,"DUE",metaX,top-160,bold,7.2,MUTED);right(page,formatDate(invoice.due_date),R,top-177,regular,8.5);}
     return Math.min(payTop-84,top-190);
   };
 
   let page=pdf.addPage([W,PAGE.height]);let y=drawIdentity(page,false);
   const drawTableHeader=()=>{page.drawRectangle({x:L,y:y-25,width:R-L,height:25,color:SOFT});page.drawLine({start:{x:L,y:y-25},end:{x:R,y:y-25},thickness:.55,color:LINE});text(page,"DESCRIPTION",L+10,y-16,bold,7.5,MUTED);right(page,"AMOUNT",R-10,y-16,bold,7.5,MUTED);y-=25;};
   drawTableHeader();
-  const projectName=safe(invoice.projects?.name||"");if(projectName){text(page,projectName,L+10,y-17,bold,8.2);y-=29;}else y-=8;
+  const projectName=safe(invoice.projects?.name||"");
+  const firstTitle=safe(contents[0]?.title||"");
+  const duplicateProjectLabel=Boolean(projectName&&(
+    projectName.toLowerCase()===firstTitle.toLowerCase() ||
+    /^invoice\\s*#?\\s*\\d+/i.test(projectName)
+  ));
+  if(projectName&&!duplicateProjectLabel){text(page,projectName,L+10,y-17,bold,8.2);y-=29;}else y-=8;
   for(const item of contents){
     const title=safe(item.title||"");const detail=[item.description,item.note].map(safe).filter(Boolean).join(" · ");const lines=wrap(detail?title+" — "+detail:title,regular,350,8.2);const rowH=Math.max(28,Math.min(58,18+lines.length*9));
     if(y-rowH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
     page.drawLine({start:{x:L,y:y-rowH},end:{x:R,y:y-rowH},thickness:.35,color:LINE});lines.slice(0,4).forEach((lineText,index)=>text(page,lineText,L+10,y-17-index*9,regular,8.2));const amount=item.priced?money(Number(item.amount??Number(item.quantity??1)*Number(item.rate??0))):"₹X,XXX/-";right(page,amount,R-10,y-17,mono,8.5,item.priced?BLACK:MUTED);y-=rowH;
   }
   const totalH=35;if(y-totalH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
-  page.drawRectangle({x:L,y:y-totalH,width:R-L,height:totalH,borderWidth:.65,borderColor:BLACK});text(page,"GRAND TOTAL",L+10,y-22,bold,8.2);right(page,hasUnpriced?"₹X,XXX/-":money(total),R-10,y-22,bold,11);y-=totalH+25;
+  page.drawRectangle({x:L,y:y-totalH,width:R-L,height:totalH,borderWidth:.65,borderColor:BLACK});text(page,"GRAND TOTAL",L+10,y-22,bold,8.2);right(page,hasAuthoritativeTotal?money(total):(hasUnpriced?"₹X,XXX/-":money(total)),R-10,y-22,bold,11);y-=totalH+25;
   if(invoice.notes){const noteLines=wrap(invoice.notes,regular,R-L,7.8);text(page,"NOTE",L,y,bold,7.2,MUTED);noteLines.slice(0,3).forEach((lineText,i)=>text(page,lineText,L+35,y-i*9,regular,7.8,MUTED));}
   drawFooter(page);
 

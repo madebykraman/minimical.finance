@@ -453,6 +453,7 @@ export type Database = {
           issued_at: string | null
           mime_type: string | null
           organization_id: string | null
+          payment_id: string | null
           size_bytes: number | null
           source_hash: string | null
           status: string
@@ -475,6 +476,7 @@ export type Database = {
           issued_at?: string | null
           mime_type?: string | null
           organization_id?: string | null
+          payment_id?: string | null
           size_bytes?: number | null
           source_hash?: string | null
           status?: string
@@ -497,6 +499,7 @@ export type Database = {
           issued_at?: string | null
           mime_type?: string | null
           organization_id?: string | null
+          payment_id?: string | null
           size_bytes?: number | null
           source_hash?: string | null
           status?: string
@@ -532,6 +535,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]

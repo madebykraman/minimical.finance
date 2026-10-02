@@ -44,6 +44,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ cli
   if (clientError || !client) return new NextResponse("Client not found", { status: 404 });
   if (ledgerError) return new NextResponse("Could not generate statement", { status: 500 });
 
+  if (!client.organization_id) return new NextResponse("Client organisation is missing", { status: 409 });
+
   const { data: organization } = await supabase.from("organizations").select("*").eq("id", client.organization_id).maybeSingle();
   if (!organization) return new NextResponse("Organisation not found", { status: 404 });
 

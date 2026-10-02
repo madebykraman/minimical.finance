@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, FileSpreadsheet, Upload, AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, FileSpreadsheet, Upload, AlertTriangle, ArrowRight, RefreshCw, FileText } from "lucide-react";
 import { inferImportMapping, normalizeAmount, normalizeDate, parseSpreadsheet, valueFor, type ImportMapping, type ImportSource } from "@/lib/finance/importer";
 import { importInvoiceRows } from "@/lib/finance/repository";
 import type { Status } from "@/lib/finance/domain";
 import { ALL_ORGANIZATIONS_ID } from "@/lib/finance/types";
+import { createClient } from "@/lib/supabase/client";
 
 type Organization = { id:string; name?:string|null; status?:string|null };
+
+const supabase = createClient();
 
 const fields:Array<[keyof ImportMapping,string,boolean]>=([
   ["organization","Organisation",false],
@@ -160,7 +163,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       </section>
       <section className="data-panel import-panel"><div className="data-panel-head"><div><h2>Reconciliation</h2><p>{ready.length} ready · {skipped.length} skipped · {blocked.length} blocked</p></div><div className={blocked.length?"import-ready warning":"import-ready"}>{blocked.length?<><AlertTriangle size={14}/>Resolve blockers</>:<><Check size={14}/>Ready to commit</>}</div></div>
         <div className="import-preview"><div className="import-preview-head"><span>Row</span><span>Organisation</span><span>Client</span><span>Invoice</span><span>Amount</span><span>Resolution</span></div>
-        {preview.map((row,i)=>{const v=validation[i];return <div className="import-preview-row" key={i}><span>{i+1}</span><span>{v.org?.name||"—"}</span><span>{v.client||"—"}</span><span>{v.invoiceNumber||"Auto"}</span><strong>{v.amount==null?"—":v.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2})}</strong><em className={v.skipped?"skip":v.errors.length?"error":"ok"}>{v.duplicate&&!v.skipped?<><button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>({...x,[i]:x[i]==="auto"?undefined:"auto"}))}>{resolutions[i]==="auto"?"Auto-number":"Duplicate · resolve"}</button><button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>({...x,[i]:x[i]==="skip"?undefined:"skip"}))}>{resolutions[i]==="skip"?"Skipped":"Skip"}</button></>:v.errors.length?v.errors.join(", "):v.skipped?"Skipped":"Ready"}</em></div>})}
+        {preview.map((row,i)=>{const v=validation[i];return <div className="import-preview-row" key={i}><span>{i+1}</span><span>{v.org?.name||"—"}</span><span>{v.client||"—"}</span><span>{v.invoiceNumber||"Auto"}</span><strong>{v.amount==null?"—":v.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2})}</strong><em className={v.skipped?"skip":v.errors.length?"error":"ok"}>{v.duplicate&&!v.skipped?<><button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const next={...x};if(next[i]==="auto")delete next[i];else next[i]="auto";return next})}>{resolutions[i]==="auto"?"Auto-number":"Duplicate · resolve"}</button><button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const next={...x};if(next[i]==="skip")delete next[i];else next[i]="skip";return next})}>{resolutions[i]==="skip"?"Skipped":"Skip"}</button></>:v.errors.length?v.errors.join(", "):v.skipped?"Skipped":"Ready"}</em></div>})}
         {!preview.length&&<div className="empty-state">No rows in this sheet.</div>}</div>
       </section>
       <section className="import-summary"><div><span>Source</span><strong>{source.name}</strong></div><div><span>Rows</span><strong>{selectedRows.length}</strong></div><div><span>Ready</span><strong>{ready.length}</strong></div><div><span>Blocked</span><strong>{blocked.length}</strong></div><div><span>Skipped</span><strong>{skipped.length}</strong></div><button className="primary" disabled={busy||!ready.length||blocked.length>0} onClick={()=>void commit()}>{busy?"Importing…":<>Commit ${ready.length} records <ArrowRight size={14}/></>}</button></section>

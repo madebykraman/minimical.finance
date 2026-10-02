@@ -1,0 +1,2 @@
+alter table public.organizations add column if not exists show_minbooks_branding boolean not null default true;
+update public.organizations set show_minbooks_branding=false where id='fc9a2161-8174-41b3-aaf6-3d88c2f8ce52'::uuid;

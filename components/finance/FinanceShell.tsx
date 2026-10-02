@@ -99,14 +99,14 @@ export function FinanceShell({
       </div>
 
       <div className="rail-workspace workspace-switcher-wrap">
-        <button className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
+        <button type="button" className="rail-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
           <span className="rail-workspace-mark">{mark(activeOrganization)}</span>
           <span className="rail-workspace-copy"><b>{activeOrganization?.name||"Organisation"}</b><small>{isAggregate?"Aggregate view":"Billing identity"}</small></span>
           <ChevronDown size={14}/>
         </button>
         {workspaceMenuOpen&&<div className="workspace-switcher-menu" role="dialog" aria-label="Switch organisation">
-          <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
-          {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}>
+          <label className="workspace-menu-search"><Search size={13}/><input value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
+          {filteredOrgs.map(o=><button type="button" key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}>
             <span className="workspace-option-mark">{mark(o)}</span>
             <span className="workspace-option-copy"><strong>{o.name}</strong><small>{o.id===ALL_ORGANIZATIONS_ID?"Read-only aggregate":"Organisation"}</small></span>
             {activeOrganization?.id===o.id&&<Check size={13}/>}
@@ -117,37 +117,37 @@ export function FinanceShell({
 
       <nav className="finance-nav">
         <div className="nav-group"><span className="nav-group-label">Workspace</span>
-          {primary.map(([key,Icon])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
+          {primary.map(([key,Icon])=><button type="button" key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
             <Icon size={16}/><span>{financeViewLabel[key]}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}
           </button>)}
         </div>
         <div className="nav-group"><span className="nav-group-label">Manage</span>
-          {secondary.map(([key,Icon])=><button key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
+          {secondary.map(([key,Icon])=><button type="button" key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
             <Icon size={16}/><span>{financeViewLabel[key]}</span>
           </button>)}
         </div>
       </nav>
 
       <div className="sidebar-bottom">
-        <button className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>
+        <button type="button" className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>
         <div className="profile"><div className="avatar">{String(session.user?.email||"M").slice(0,1).toUpperCase()}</div><div><b>Account</b><small>{session.user?.email||"Authenticated"}</small></div></div>
       </div>
     </aside>
 
     <section className="content">
-      {actionError&&<div className="global-error" role="alert"><CircleAlert size={14}/><span>{actionError}</span><button onClick={clearError} aria-label="Dismiss error"><X size={14}/></button></div>}
+      {actionError&&<div className="global-error" role="alert"><CircleAlert size={14}/><span>{actionError}</span><button type="button" onClick={clearError} aria-label="Dismiss error"><X size={14}/></button></div>}
       <header className="topbar">
         <div className="topbar-page-title">
           <span className="eyebrow">{pageTitle}</span>
           <strong>{activeOrganization?.name||"Organisation"}</strong>
         </div>
         <div className="topbar-mobile-workspace workspace-switcher-wrap">
-          <button className="mobile-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="menu" aria-expanded={workspaceMenuOpen}>
+          <button type="button" className="mobile-workspace-trigger" onClick={()=>setWorkspaceMenuOpen(v=>!v)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
             <span className="mobile-workspace-mark">{mark(activeOrganization)}</span><span className="mobile-workspace-name">{activeOrganization?.name||"Organisation"}</span><ChevronDown size={13}/>
           </button>
-          {workspaceMenuOpen&&<div className="workspace-switcher-menu mobile-workspace-menu" role="listbox" aria-label="Organisations">
+          {workspaceMenuOpen&&<div className="workspace-switcher-menu mobile-workspace-menu" role="dialog" aria-label="Switch organisation">
             <label className="workspace-menu-search"><Search size={13}/><input autoFocus value={workspaceFilter} onChange={e=>setWorkspaceFilter(e.target.value)} placeholder="Find organisation…" aria-label="Find organisation"/></label>
-            {filteredOrgs.map(o=><button key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}><span className="workspace-option-mark">{mark(o)}</span><span className="workspace-option-copy"><strong>{o.name}</strong><small>{o.id===ALL_ORGANIZATIONS_ID?"Read-only aggregate":"Organisation"}</small></span>{activeOrganization?.id===o.id&&<Check size={13}/>}</button>)}
+            {filteredOrgs.map(o=><button type="button" key={o.id} className={activeOrganization?.id===o.id?"selected":""} onClick={()=>selectOrg(o.id)}><span className="workspace-option-mark">{mark(o)}</span><span className="workspace-option-copy"><strong>{o.name}</strong><small>{o.id===ALL_ORGANIZATIONS_ID?"Read-only aggregate":"Organisation"}</small></span>{activeOrganization?.id===o.id&&<Check size={13}/>}</button>)}
           </div>}
         </div>
 
@@ -156,12 +156,12 @@ export function FinanceShell({
     </section>
 
     <nav className="mobile-nav" aria-label="Primary navigation">
-      {primary.map(([key,Icon])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
-      <button className={mobileMoreOpen||secondary.some(([key])=>key===activeView)?"active":""} onClick={()=>setMobileMoreOpen(!mobileMoreOpen)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={17}/><span>More</span></button>
+      {primary.map(([key,Icon])=><button type="button" key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
+      <button type="button" className={mobileMoreOpen||secondary.some(([key])=>key===activeView)?"active":""} onClick={()=>setMobileMoreOpen(!mobileMoreOpen)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={17}/><span>More</span></button>
     </nav>
     <MobileSheet open={mobileMoreOpen} onClose={()=>setMobileMoreOpen(false)} title="Workspace">
       <div className="mobile-more-panel">
-        {secondary.map(([key,Icon])=><button key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
+        {secondary.map(([key,Icon])=><button type="button" key={key} className={activeView===key?"active":""} onClick={()=>{setMobileMoreOpen(false);onNavigate(key)}}><Icon size={17}/><span>{financeViewLabel[key]}</span></button>)}
       </div>
     </MobileSheet>
     {overlays}

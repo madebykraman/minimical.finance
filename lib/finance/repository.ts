@@ -260,6 +260,7 @@ export type ImportInvoiceRow = {
   paymentDate?: string;
   paymentAmount?: number;
   paymentMethod?: PaymentMethod;
+  contents?: Array<{title:string;amount:number|null;note?:string}>;
 };
 
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
@@ -279,6 +280,7 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
       paymentDate: row.paymentDate ?? null,
       paymentAmount: row.paymentAmount ?? 0,
       paymentMethod: row.paymentMethod ?? "bank_transfer",
+      contents: row.contents ?? [],
     })),
   });
 

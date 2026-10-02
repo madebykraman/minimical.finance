@@ -40,6 +40,10 @@ export async function setInvoiceStatus(invoice: Invoice, next: Status) {
   if (next === "paid" && paid < total) return "An invoice can only be marked paid after the full balance has been received.";
   if (next === "partially_paid" && (paid <= 0 || paid >= total)) return "Partially paid requires a payment recorded against a remaining balance.";
   if (next === "sent" && paid > 0) return "This invoice already has a payment. Its status must remain partially paid or paid.";
+  if (next === "sent" && invoice.status === "draft") {
+    const { error } = await supabase.rpc("issue_invoice", { p_invoice_id: invoice.id });
+    return error?.message ?? null;
+  }
   const { error } = await supabase
     .from("invoices")
     .update({ status: next, updated_at: new Date().toISOString() })
@@ -137,12 +141,16 @@ export async function createInvoice(draft: {
     }
   }
 
-  const allocation = await supabase.rpc("allocate_invoice_number", {
-    p_organization_id: draft.organizationId,
-  });
-  if (allocation.error) return { id: null, error: allocation.error.message };
-
-  const number = String(allocation.data || draft.number.trim());
+  const suppliedNumber = draft.number.trim();
+  let number = suppliedNumber;
+  if (!number) {
+    const allocation = await supabase.rpc("allocate_invoice_number", {
+      p_organization_id: draft.organizationId,
+    });
+    if (allocation.error) return { id: null, error: allocation.error.message };
+    number = String(allocation.data || "");
+  }
+  if (!number) return { id: null, error: "Invoice number could not be allocated." };
   const total = draft.contents.reduce(
     (sum, item) => sum + (item.priced ? (item.amount ?? item.quantity * (item.rate ?? 0)) : 0),
     0,
@@ -194,6 +202,20 @@ export async function createInvoice(draft: {
   });
 
   return { id: result.data.id, error: activityError };
+}
+
+export async function issueInvoice(invoiceId: string) {
+  const { error } = await supabase.rpc("issue_invoice", { p_invoice_id: invoiceId });
+  return error?.message ?? null;
+}
+
+export async function listDocuments(organizationId?: string | null) {
+  let query = supabase
+    .from("documents")
+    .select("*, organizations(name), clients(name), invoices(invoice_number)")
+    .order("created_at", { ascending: false });
+  if (organizationId) query = query.eq("organization_id", organizationId);
+  return query;
 }
 
 export async function recordPayment(

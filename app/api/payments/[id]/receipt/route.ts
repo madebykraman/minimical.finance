@@ -3,6 +3,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 
 function safe(value: unknown){return String(value??"").replace(/[\r\n\t]+/g," ").trim();}
@@ -43,6 +44,35 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
   text("This receipt records the payment captured against the invoice above.",x,y,regular,9);
   y=58;text(safe(org.invoice_footer_line_1||"Please retain this receipt for your records."),x,y,regular,8);y-=13;text(safe(org.invoice_footer_line_2||"Thank you."),x,y,regular,8);
   const bytes=await pdf.save();
+  const checksum=createHash("sha256").update(bytes).digest("hex");
   const number=safe(invoice.invoice_number||invoice.number||"payment");
+  const fileName=`Receipt-${safe(payment.receipt_number||number+"-"+id.slice(0,8))}.pdf`;
+  const filePath=`organizations/${payment.organization_id}/receipts/${payment.id}/v1.pdf`;
+  const {data:document}=await supabase.from("documents").select("id").eq("payment_id",id).eq("document_type","receipt_pdf").eq("version_number",1).maybeSingle();
+  if(document?.id){
+    const upload=await supabase.storage.from("finos-documents").upload(filePath,bytes,{contentType:"application/pdf",upsert:true});
+    const generatedAt=new Date().toISOString();
+    await supabase.from("documents").update({
+      status:upload.error?"generated":"stored",
+      file_path:upload.error?"":filePath,
+      file_name:fileName,
+      storage_bucket:"finos-documents",
+      generated_at:generatedAt,
+      checksum_sha256:checksum,
+      size_bytes:bytes.length,
+    }).eq("id",document.id);
+    await supabase.from("document_versions").upsert({
+      document_id:document.id,
+      version_number:1,
+      file_path:upload.error?null:filePath,
+      file_name:fileName,
+      storage_bucket:"finos-documents",
+      mime_type:"application/pdf",
+      size_bytes:bytes.length,
+      checksum_sha256:checksum,
+      generated_at:generatedAt,
+      metadata:{storage_error:upload.error?.message??null},
+    },{onConflict:"document_id,version_number"});
+  }
   return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="Receipt-${number}-${id.slice(0,8)}.pdf"`,"Cache-Control":"private, no-store"}});
 }

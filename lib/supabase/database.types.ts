@@ -881,6 +881,7 @@ export type Database = {
           phone: string | null
           receipt_prefix: string
           status: string
+          show_minbooks_branding: boolean
           updated_at: string
         }
         Insert: {
@@ -910,6 +911,7 @@ export type Database = {
           phone?: string | null
           receipt_prefix?: string
           status?: string
+          show_minbooks_branding?: boolean
           updated_at?: string
         }
         Update: {
@@ -939,6 +941,7 @@ export type Database = {
           phone?: string | null
           receipt_prefix?: string
           status?: string
+          show_minbooks_branding?: boolean
           updated_at?: string
         }
         Relationships: []

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileInput, FileText, FolderKanban,
   LayoutDashboard, LogOut, MoreHorizontal, Receipt, Search,

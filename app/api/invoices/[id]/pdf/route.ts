@@ -54,8 +54,8 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     if(orgLogo){const d=orgLogo.scale(Math.min(38/orgLogo.width,22/orgLogo.height));page.drawImage(orgLogo,{x:L,y:top-d.height,width:d.width,height:d.height});}
     if(clientLogo){const d=clientLogo.scale(Math.min(34/clientLogo.width,20/clientLogo.height));page.drawImage(clientLogo,{x:R-d.width,y:top-d.height,width:d.width,height:d.height});}
     text(page,"BILLED TO",L,top,bold,7.5,MUTED);icon(page,L-12,top-1,"person");text(page,safe(client.legal_name||client.name||"Client"),L,top-19,bold,10.5);
-    const addr=addressLines(client.address_lines);addr.forEach((line,i)=>text(page,line,L,top-32-i*10,8.2,regular,MUTED));const infoY=top-32-addr.length*10;
-    if(client.pan)text(page,`PAN ${client.pan}`,L,infoY-3,7.8,regular,MUTED);if(client.gstin)text(page,`GST ${client.gstin}`,L,infoY-15,7.8,regular,MUTED);
+    const addr=addressLines(client.address_lines);addr.forEach((line,i)=>text(page,line,L,top-32-i*10,regular,8.2,MUTED));const infoY=top-32-addr.length*10;
+    if(client.pan)text(page,`PAN ${client.pan}`,L,infoY-3,regular,7.8,MUTED);if(client.gstin)text(page,`GST ${client.gstin}`,L,infoY-15,regular,7.8,MUTED);
     const payTop=infoY-43;text(page,"PAY TO",L,payTop,bold,7.5,MUTED);icon(page,L-12,payTop-1,"bank");
     const pay=[[`NAME  ${org.payee_name||org.legal_name||org.name||""}`,bold],[`A/C NO  ${org.account_number||""}`,regular],[`BANK  ${org.bank_name||""}`,regular],[`BRANCH  ${org.branch_name||""}`,regular],[`IFSC  ${org.ifsc_code||""}`,regular],[`PAN  ${org.pan||""}`,regular]] as const;
     pay.forEach(([line,font],i)=>text(page,line,L,payTop-18-i*10,font,7.8,i===0?BLACK:MUTED));
@@ -70,11 +70,11 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
   for(const item of contents){
     const title=safe(item.title||"");const detail=[item.description,item.note].map(safe).filter(Boolean).join(" · ");const lines=wrap(detail?title+" — "+detail:title,regular,350,8.2);const rowH=Math.max(28,Math.min(58,18+lines.length*9));
     if(y-rowH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
-    page.drawLine({start:{x:L,y:y-rowH},end:{x:R,y:y-rowH},thickness:.35,color:LINE});lines.slice(0,4).forEach((lineText,index)=>text(page,lineText,L+10,y-17-index*9,8.2,regular));const amount=item.priced?money(Number(item.amount??Number(item.quantity??1)*Number(item.rate??0))):"₹X,XXX/-";right(page,amount,R-10,y-17,mono,8.5,item.priced?BLACK:MUTED);y-=rowH;
+    page.drawLine({start:{x:L,y:y-rowH},end:{x:R,y:y-rowH},thickness:.35,color:LINE});lines.slice(0,4).forEach((lineText,index)=>text(page,lineText,L+10,y-17-index*9,regular,8.2));const amount=item.priced?money(Number(item.amount??Number(item.quantity??1)*Number(item.rate??0))):"₹X,XXX/-";right(page,amount,R-10,y-17,mono,8.5,item.priced?BLACK:MUTED);y-=rowH;
   }
   const totalH=35;if(y-totalH<92){drawFooter(page);page=pdf.addPage([W,PAGE.height]);y=drawIdentity(page,true);drawTableHeader();}
   page.drawRectangle({x:L,y:y-totalH,width:R-L,height:totalH,borderWidth:.65,borderColor:BLACK});text(page,"GRAND TOTAL",L+10,y-22,bold,8.2);right(page,hasUnpriced?"₹X,XXX/-":money(total),R-10,y-22,bold,11);y-=totalH+25;
-  if(invoice.notes){const noteLines=wrap(invoice.notes,regular,R-L,7.8);text(page,"NOTE",L,y,bold,7.2,MUTED);noteLines.slice(0,3).forEach((lineText,i)=>text(page,lineText,L+35,y-i*9,7.8,regular,MUTED));}
+  if(invoice.notes){const noteLines=wrap(invoice.notes,regular,R-L,7.8);text(page,"NOTE",L,y,bold,7.2,MUTED);noteLines.slice(0,3).forEach((lineText,i)=>text(page,lineText,L+35,y-i*9,regular,7.8,MUTED));}
   drawFooter(page);
 
   const bytes=await pdf.save();

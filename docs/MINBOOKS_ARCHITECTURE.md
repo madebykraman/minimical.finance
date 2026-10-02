@@ -29,6 +29,14 @@ Financial invariants are enforced at the database boundary, not only in the brow
 
 The browser remains responsible for interaction, validation feedback and workflow orchestration. It is not the authority for financial integrity.
 
+## Canonical document and transaction layer
+
+Issued invoices now create an immutable `invoice_versions` snapshot containing the invoice, organisation identity, client, project, line items and payment state at issue time. The snapshot is content-hashed and referenced by the canonical invoice document record. Subsequent PDF generation reads the issued snapshot rather than silently rendering a changed live invoice.
+
+Receipts are organisation-scoped and sequential through the database. Payments carry their organisation identity and a receipt issuance timestamp. Account statements use the database `statement_ledger` function so internal reporting and future client-portal rendering can consume the same transaction model.
+
+`documents` is the register; `document_versions` is the generated-file history. The document register can therefore distinguish an issued-but-not-yet-rendered document from a generated immutable file version. PDF renderers remain separate by document type.
+
 ## Import architecture
 1. Detect CSV/XLS/XLSX workbook and available sheets.
 2. Preview source rows without mutating data.
@@ -58,7 +66,7 @@ OpenSource UI documents its components as MIT licensed and free for personal/com
 ## Product phases
 P0 — Rebuild foundation: routing, auth boundary, organisation scope, shell, navigation, design tokens, entity linking.
 P1 — Core operations: invoice creation/editing, client/project workspaces, payments, receipts, statements, import workflow.
-P2 — Document system: template registry, renderer parity, document versions, storage and delivery.
+P2 — Document system: template registry, renderer parity, document versions, storage and delivery. Canonical invoice snapshots, receipt numbering and the shared statement ledger are now implemented; persistent PDF storage/delivery remains in this phase.
 P3 — Client portal: secure access, invoices, receipts, statements, shared documents.
 P4 — SaaS: workspace onboarding, plans, multi-user roles, billing, tenant isolation.
 P5 — Hardening: accessibility, responsive regression, RLS verification, backups, observability, production deployment.

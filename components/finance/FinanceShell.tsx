@@ -4,7 +4,7 @@ import type { ReactNode, CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileInput, FileText, FolderKanban,
-  LayoutDashboard, LogOut, MoreHorizontal, Plus, Receipt, Search,
+  LayoutDashboard, LogOut, MoreHorizontal, Receipt, Search,
   Settings2, WalletCards, X, ArrowLeftRight
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";
@@ -38,7 +38,7 @@ const secondary:Array<[FinanceView,typeof LayoutDashboard]> = [
 
 export function FinanceShell({
   activeView,onNavigate,activeOrganization,invoiceCount,session,query,setQuery,actionError,clearError,
-  onRefresh,onSelectWorkspace,organizations,onSignOut,onNewInvoice,onNewClient,onNewProject,
+  onSelectWorkspace,organizations,onSignOut,
   mobileMoreOpen,setMobileMoreOpen,children,overlays
 }:{
   activeView:FinanceView;
@@ -50,13 +50,9 @@ export function FinanceShell({
   setQuery:(v:string)=>void;
   actionError:string;
   clearError:()=>void;
-  onRefresh:()=>void;
   onSelectWorkspace:(id:string)=>void;
   organizations:WorkspaceOrganization[];
   onSignOut:()=>void;
-  onNewInvoice:()=>void;
-  onNewClient:()=>void;
-  onNewProject:()=>void;
   mobileMoreOpen:boolean;
   setMobileMoreOpen:(v:boolean)=>void;
   children:ReactNode;
@@ -158,7 +154,7 @@ export function FinanceShell({
         </div>
 
       </header>
-      <div className="page-frame">{children}</div>
+      <div className="page-frame" key={activeView}>{children}</div>
     </section>
 
     <nav className="mobile-nav" aria-label="Primary navigation">

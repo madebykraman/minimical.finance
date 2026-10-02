@@ -411,6 +411,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           loading={loading}
           onOpen={setSelected}
           onStatus={markStatus}
+          onNew={()=>setComposer(true)}
         />
       )}
       {activeView === "payments" && <PaymentsView invoices={orgInvoices} onOpenPayment={setPaymentFor} />}
@@ -421,6 +422,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           onOpen={setSelected}
           selectedClientId={selectedClientId}
           setSelectedClientId={setSelectedClientId}
+          onNew={()=>window.dispatchEvent(new Event("finance:new-client"))}
         />
       )}
       {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} onNew={()=>window.dispatchEvent(new Event("finance:new-project"))} />}

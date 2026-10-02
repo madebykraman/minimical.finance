@@ -433,7 +433,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       {activeView === "documents" && (\n        <DocumentsView invoices={orgInvoices} />\n      )}\n      {activeView === "imports" && (\n        <ImportCenter organizations={organizations} activeOrganizationId={allOrganizations ? null : organizationId} onComplete={() => { void loadInvoices(allOrganizations ? null : organizationId); }} />\n      )}\n      {activeView === "settings" && (
         <SettingsView
           email={session.user?.email ?? ""}
-          activeOrganizationId={organizationId}
+          activeOrganizationId={allOrganizations ? null : organizationId}
           onSignOut={() => { void supabase.auth.signOut(); }}
         />
       )}

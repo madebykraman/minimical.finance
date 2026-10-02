@@ -13,6 +13,7 @@ import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
+import { SegmentedTabs, StatusPill, type FinanceStatus } from "@/components/finance/FinancePrimitives";
 import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
 
 const supabase = createClient();
@@ -329,7 +330,7 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate}:{stats:
 
     <div className="overview-grid overview-grid-command">
       <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Latest movement</span><h2>Invoices</h2></div><button className="text-action" onClick={()=>onNavigate("invoices")}>View all <ArrowUpRight size={12}/></button></div>
-        <div className="invoice-register minimal-register">{recent.length?recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project||"No project"} · {dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>):<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><span>Create the first invoice for this organisation.</span></div>}</div>
+        <div className="invoice-register minimal-register">{recent.length?recent.map(i=><button key={i.id} className="invoice-register-row" onClick={()=>onOpen(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{i.project||"No project"} · {dateLabel(i.date)}</small></span><StatusPill status={i.status as FinanceStatus} /><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>):<div className="empty-state"><FileText size={18}/><b>No invoices yet.</b><span>Create the first invoice for this organisation.</span></div>}</div>
       </section>
       <section className="data-panel"><div className="data-panel-head"><div><span className="eyebrow">Action queue</span><h2>Needs attention</h2></div><span className="panel-count">{attention.length}</span></div>
         {attention.length?<div className="action-list">{attention.map(a=><button key={a.invoice.id+"-"+a.tone} className="action-row" onClick={()=>onOpen(a.invoice)}><span className={"action-icon "+a.tone}>{a.tone==="danger"?<CircleAlert size={13}/>:<WalletCards size={13}/>}</span><div><b>{a.label}</b><small>{a.meta}</small></div><strong>{money(invoiceBalance(a.invoice))}</strong><ChevronRight size={13}/></button>)}</div>:<div className="empty-state"><ShieldCheck size={18}/><b>Nothing needs attention.</b><span>Open receivables are currently on track.</span></div>}
@@ -343,7 +344,15 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,on
     <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-count"><b>{filtered.length}</b><span>records</span></div></section>
     <section className="register-summary"><div><span>OPEN</span><b>{money(open)}</b></div><div><span>OVERDUE</span><b>{overdue}</b></div><div><span>VIEW</span><b>{status==="all"?"All":statusLabel(status)}</b></div></section>
     <section className="data-panel operations-register">
-      <div className="data-panel-head"><div><h2>Register</h2></div><div className="invoice-toolbar"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoice, client or project" aria-label="Search invoices"/></div><div className="invoice-status-segment" role="tablist" aria-label="Invoice status">{(["all","draft","sent","partially_paid","paid","void"] as const).map(value=><button key={value} className={status===value?"active":""} role="tab" aria-selected={status===value} onClick={()=>setStatus(value)}>{value==="all"?"All":value==="partially_paid"?"Partial":statusLabel(value)}</button>)}</div></div></div>
+      <div className="data-panel-head"><div><h2>Register</h2></div><div className="invoice-toolbar"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoice, client or project" aria-label="Search invoices"/></div><SegmentedTabs
+  value={status}
+  onChange={setStatus}
+  ariaLabel="Invoice status"
+  items={(["all","draft","sent","partially_paid","paid","void"] as const).map(value => ({
+    value,
+    label: value === "all" ? "All" : value === "partially_paid" ? "Partial" : statusLabel(value),
+  }))}
+ /></div></div>
       {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<><div className="invoice-register-header"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>ISSUED</span><span>DUE / BALANCE</span><span>TOTAL</span><span>STATUS</span></div><div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div></>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search or status filter.</span></div>}
     </section>
   </div>;
@@ -579,7 +588,7 @@ export function InvoiceCard({invoice,onOpen,onStatus}:{invoice:Invoice;onOpen:()
     </div>
     <div className="invoice-right">
       <div><strong>{money(total)}</strong><span className="invoice-amount-label">TOTAL</span></div>
-      <button className={"status "+invoice.status} onClick={e=>{e.stopPropagation();onOpen();}}>{statusLabel(invoice.status)}</button>
+      <button className="invoice-status-button" onClick={e=>{e.stopPropagation();onOpen();}} aria-label={"Open invoice status: "+statusLabel(invoice.status)}><StatusPill status={invoice.status as FinanceStatus} /></button>
       <ChevronRight size={17} className="chevron"/>
     </div>
   </article>;
@@ -812,7 +821,12 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
     <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, immutable source snapshots and generated file versions.</p></div></section>
-    <div className="document-tabs">{(Object.keys(labels) as (keyof typeof labels)[]).map(k=><button key={k} className={kind===k?"active":""} onClick={()=>setKind(k)}>{labels[k]}</button>)}</div>
+    <SegmentedTabs
+  value={kind}
+  onChange={setKind}
+  ariaLabel="Document type"
+  items={(Object.keys(labels) as (keyof typeof labels)[]).map(k => ({ value: k, label: labels[k] }))}
+ />
     <section className="data-panel">
       <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" registered"}</p></div></div>
       {docs.length?<div className="document-register">{docs.map(d=><button className="document-row document-row-button" key={d.id} onClick={()=>void openHistory(d)}>

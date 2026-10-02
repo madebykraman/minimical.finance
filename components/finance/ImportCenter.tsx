@@ -122,6 +122,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   const records=useMemo(()=>buildRecords(selectedRows,mapping),[selectedRows,mapping]);
   const invoiceRecords=records.filter(r=>r.kind==="invoice");
   const unassigned=records.filter(r=>r.kind==="unassigned");
+  const paymentStateHeader=source?.headers.find(h=>["payment","payment status","paid status","collection status"].includes(norm(h)))||"";
 
   async function loadHistory(){
     let q=supabase.from("import_batches").select("*").order("created_at",{ascending:false}).limit(8);
@@ -161,8 +162,11 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     const issueDate=normalizeDate(valueFor(row,mapping.issueDate));
     const dueDate=normalizeDate(valueFor(row,mapping.dueDate));
     const paymentDate=normalizeDate(valueFor(row,mapping.paymentDate));
-    const paymentAmount=normalizeAmount(valueFor(row,mapping.paymentAmount));
+    const explicitPaymentAmount=normalizeAmount(valueFor(row,mapping.paymentAmount));
+    const paymentState=norm(valueFor(row,paymentStateHeader));
     const amount=record.invoiceTotal??record.lineTotal;
+    const paymentAmount=explicitPaymentAmount!=null?explicitPaymentAmount:(paymentState==="paid"||paymentState==="clear"?amount:0);
+    const derivedStatus=(paymentState==="paid"||paymentState==="clear")?"paid":(["sent","unpaid"].includes(norm(valueFor(row,mapping.status)))?"sent":clean(valueFor(row,mapping.status)).toLowerCase());
     const duplicate=Boolean(org&&record.invoiceNumber&&duplicates.has(`${org.id}:${record.invoiceNumber}`));
     const errors:string[]=[];
     const warnings:string[]=[];
@@ -176,7 +180,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     if(paymentDate&&!paymentAmount)warnings.push("Payment date without payment amount");
     if(paymentAmount!=null&&paymentAmount>amount)errors.push("Payment > invoice");
     if(duplicate&&!resolutions[record.key])errors.push("Duplicate");
-    return {...record,org,client,project,issueDate,dueDate,paymentDate,paymentAmount,amount,duplicate,errors,warnings,skipped:resolutions[record.key]==="skip"};
+    return {...record,org,client,project,issueDate,dueDate,paymentDate,paymentAmount,derivedStatus,amount,duplicate,errors,warnings,skipped:resolutions[record.key]==="skip"};
   }),[records,mapping,activeOrgs,activeOrganizationId,duplicates,resolutions]);
 
   const ready=validation.filter(v=>!v.skipped&&v.errors.length===0&&v.kind==="invoice");
@@ -246,7 +250,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       dueDate:v.dueDate||undefined,
       amount:v.amount,
       description:undefined,
-      status:(["draft","sent","partially_paid","paid","void"].includes(clean(valueFor(v.primaryRow,mapping.status)).toLowerCase())?clean(valueFor(v.primaryRow,mapping.status)).toLowerCase():"draft") as Status,
+      status:(["draft","sent","partially_paid","paid","void"].includes(v.derivedStatus)?v.derivedStatus:"draft") as Status,
       paymentDate:v.paymentDate||undefined,
       paymentAmount:v.paymentAmount??undefined,
       contents:v.items.map(item=>({title:item.title,amount:item.amount,note:item.note||undefined})),

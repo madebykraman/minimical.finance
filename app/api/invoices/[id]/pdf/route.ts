@@ -92,7 +92,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     const email=contactEmail(org),phone=contactPhone(org);
     const showBranding=org.show_minbooks_branding!==false;
     page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});
-    text(page,safe(org.invoice_footer_line_2)||"Thank you for your time and the opportunity to work together.",L,39,bold,8.5);
+    text(page,safe(org.invoice_footer_line_2)||"Thank you for your time and the opportunity to work together.",L,39,regular,8.5);
     icon(page,L,14,"mail");text(page,email,L+18,16,regular,7.5,MUTED);
     icon(page,L+185,14,"phone");text(page,phone,L+203,16,regular,7.5,MUTED);
     if(showBranding)text(page,"MinBooks · Generated from the financial record",R-185,16,regular,6.5,MUTED);

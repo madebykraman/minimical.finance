@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, fingerprint, parseSpreadsheet } from "../lib/finance/importer";
+import { analyzeImportSource, detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, fingerprint } from "../lib/finance/importer";
 
 test("import mapping recognises common invoice headers without reusing one source column",()=>{
   const mapping=inferImportMapping(["Organisation","Client Name","Invoice No","Invoice Date","Due Date","Grand Total","Paid Amount"]);
@@ -34,4 +34,19 @@ test("import fingerprints remain deterministic",()=>{
   const row={Organisation:"Minimical",Client:"Acme",Invoice:"INV-42","Invoice Date":"02/10/2026",Amount:"₹10,000"};
   const mapping={organization:"Organisation",client:"Client",invoiceNumber:"Invoice",issueDate:"Invoice Date",amount:"Amount"};
   assert.equal(fingerprint(row,mapping),"minimical|acme|inv 42|2026-10-02|10000");
+});
+
+test("value analysis can infer date and amount columns when headings are weak",()=>{
+  const source={
+    name:"tracker.csv",sheet:"Sheet1",
+    headers:["A","B","C","D"],
+    rows:[
+      {A:"Ekta",B:"INV-42",C:"02/10/2026",D:"₹10,000"},
+      {A:"Rhea",B:"INV-43",C:"03/10/2026",D:"₹12,000"},
+    ],
+    headerRow:0,headerDetected:false,confidence:.2,skippedRows:0,
+  };
+  const analysis=analyzeImportSource(source);
+  assert.equal(analysis.mapping.issueDate,"C");
+  assert.equal(analysis.mapping.amount,"D");
 });

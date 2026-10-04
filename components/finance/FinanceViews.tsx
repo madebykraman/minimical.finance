@@ -774,10 +774,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const canCreate=Boolean(number&&organizationId&&client.trim()&&contents.some(c=>c.title.trim()));
   const submit=async()=>{if(!canCreate||saving)return;setSaving(true);try{await onCreate({number,client,project,date,dueDate,organizationId,contents})}finally{setSaving(false)}};
 
-  return <ManagedDialog open onClose={requestClose} title="Create invoice" description="Build the billable record first. The PDF is generated from the saved invoice." className="composer invoice-composer">
-      <div className="drawer-head editor-header">
-        <div><span className="eyebrow">NEW INVOICE</span><h2>Create invoice</h2><p>Build the billable record first. The PDF is generated from the saved invoice.</p></div>
-      </div>
+  return <ManagedDialog open onClose={requestClose} title="Create invoice" description="Build the billable record first. The PDF is generated from the saved invoice." className="composer invoice-composer" overlayClassName="invoice-editor-overlay">
       <div className="composer-body editor-body">
         <section className="editor-section">
           <div className="editor-section-head"><div><span className="section-kicker">IDENTITY</span><h3>Invoice details</h3></div><span className="editor-number">#{number}</span></div>
@@ -916,7 +913,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
         <span className="secondary document-download">History</span>
       </button>)}</div>:<div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
     </section>
-    {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel">
+    {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">
       <div className="document-history-body">
         <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
         <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><button type="button" className="secondary" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);if(url)window.open(url,"_blank","noopener,noreferrer")}}>Open</button></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>

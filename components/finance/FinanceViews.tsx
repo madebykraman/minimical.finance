@@ -400,17 +400,18 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
     <section className="data-panel payments-ledger">
       <div className="data-panel-head"><div><h2>Ledger</h2><span>Recorded money received against invoices.</span></div><WalletCards size={16}/></div>
       {rows.length ? <div className="payment-ledger-list">{rows.map(row=>
-        <div className="payment-ledger-row" key={row.id} onClick={()=>onOpenPayment(row.invoice)} role="button" tabIndex={0}
-          onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")onOpenPayment(row.invoice)}}>
-          <div className="payment-ledger-main">
-            <b>#{row.invoice.number} · {row.invoice.client}</b>
-            <span>{row.payment_date?dateLabel(row.payment_date):"Date unknown"} · {row.method.replaceAll("_"," ")}</span>
-          </div>
+        <div className="payment-ledger-row" key={row.id}>
+          <button type="button" className="payment-ledger-open" onClick={()=>onOpenPayment(row.invoice)}>
+            <div className="payment-ledger-main">
+              <b>#{row.invoice.number} · {row.invoice.client}</b>
+              <span>{row.payment_date?dateLabel(row.payment_date):"Date unknown"} · {row.method.replaceAll("_"," ")}</span>
+            </div>
+          </button>
           <strong>{money(row.amount)}</strong>
-          <a className="text-action payment-receipt-action" href={"/api/payments/"+row.id+"/receipt"} onClick={e=>e.stopPropagation()}>Receipt</a>
+          <a className="text-action payment-receipt-action" href={"/api/payments/"+row.id+"/receipt"}>Receipt</a>
         </div>
       )}</div> : <div className="empty-state"><WalletCards size={18}/><b>No payments recorded.</b><span>Record a payment from an open invoice.</span></div>}
-      {!!openInvoices.length&&<div className="payment-shortcuts"><div className="payment-shortcuts-label">Record against an open invoice</div>{openInvoices.map(i=><button key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number}</button>)}</div>}
+      {!!openInvoices.length&&<div className="payment-shortcuts"><div className="payment-shortcuts-label">Record against an open invoice</div>{openInvoices.map(i=><button type="button" key={i.id} className="secondary" onClick={()=>onOpenPayment(i)}>Record · #{i.number}</button>)}</div>}
     </section>
   </div>;
 }

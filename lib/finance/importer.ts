@@ -64,8 +64,8 @@ const aliases: Record<keyof ImportMapping, string[]> = {
 };
 
 const labels: Record<keyof ImportMapping,string> = {
-  organization:"Organisation",client:"Client",assignedBy:"Assigned by",project:"Project",invoiceNumber:"Invoice number",
-  issueDate:"Issue date",dueDate:"Due date",amount:"Amount",status:"Status",
+  organization:"Organisation",client:"Client",assignedBy:"Assigned by",lineItem:"Line item",project:"Project",invoiceNumber:"Invoice number",
+  issueDate:"Issue date",dueDate:"Due date",amount:"Amount",invoiceTotal:"Invoice total",status:"Status",
   paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",notes:"Notes",
 };
 
@@ -174,7 +174,7 @@ const cleanValue=(v:unknown)=>String(v??"").trim();
 export function analyzeImportSource(source: ImportSource): ImportAnalysis {
   const mapping = inferImportMapping(source.headers);
   const used = new Set(Object.values(mapping).filter(Boolean));
-  const fields = (Object.keys(labels) as (keyof ImportMapping)[]).map(field => {
+  const fields: ImportFieldAnalysis[] = (Object.keys(labels) as (keyof ImportMapping)[]).map(field => {
     const header = mapping[field];
     if (header) return { field, label: labels[field], header, confidence: source.headerDetected ? 0.92 : 0.64, reason: "Matched source heading" };
     let best:{header:string;score:number}|null=null;

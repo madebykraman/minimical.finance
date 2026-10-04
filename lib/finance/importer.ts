@@ -70,14 +70,14 @@ const labels: Record<keyof ImportMapping,string> = {
 };
 
 const normalize = (value: unknown) =>
-  String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
+  String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 
 function score(header: string, candidate: string) {
   const h = normalize(header);
   const c = normalize(candidate);
   if (!h || !c) return 0;
   if (h === c) return 1;
-  if (h.replace(/\\b(name|date|no|number)\\b/g, "").trim() === c.replace(/\\b(name|date|no|number)\\b/g, "").trim()) return 0.92;
+  if (h.replace(/\b(name|date|no|number)\b/g, "").trim() === c.replace(/\\b(name|date|no|number)\\b/g, "").trim()) return 0.92;
   if (h.includes(c) || c.includes(h)) return 0.78;
   return 0;
 }
@@ -93,7 +93,7 @@ function looksLikeDate(value: unknown) {
 function looksLikeAmount(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return true;
   const raw = String(value ?? "").trim();
-  return Boolean(raw && /(?:₹|rs\\.?|inr|\\$|€|£|,)/i.test(raw) && normalizeAmount(raw) != null);
+  return Boolean(raw && /(?:₹|rs\.?|inr|\$|€|£|,)/i.test(raw) && normalizeAmount(raw) != null);
 }
 
 function rowHeaderScore(row: unknown[]) {
@@ -163,7 +163,7 @@ function valueSignal(field:keyof ImportMapping, values:unknown[]){
   if(!nonEmpty.length)return 0;
   if(field==="issueDate"||field==="dueDate"||field==="paymentDate")return nonEmpty.filter(looksLikeDate).length/nonEmpty.length;
   if(field==="amount"||field==="invoiceTotal"||field==="paymentAmount")return nonEmpty.filter(looksLikeAmount).length/nonEmpty.length;
-  if(field==="invoiceNumber")return nonEmpty.filter(v=>/^(?:inv(?:oice)?|bill|doc(?:ument)?)?[-\\s#_]*[a-z0-9/]+$/i.test(String(v).trim())).length/nonEmpty.length;
+  if(field==="invoiceNumber")return nonEmpty.filter(v=>/^(?:inv(?:oice)?|bill|doc(?:ument)?)?[-\s#_]*[a-z0-9/]+$/i.test(String(v).trim())).length/nonEmpty.length;
   if(field==="status"){const allowed=new Set(["draft","sent","partially paid","paid","void","cancelled","canceled","overdue"]);return nonEmpty.filter(v=>allowed.has(normalize(v))).length/nonEmpty.length;}
   if(field==="description")return Math.min(1,nonEmpty.reduce((s,v)=>s+String(v).length,0)/(nonEmpty.length*28));
   return 0;
@@ -226,9 +226,9 @@ export function normalizeDate(value: unknown): string {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  const iso = raw.match(/^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})$/);
+  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
   if (iso) return iso[1] + "-" + iso[2].padStart(2, "0") + "-" + iso[3].padStart(2, "0");
-  const dmy = raw.match(/^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})$/);
+  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) return dmy[3] + "-" + dmy[2].padStart(2, "0") + "-" + dmy[1].padStart(2, "0");
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime()) && /[a-z]/i.test(raw)) return parsed.toISOString().slice(0,10);
@@ -248,7 +248,7 @@ export function normalizeAmount(value: unknown): number | null {
 export function normalizeInvoiceNumber(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw || /^(?:n\/?a|na|none|-)$/i.test(raw)) return "";
-  const prefixed = raw.match(/^(?:inv(?:oice)?|bill|document)\\.?\\s*#?\\s*(.+)$/i);
+  const prefixed = raw.match(/^(?:inv(?:oice)?|bill|document)\.?\s*#?\s*(.+)$/i);
   return (prefixed?.[1] ?? raw).trim();
 }
 

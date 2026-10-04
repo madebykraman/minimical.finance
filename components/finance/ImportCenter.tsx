@@ -40,7 +40,7 @@ const fieldLabels:Record<keyof ImportMapping,string>={
 };
 const requiredFields:Array<keyof ImportMapping>=["client","issueDate","amount"];
 const clean=(v:unknown)=>String(v??"").trim();
-const norm=(v:unknown)=>clean(v).toLowerCase().replace(/[_-]+/g," ").replace(/\\s+/g," ");
+const norm=(v:unknown)=>clean(v).toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
 
 function buildRecords(rows:Record<string,unknown>[],mapping:ImportMapping):ImportRecord[]{
   const headerIndexes=rows.map((row,index)=>normalizeInvoiceNumber(valueFor(row,mapping.invoiceNumber))?index:-1).filter(index=>index>=0);
@@ -212,11 +212,11 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     const scoped=activeOrgId?clients.filter(c=>c.organization_id===activeOrgId):clients;
     if(scoped.length===1){
       const name=String(scoped[0].name||"");
-      if(name){setInferredClient(name);return {...nextMapping,client:`__INFERRED_CLIENT__:${name}`};}
+      if(name){setInferredClient(name);return nextMapping;}
     }
     const needle=norm(sourceName);
     const match=clients.find(c=>needle.includes(norm(c.name))||norm(c.name).includes(needle));
-    if(match){setInferredClient(String(match.name));return {...nextMapping,client:`__INFERRED_CLIENT__:${match.name}`};}
+    if(match)setInferredClient(String(match.name));
     return nextMapping;
   }
   function deriveProjectName(value:unknown){
@@ -306,7 +306,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   return <div className="import-page">
     <div className="import-head">
       <div><span className="eyebrow">DATA INTAKE</span><h1>Smart import</h1><p>Drop the source in. MinBooks analyses its structure, reconstructs document groups, resolves ownership and stops only where a human decision is actually required.</p></div>
-      {source&&<button className="secondary" onClick={()=>{setSource(null);setSources([]);setAnalysis(null);setMapping({});setMessage("");setResolutions({});setInferredClient("")}}><RefreshCw size={14}/>Start over</button>}
+      {source&&<button type="button" className="secondary" onClick={()=>{setSource(null);setSources([]);setAnalysis(null);setMapping({});setMessage("");setResolutions({});setInferredClient("")}}><RefreshCw size={14}/>Start over</button>}
     </div>
 
     {!source?<>
@@ -314,14 +314,14 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       <section className="data-panel import-history"><div className="data-panel-head"><div><span className="eyebrow">History</span><h2>Import runs</h2><p>Every committed batch remains auditable.</p></div></div>{history.length?history.map(b=><div className="import-history-row" key={b.id}><span><b>{b.source_name}</b><small>{new Date(b.created_at).toLocaleString("en-IN")}</small></span><strong>{b.imported_rows} imported</strong><em className={b.status}>{b.status.replaceAll("_"," ")}</em></div>):<div className="empty-state"><FileText size={18}/><b>No import runs yet.</b><span>Completed and reviewed imports will appear here.</span></div>}</section>
     </>:<div className="smart-import-workflow">
       <section className="smart-import-hero"><div className="smart-file-icon"><FileSpreadsheet size={20}/></div><div className="smart-import-file"><strong>{source.name}</strong><span>{selectedRows.length.toLocaleString()} source rows · {invoiceRecords.length} document groups · {unassigned.length} unassigned</span></div><div className="smart-import-score"><span>Analysis confidence</span><strong>{Math.round(analysis?.confidence??source.confidence*100)}%</strong></div></section>
-      {sources.length>1&&<div className="smart-sheet-strip">{sources.map(s=><button key={s.sheet} className={s.sheet===source.sheet?"active":""} onClick={()=>switchSheet(s)}>{s.sheet}<small>{s.rows.length} rows</small></button>)}</div>}
+      {sources.length>1&&<div className="smart-sheet-strip">{sources.map(s=><button type="button" key={s.sheet} className={s.sheet===source.sheet?"active":""} onClick={()=>switchSheet(s)}>{s.sheet}<small>{s.rows.length} rows</small></button>)}</div>}
 
       <section className="smart-analysis-grid">
         <div className="data-panel smart-analysis-panel"><div className="data-panel-head"><div><span className="eyebrow">Machine analysis</span><h2>What MinBooks found</h2></div><Sparkles size={16}/></div><div className="smart-analysis-list">
           <div><span>Source shape</span><b>{source.headerDetected?"Structured table":"Headerless / irregular"}</b></div><div><span>Header row</span><b>{source.headerDetected?`Row ${source.headerRow+1}`:"Not reliable"}</b></div><div><span>Document groups</span><b>{invoiceRecords.length}</b></div><div><span>Continuation items</span><b>{Math.max(0,invoiceRecords.reduce((n,r)=>n+r.items.length-1,0))}</b></div><div><span>Unassigned rows</span><b>{unassigned.reduce((n,r)=>n+r.sourceIndexes.length,0)}</b></div><div><span>Inferred client</span><b>{inferredClient||"Needs review"}</b></div>
         </div></div>
-        <div className="data-panel smart-mapping-panel"><div className="data-panel-head"><div><span className="eyebrow">Automatic mapping</span><h2>Financial fields</h2></div><button className="text-action" onClick={()=>setReviewMapping(v=>!v)}>{reviewMapping?"Hide":"Review mapping"} <ChevronDown size={13}/></button></div>
-          <div className="smart-mapping-chips">{(Object.keys(fieldLabels) as (keyof ImportMapping)[]).map(field=>{const value=mapping[field];return <button key={field} className={value?"mapped":"unmapped"} onClick={()=>setReviewMapping(true)}><span>{fieldLabels[field]}{requiredFields.includes(field)?" *":""}</span><b>{displayHeader(value)}</b></button>})}</div>
+        <div className="data-panel smart-mapping-panel"><div className="data-panel-head"><div><span className="eyebrow">Automatic mapping</span><h2>Financial fields</h2></div><button type="button" className="text-action" onClick={()=>setReviewMapping(v=>!v)}>{reviewMapping?"Hide":"Review mapping"} <ChevronDown size={13}/></button></div>
+          <div className="smart-mapping-chips">{(Object.keys(fieldLabels) as (keyof ImportMapping)[]).map(field=>{const value=mapping[field];return <button type="button" key={field} className={value?"mapped":"unmapped"} onClick={()=>setReviewMapping(true)}><span>{fieldLabels[field]}{requiredFields.includes(field)?" *":""}</span><b>{displayHeader(value)}</b></button>})}</div>
           {reviewMapping&&<div className="smart-mapping-editor">{(Object.keys(fieldLabels) as (keyof ImportMapping)[]).map(field=><label key={field}><span>{fieldLabels[field]}{requiredFields.includes(field)?" *":""}</span><select value={mapping[field]??""} onChange={e=>setMapping(m=>({...m,[field]:e.target.value||undefined}))}><option value="">Not mapped</option>{field==="organization"&&<option value="__ACTIVE_ORGANISATION__">Use current organisation automatically</option>}{field==="client"&&inferredClient&&<option value={`__INFERRED_CLIENT__:${inferredClient}`}>Use inferred client: {inferredClient}</option>}{source.headers.map(h=><option key={h} value={h}>{h}</option>)}</select></label>)}</div>}
         </div>
       </section>
@@ -334,12 +334,12 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
           <span className="smart-row-org">{v.org?.name||"Organisation unresolved"}</span>
           <strong className="smart-row-amount">{v.amount==null?"—":v.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong>
           <span className={"smart-row-state "+(v.skipped?"skip":v.errors.length?"error":"ok")}>{v.errors.length?v.errors[0]:v.warnings.length?v.warnings[0]:"Ready"}</span>
-          {((v.duplicate)||(v.kind==="unassigned"))&&!v.skipped&&<div className="smart-row-actions">{v.duplicate&&<button className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="auto")delete n[v.key];else n[v.key]="auto";return n})}>{resolutions[v.key]==="auto"?"Auto-number selected":"Auto-number"}</button>}<button className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="skip")delete n[v.key];else n[v.key]="skip";return n})}>{resolutions[v.key]==="skip"?"Skipped":"Skip row"}</button></div>}
+          {((v.duplicate)||(v.kind==="unassigned"))&&!v.skipped&&<div className="smart-row-actions">{v.duplicate&&<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="auto")delete n[v.key];else n[v.key]="auto";return n})}>{resolutions[v.key]==="auto"?"Auto-number selected":"Auto-number"}</button>}<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="skip")delete n[v.key];else n[v.key]="skip";return n})}>{resolutions[v.key]==="skip"?"Skipped":"Skip row"}</button></div>}
         </div>)}</div>
-        {validation.length>8&&<button className="secondary smart-show-all" onClick={()=>setShowAllRows(v=>!v)}>{showAllRows?"Show first 8":"Review all "+validation.length+" groups"}</button>}
+        {validation.length>8&&<button type="button" className="secondary smart-show-all" onClick={()=>setShowAllRows(v=>!v)}>{showAllRows?"Show first 8":"Review all "+validation.length+" groups"}</button>}
       </section>
 
-      <section className="smart-import-footer"><div><span>Import plan</span><strong>{ready.length} invoice records · {selectedRows.length} source rows</strong><small>{blocked.length?blocked.length+" exceptions must be resolved before commit.":warningCount?warningCount+" non-blocking warnings will be preserved in the audit trail.":"No unresolved exceptions."}</small></div><button className="primary smart-commit" disabled={busy||!ready.length||blocked.length>0} onClick={()=>void commit()}>{busy?"Importing…":<>Import {ready.length} invoices <ArrowRight size={15}/></>}</button></section>
+      <section className="smart-import-footer"><div><span>Import plan</span><strong>{ready.length} invoice records · {selectedRows.length} source rows</strong><small>{blocked.length?blocked.length+" exceptions must be resolved before commit.":warningCount?warningCount+" non-blocking warnings will be preserved in the audit trail.":"No unresolved exceptions."}</small></div><button type="button" className="primary smart-commit" disabled={busy||!ready.length||blocked.length>0} onClick={()=>void commit()}>{busy?"Importing…":<>Import {ready.length} invoices <ArrowRight size={15}/></>}</button></section>
       {message&&<div className={message.startsWith("Import complete")?"auth-success":"auth-message"}>{message}</div>}
     </div>}
   </div>;

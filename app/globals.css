@@ -503,7 +503,7 @@ input:focus,select:focus,textarea:focus{border-color:#4a4162;box-shadow:0 0 0 3p
   .payment-ledger-main b{font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .payment-ledger-main span{font-size:9.5px;line-height:1.25;color:#777780;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .payment-ledger-row>strong{grid-column:2;grid-row:1;font:600 12px var(--font-data);white-space:nowrap}
-  .payment-receipt-action{grid-column:1;grid-row:2;justify-content:flex-start;min-height:22px;font-size:10px}
+  .payment-ledger-open{display:block;width:100%;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}.payment-ledger-open:focus-visible{outline:1px solid var(--accent);outline-offset:3px}.payment-ledger-open:hover .payment-ledger-main b{text-decoration:underline;text-underline-offset:3px}.payment-receipt-action{grid-column:1;grid-row:2;justify-content:flex-start;min-height:22px;font-size:10px}
   .payment-shortcuts{display:flex;gap:7px;overflow-x:auto;flex-wrap:nowrap;padding:11px 12px}
   .payment-shortcuts-label{display:none}
   .payment-shortcuts .secondary{flex:0 0 auto;min-height:36px;white-space:nowrap}

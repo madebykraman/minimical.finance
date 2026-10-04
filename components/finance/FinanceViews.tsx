@@ -625,6 +625,9 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const [organizations,setOrganizations]=useState<any[]>([]);
   const [clients,setClients]=useState<any[]>([]);
   const [projects,setProjects]=useState<any[]>([]);
+  const drawerRef=useRef<HTMLElement>(null);
+  const previousFocusRef=useRef<HTMLElement|null>(null);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").order("name").then(({data})=>setOrganizations(data||[]))},[]);
   useEffect(()=>{
     const orgId=draft.organizationId;
@@ -640,7 +643,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     const root=drawerRef.current;
     const selector="button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex='-1'])";
     requestAnimationFrame(()=>root?.querySelector<HTMLElement>(selector)?.focus());
-    const onTab=(event:KeyboardEvent)=>{
+    const onTab=(event:globalThis.KeyboardEvent)=>{
       if(event.key!=="Tab"||!root)return;
       const focusable=Array.from(root.querySelectorAll<HTMLElement>(selector));
       if(!focusable.length)return;
@@ -652,7 +655,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     return()=>{document.removeEventListener("keydown",onTab);const previous=previousFocusRef.current;if(previous&&document.contains(previous))previous.focus();previousFocusRef.current=null};
   },[]);
   useEffect(()=>{
-    const onEscape=(event:KeyboardEvent)=>{
+    const onEscape=(event:globalThis.KeyboardEvent)=>{
       if(event.key!=="Escape")return;
       event.preventDefault();
       if(!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
@@ -661,7 +664,6 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     return()=>document.removeEventListener("keydown",onEscape);
   },[dirty,onClose]);
   const unpriced = draft.contents.filter(c => !c.priced).length;
-  const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState("");
   const validate = () => {
@@ -692,7 +694,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     if (!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
   };
   useEffect(() => {
-    const onShortcut = (event: KeyboardEvent) => {
+    const onShortcut = (event: globalThis.KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "s" || event.key === "Enter")) {
         event.preventDefault();
         if (dirty) void save();

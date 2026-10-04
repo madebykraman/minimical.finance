@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export type FinanceStatus = "draft" | "sent" | "partially_paid" | "paid" | "void";
@@ -35,7 +35,7 @@ export function SegmentedTabs<T extends string>({
 }) {
   const tabGroupId = useId().replace(/:/g, "");
   const activeIndex = Math.max(0, items.findIndex((item) => item.value === value));
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (!items.length) return;
     let next = activeIndex;
     if (event.key === "ArrowRight") next = (activeIndex + 1) % items.length;
@@ -95,7 +95,7 @@ export function MobileSheet({
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusableSelector =
       "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
-    const onKeyDown = (event: KeyboardEvent) => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();

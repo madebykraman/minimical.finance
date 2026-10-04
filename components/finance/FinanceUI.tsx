@@ -65,6 +65,7 @@ type ManagedDialogProps = {
   description?: string;
   children: ReactNode;
   className?: string;
+  overlayClassName?: string;
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
 };
@@ -81,6 +82,7 @@ export function ManagedDialog({
   description,
   children,
   className = "",
+  overlayClassName = "",
   closeOnBackdrop = true,
   closeOnEscape = true,
 }: ManagedDialogProps) {
@@ -143,7 +145,7 @@ export function ManagedDialog({
 
   return (
     <div
-      className="overlay"
+      className={"overlay " + overlayClassName}
       onMouseDown={() => closeOnBackdrop && onClose()}
       data-managed-dialog="true"
     >

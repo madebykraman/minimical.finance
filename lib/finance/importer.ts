@@ -77,7 +77,7 @@ function score(header: string, candidate: string) {
   const c = normalize(candidate);
   if (!h || !c) return 0;
   if (h === c) return 1;
-  if (h.replace(/\b(name|date|no|number)\b/g, "").trim() === c.replace(/\\b(name|date|no|number)\\b/g, "").trim()) return 0.92;
+  if (h.replace(/\b(name|date|no|number)\b/g, "").trim() === c.replace(/\b(name|date|no|number)\b/g, "").trim()) return 0.92;
   if (h.includes(c) || c.includes(h)) return 0.78;
   return 0;
 }

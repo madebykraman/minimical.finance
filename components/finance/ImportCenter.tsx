@@ -36,7 +36,7 @@ const supabase=createClient();
 const fieldLabels:Record<keyof ImportMapping,string>={
   organization:"Organisation",client:"Client",assignedBy:"Assigned by",lineItem:"Line item / project",project:"Project",invoiceNumber:"Invoice number",
   issueDate:"Issue date",dueDate:"Due date",amount:"Line amount",invoiceTotal:"Invoice total",
-  status:"Status",paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",
+  status:"Status",paymentDate:"Payment date",paymentAmount:"Payment amount",description:"Description",notes:"Notes",
 };
 const requiredFields:Array<keyof ImportMapping>=["client","issueDate","amount"];
 const clean=(v:unknown)=>String(v??"").trim();

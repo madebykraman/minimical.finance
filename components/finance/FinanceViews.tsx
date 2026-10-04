@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
   CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
@@ -13,7 +13,7 @@ import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
-import { InlineLoader } from "@/components/finance/FinanceUI";
+import { InlineLoader, ManagedDialog } from "@/components/finance/FinanceUI";
 import { MobileQuickActions } from "@/components/finance/MobileQuickActions";
 import { SegmentedTabs, StatusPill, type FinanceStatus } from "@/components/finance/FinancePrimitives";
 import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
@@ -432,9 +432,8 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
 export function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {
   const [form,setForm]=useState({name:"",legal_name:"",email:"",phone:"",pan:"",gstin:"",address:""});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
   async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
-  return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Create client</h2></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button></div><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={e=>((e.currentTarget.parentElement?.previousElementSibling?.querySelector("form") as HTMLFormElement|null)?.requestSubmit())} disabled={saving}>{saving?"Creating…":"Create client"}</button></div></div></div>;
+  return <ManagedDialog open onClose={onClose} title="Create client" description="Create a billing and portal workspace for this client."><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message" role="alert">{message}</div>}<div className="drawer-foot"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={saving}>{saving?"Creating…":"Create client"}</button></div></form></div></ManagedDialog>;
 }
-
 export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,onArchived}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void;onArchived:()=>void}) {
   const [client,setClient]=useState<any>(null),[documents,setDocuments]=useState<any[]>([]),[tab,setTab]=useState<"overview"|"invoices"|"projects"|"documents"|"statement"|"settings">("overview"),[period,setPeriod]=useState<Period>("all"),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(""),[portalPassword,setPortalPassword]=useState("");
   const [form,setForm]=useState<any>({});
@@ -571,16 +570,14 @@ export function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[
 export function ProjectEditModal({project,onClose,onSaved}:{project:any;onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:project.name||"",status:project.status||"active",description:project.description||"",budget_cost:String(project.budget_cost||0),actual_cost:String(project.actual_cost||0)});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
  async function save(e:FormEvent){e.preventDefault();setSaving(true);const {error}=await supabase.from("projects").update({name:form.name.trim(),status:form.status,description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,updated_at:new Date().toISOString()}).eq("id",project.id);setSaving(false);if(error)setMessage(error.message);else onSaved()}
- return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Edit project</h2><span className="drawer-context">{project.name}</span></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><form className="composer-body form-grid" onSubmit={save}><label>Name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={saving}>{saving?"Saving…":"Save project"}</button></div></form></div></div>;
+ return <ManagedDialog open onClose={onClose} title="Edit project" description={project.name}><form className="composer-body form-grid" onSubmit={save}><label>Name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span" role="alert">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={saving}>{saving?"Saving…":"Save project"}</button></div></form></ManagedDialog>;
 }
-
 export function ProjectCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:"",client_id:"",organization_id:organizationId||"",status:"active",description:"",budget_cost:"0",actual_cost:"0"});const [clients,setClients]=useState<any[]>([]);const [orgs,setOrgs]=useState<any[]>([]);const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
  useEffect(()=>{Promise.all([supabase.from("clients").select("id,name").is("archived_at",null).eq("organization_id",organizationId||"").order("name"),organizationId ? supabase.from("organizations").select("id,name").eq("id",organizationId).single() : Promise.resolve({data:null})]).then(([a,b])=>{setClients(a.data||[]);setOrgs(b.data?[b.data]:[])})},[organizationId]);
  async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Project name is required.");setSaving(true);const {error}=await supabase.from("projects").insert({...form,name:form.name.trim(),description:form.description.trim()||null,budget_cost:Number(form.budget_cost)||0,actual_cost:Number(form.actual_cost)||0,client_id:form.client_id||null,organization_id:organizationId||null});setSaving(false);if(error)setMessage(error.message);else onSaved()}
- return <div className="overlay" onMouseDown={onClose}><div className="composer" onMouseDown={e=>e.stopPropagation()}><div className="drawer-head"><div><h2>Create project</h2></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><div className="composer-body"><form className="form-grid" onSubmit={save}><label>Project name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Client<select value={form.client_id} onChange={e=>setForm((f:any)=>({...f,client_id:e.target.value}))}><option value="">Unassigned</option>{clients.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Organisation<select value={form.organization_id} onChange={e=>setForm((f:any)=>({...f,organization_id:e.target.value}))}><option value="">Unassigned</option>{orgs.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span">{message}</div>}</form></div><div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>{const formEl=document.querySelector(".composer form") as HTMLFormElement|null;formEl?.requestSubmit()}} disabled={saving}>{saving?"Creating…":"Create project"}</button></div></div></div>;
+ return <ManagedDialog open onClose={onClose} title="Create project" description="Create a project and keep its billing identity explicit."><form className="composer-body form-grid" onSubmit={save}><label>Project name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Client<select value={form.client_id} onChange={e=>setForm((f:any)=>({...f,client_id:e.target.value}))}><option value="">Unassigned</option>{clients.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Organisation<select value={form.organization_id} onChange={e=>setForm((f:any)=>({...f,organization_id:e.target.value}))}><option value="">Unassigned</option>{orgs.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Status<select value={form.status} onChange={e=>setForm((f:any)=>({...f,status:e.target.value}))}><option>active</option><option>on_hold</option><option>completed</option><option>archived</option></select></label><label>Budget cost<input type="number" value={form.budget_cost} onChange={e=>setForm((f:any)=>({...f,budget_cost:e.target.value}))}/></label><label>Actual cost<input type="number" value={form.actual_cost} onChange={e=>setForm((f:any)=>({...f,actual_cost:e.target.value}))}/></label><label className="full-span">Description<textarea value={form.description} onChange={e=>setForm((f:any)=>({...f,description:e.target.value}))}/></label>{message&&<div className="auth-message full-span" role="alert">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={saving}>{saving?"Creating…":"Create project"}</button></div></form></ManagedDialog>;
 }
-
 export function activityLabel(action:string) {
   return ({
     invoice_created: "Invoice created",
@@ -745,7 +742,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   </aside></div>;
 }
 
-export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>void}) {
+export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>Promise<void>|void}) {
   const [number]=useState(initialNumber);
   const [client,setClient]=useState("");
   const [project,setProject]=useState("");
@@ -753,6 +750,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [dueDate,setDueDate]=useState(new Date(Date.now()+30*86400000).toISOString().slice(0,10));
   const [contents,setContents]=useState<Content[]>([{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
+  const [saving,setSaving]=useState(false);
   const [clients,setClients]=useState<any[]>([]);
   const [projects,setProjects]=useState<any[]>([]);
   const [organizationName,setOrganizationName]=useState("");
@@ -774,12 +772,11 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const add=()=>setContents(v=>[...v,{id:crypto.randomUUID(),title:"",kind:"service",quantity:1,priced:true}]);
   const clientProjects=projects.filter(p=>{const selected=clients.find(c=>c.name===client);return !selected||p.client_id===selected.id});
   const canCreate=Boolean(number&&organizationId&&client.trim()&&contents.some(c=>c.title.trim()));
+  const submit=async()=>{if(!canCreate||saving)return;setSaving(true);try{await onCreate({number,client,project,date,dueDate,organizationId,contents})}finally{setSaving(false)}};
 
-  return <div className="overlay invoice-editor-overlay" onMouseDown={requestClose}>
-    <div className="composer invoice-composer" onMouseDown={e=>e.stopPropagation()}>
+  return <ManagedDialog open onClose={requestClose} title="Create invoice" description="Build the billable record first. The PDF is generated from the saved invoice." className="composer invoice-composer">
       <div className="drawer-head editor-header">
         <div><span className="eyebrow">NEW INVOICE</span><h2>Create invoice</h2><p>Build the billable record first. The PDF is generated from the saved invoice.</p></div>
-        <button className="icon-button" onClick={onClose} aria-label="Close"><X size={18}/></button>
       </div>
       <div className="composer-body editor-body">
         <section className="editor-section">
@@ -794,7 +791,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
         </section>
 
         <section className="editor-section contents-editor-section">
-          <div className="editor-section-head"><div><span className="section-kicker">LINE ITEMS</span><h3>Contents</h3><p>Every billable deliverable belongs here. Unpriced lines remain visible but are excluded from the total.</p></div><button className="secondary" onClick={add}><Plus size={15}/>Add content</button></div>
+          <div className="editor-section-head"><div><span className="section-kicker">LINE ITEMS</span><h3>Contents</h3><p>Every billable deliverable belongs here. Unpriced lines remain visible but are excluded from the total.</p></div><button type="button" className="secondary" onClick={add} disabled={saving}><Plus size={15}/>Add content</button></div>
           <div className="editor-content-head"><span>#</span><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span></span></div>
           <div className="editor-content-list">{contents.map((c,idx)=>
             <div className="editor-content-row" key={c.id}>
@@ -803,39 +800,33 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
               <input type="number" min="1" value={c.quantity??""} onChange={e=>patch(c.id,{quantity:Number(e.target.value)||1})} placeholder="1" aria-label={"Quantity "+(idx+1)}/>
               <input type="number" min="0" value={c.rate??""} onChange={e=>patch(c.id,{rate:e.target.value?Number(e.target.value):null,priced:!!e.target.value})} placeholder="Rate" aria-label={"Rate "+(idx+1)}/>
               <b className={!c.priced?"unpriced":""}>{c.priced&&c.rate!=null?money(contentAmount(c)):"TBD"}</b>
-              <button className="icon-button editor-delete" onClick={()=>setContents(v=>v.filter(x=>x.id!==c.id))} disabled={contents.length===1} aria-label={"Remove line "+(idx+1)}><X size={14}/></button>
+              <button type="button" className="icon-button editor-delete" onClick={()=>setContents(v=>v.filter(x=>x.id!==c.id))} disabled={contents.length===1} aria-label={"Remove line "+(idx+1)}><X size={14}/></button>
             </div>
           )}</div>
           <div className="editor-total"><span>Total</span><strong>{money(total)}</strong></div>
         </section>
       </div>
       <div className="drawer-foot editor-footer">
-        <button className="secondary" onClick={requestClose}>Cancel</button>
-        <button className="primary" disabled={!canCreate} onClick={()=>onCreate({number,client,project,date,dueDate,organizationId,contents})}><Check size={16}/>Create draft</button>
+        <button type="button" className="secondary" onClick={requestClose} disabled={saving}>Cancel</button>
+        <button type="button" className="primary" disabled={!canCreate||saving} onClick={()=>void submit()}>{saving?<><InlineLoader label="Creating invoice" />Creating…</>:<><Check size={16}/>Create draft</>}</button>
       </div>
-    </div>
-  </div>;
+  </ManagedDialog>;
 }
 
-export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onClose:()=>void;onCreate:(i:Invoice,a:number,d:string,m:string,r:string)=>void}) {
-  const [amount,setAmount] = useState(String(Math.max(invoiceTotal(invoice)-paidTotal(invoice),0)));
-  const [date,setDate] = useState(new Date().toISOString().slice(0,10));
-  const [method,setMethod] = useState("bank_transfer");
-  const [reference,setReference] = useState("");
-  const balance = Math.max(invoiceTotal(invoice)-paidTotal(invoice),0);
-  return <div className="overlay" onMouseDown={onClose}><div className="payment-composer" onMouseDown={e=>e.stopPropagation()}>
-    <div className="drawer-head"><div><h2>Record payment</h2><span className="drawer-context">{invoice.client} · {money(balance)} outstanding</span></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>
-    <div className="payment-form">
-      <label>Amount<input type="number" min="1" max={balance} value={amount} onChange={e=>setAmount(e.target.value)}/></label>
-      <label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
-      <label>Method<select value={method} onChange={e=>setMethod(e.target.value)}><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label>
-      <label>Reference <span className="optional">(optional)</span><input value={reference} onChange={e=>setReference(e.target.value)} placeholder="UTR / transaction reference"/></label>
-    </div>
-    <div className="payment-total"><span>Remaining after payment</span><strong>{money(Math.max(balance-(Number(amount)||0),0))}</strong></div>
-    <div className="drawer-foot"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!Number(amount)||Number(amount)<=0||Number(amount)>balance} onClick={()=>onCreate(invoice,Number(amount),date,method,reference)}>Record payment</button></div>
-  </div></div>;
+export function PaymentComposer({invoice,onClose,onCreate}:{invoice:Invoice;onClose:()=>void;onCreate:(i:Invoice,a:number,d:string,m:string,r:string)=>Promise<void>|void}) {
+ const [amount,setAmount]=useState(String(Math.max(invoiceTotal(invoice)-paidTotal(invoice),0)));const [date,setDate]=useState(new Date().toISOString().slice(0,10));const [method,setMethod]=useState("bank_transfer");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
+ const balance=Math.max(invoiceTotal(invoice)-paidTotal(invoice),0);
+ async function submit(){const numericAmount=Number(amount);if(!numericAmount||numericAmount<=0||numericAmount>balance){setMessage("Enter a payment amount within the outstanding balance.");return}setSaving(true);setMessage("");try{await onCreate(invoice,numericAmount,date,method,reference)}catch{setMessage("Could not record the payment. Try again.")}finally{setSaving(false)}}
+ return <ManagedDialog open onClose={saving?()=>{}:onClose} title="Record payment" description={invoice.client+" · "+money(balance)+" outstanding"}><div className="payment-form composer-body">
+  <label>Amount<input autoFocus type="number" min="1" max={balance} value={amount} onChange={e=>setAmount(e.target.value)} disabled={saving}/></label>
+  <label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)} disabled={saving}/></label>
+  <label>Method<select value={method} onChange={e=>setMethod(e.target.value)} disabled={saving}><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label>
+  <label>Reference <span className="optional">(optional)</span><input value={reference} onChange={e=>setReference(e.target.value)} placeholder="UTR / transaction reference" disabled={saving}/></label>
+  <div className="payment-total"><span>Remaining after payment</span><strong>{money(Math.max(balance-(Number(amount)||0),0))}</strong></div>
+  {message&&<div className="auth-message" role="alert">{message}</div>}
+  <div className="drawer-foot"><button type="button" className="secondary" onClick={onClose} disabled={saving}>Cancel</button><button type="button" className="primary" disabled={saving||!Number(amount)||Number(amount)<=0||Number(amount)>balance} onClick={()=>void submit()}>{saving?<><InlineLoader label="Recording" />Recording…</>: "Record payment"}</button></div>
+ </div></ManagedDialog>;
 }
-
 
 export function OrganizationMigrationView({invoices,organizations,activeOrganizationId}:{invoices:Invoice[];organizations:any[];activeOrganizationId:string|null}) {
   const [selected,setSelected]=useState<string[]>([]);
@@ -925,12 +916,11 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
         <span className="secondary document-download">History</span>
       </button>)}</div>:<div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
     </section>
-    {selected&&<div className="document-history-overlay" onMouseDown={()=>setSelected(null)}><section className="document-history-panel" role="dialog" aria-modal="true" aria-label="Document history" onMouseDown={e=>e.stopPropagation()}>
-      <header className="drawer-head"><div><span className="eyebrow">Document history</span><h2>{label(selected)}</h2><p>{selected.template_key||"Template unspecified"} · {selected.status}</p></div><button className="icon-button" onClick={()=>setSelected(null)} aria-label="Close"><X size={16}/></button></header>
+    {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel">
       <div className="document-history-body">
         <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
-        <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><button className="secondary" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);if(url)window.open(url,"_blank","noopener,noreferrer")}}>Open</button></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
+        <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><button type="button" className="secondary" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);if(url)window.open(url,"_blank","noopener,noreferrer")}}>Open</button></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
       </div>
-    </section></div>}
+    </ManagedDialog>}
   </div>;
 }

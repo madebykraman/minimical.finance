@@ -231,8 +231,9 @@ export function normalizeDate(value: unknown): string {
   if (iso) return iso[1] + "-" + iso[2].padStart(2, "0") + "-" + iso[3].padStart(2, "0");
   const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) return dmy[3] + "-" + dmy[2].padStart(2, "0") + "-" + dmy[1].padStart(2, "0");
+  if (!/\d{4}/.test(raw) || !/[a-z]{3,}/i.test(raw)) return "";
   const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime()) && /[a-z]/i.test(raw)) return parsed.toISOString().slice(0,10);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0,10);
   return "";
 }
 

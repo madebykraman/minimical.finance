@@ -166,7 +166,7 @@ function valueSignal(field:keyof ImportMapping, values:unknown[]){
   if(field==="amount"||field==="invoiceTotal"||field==="paymentAmount")return nonEmpty.filter(looksLikeAmount).length/nonEmpty.length;
   if(field==="invoiceNumber")return nonEmpty.filter(v=>!looksLikeDate(v)&&/^(?:(?:inv(?:oice)?|bill|doc(?:ument)?)\.?[-\s#_]*[a-z0-9/]+|\d[\w/-]*)$/i.test(String(v).trim())).length/nonEmpty.length;
   if(field==="status"){const allowed=new Set(["draft","sent","partially paid","paid","void","cancelled","canceled","overdue"]);return nonEmpty.filter(v=>allowed.has(normalize(v))).length/nonEmpty.length;}
-  if(field==="description")return Math.min(1,nonEmpty.reduce((s,v)=>s+String(v).length,0)/(nonEmpty.length*28));
+  if(field==="description")return Math.min(1,nonEmpty.reduce<number>((sum,v)=>sum+String(v).length,0)/(nonEmpty.length*28));
   return 0;
 }
 const cleanValue=(v:unknown)=>String(v??"").trim();

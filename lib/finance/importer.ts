@@ -78,6 +78,7 @@ function score(header: string, candidate: string) {
   if (!h || !c) return 0;
   if (h === c) return 1;
   if (h.replace(/\b(name|date|no|number)\b/g, "").trim() === c.replace(/\b(name|date|no|number)\b/g, "").trim()) return 0.92;
+  if (h.length < 3 || c.length < 3) return 0;
   if (h.includes(c) || c.includes(h)) return 0.78;
   return 0;
 }

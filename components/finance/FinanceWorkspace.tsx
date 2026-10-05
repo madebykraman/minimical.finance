@@ -162,11 +162,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           return;
         }
 
-        const firstActive = activeRows[0] ?? null;
-        setOrganizationId(firstActive?.id ?? null);
+        setOrganizationId(null);
         setWorkspaceReady(true);
-        if (firstActive) {
-          window.localStorage.setItem(workspaceStorageKey, firstActive.id);
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(workspaceStorageKey);
+          if (workspaceStorageKey !== WORKSPACE_KEY) window.localStorage.removeItem(WORKSPACE_KEY);
         }
 
       });
@@ -383,6 +383,34 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       <div className="auth-screen">
         <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo" aria-hidden="true">·</div><div><b>Loading organisations</b><span>Restoring your workspace</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
       </div>
+    );
+  }
+
+  if (workspaceReady && !organizationId) {
+    const activeRows = organizations.filter(o => !["dissolved", "discontinued"].includes(String(o.status)));
+    return (
+      <main className="workspace-landing-screen">
+        <section className="workspace-landing" aria-labelledby="workspace-landing-title">
+          <header className="workspace-landing-head">
+            <span className="eyebrow">WORKSPACE</span>
+            <h1 id="workspace-landing-title">Choose an organisation</h1>
+          </header>
+          <div className="workspace-landing-list">
+            {activeRows.map(org => (
+              <button type="button" className="workspace-minimal-row" key={org.id} onClick={() => selectOrganization(org.id)}>
+                <span className="workspace-company-logo">{org.logo_path ? <img src={org.logo_path} alt="" /> : String(org.name || "O").slice(0,1).toUpperCase()}</span>
+                <span className="workspace-minimal-name">{org.name || org.legal_name || "Organisation"}</span>
+                <span aria-hidden="true">›</span>
+              </button>
+            ))}
+            <button type="button" className="workspace-minimal-row" onClick={() => selectOrganization(ALL_ORGANIZATIONS_ID)}>
+              <span className="workspace-company-logo">∑</span>
+              <span className="workspace-minimal-name">All organisations</span>
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        </section>
+      </main>
     );
   }
 

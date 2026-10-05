@@ -104,7 +104,11 @@ export function MobileSheet({
       if (event.key !== "Tab" || !panel) return;
       const focusable = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector))
         .filter(element => !element.hasAttribute("aria-hidden"));
-      if (!focusable.length) return;
+      if (!focusable.length) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && document.activeElement === first) {
@@ -119,7 +123,7 @@ export function MobileSheet({
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const first = panel?.querySelector<HTMLElement>(focusableSelector);
-    requestAnimationFrame(() => first?.focus());
+    requestAnimationFrame(() => (first ?? panel)?.focus());
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previous;
@@ -138,6 +142,7 @@ export function MobileSheet({
         aria-modal="true"
         aria-labelledby={title ? (labelledBy ?? titleId) : undefined}
         aria-label={title ? undefined : "Sheet"}
+        tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="finance-sheet-grab" aria-hidden />

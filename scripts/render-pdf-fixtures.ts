@@ -91,6 +91,48 @@ const statement=await renderStatementPdf({
 });
 await writeFile(join(out,"statement.pdf"),statement);
 
+
+const canonicalOrganization={
+  name:"Kumar Aman",
+  legal_name:"Kumar Aman",
+  email:"framedbyaman@gmail.com",
+  phone:null,
+  address_lines:[],
+  pan:"CIBPA9801L",
+  gstin:null,
+  payee_name:"Kumar Aman",
+  account_number:"55550101570800",
+  bank_name:"FEDERAL BANK",
+  branch_name:"Patna/Kankarbagh",
+  branch_code:"2189",
+  ifsc_code:"FDRL0002189",
+  invoice_footer_line_1:"Please contact framedbyaman@gmail.com in case of any queries.",
+  invoice_footer_line_2:"Thank you for your time and the opportunity to work together.",
+};
+const canonicalClient={
+  name:"Ogaan Media Pvt. Ltd.",
+  legal_name:"Ogaan Media Pvt. Ltd.",
+  email:null,
+  phone:null,
+  address_lines:["Floor 11, A-1102, Naman Midtown","Senapati Bapat Marg, Nr India Bulls","Prabhadevi, Mumbai City"],
+  pan:"AAACO1078K",
+  gstin:"27AAACO1078K1ZB",
+};
+const canonical220=[
+  {id:"220-1",position:0,kind:"service",title:"Elle ft. Shweta Tripathi & Mallika Dua",description:"Video Editing",quantity:1,rate:4000,amount:4000,priced:true,assigned_by:"Sharon"},
+  {id:"220-2",position:1,kind:"service",title:"Prime Video's Obsessed Retreat + Prime Video Lili Reinhart",description:"Video Editing (2 Videos)",quantity:1,rate:6000,amount:6000,priced:true,assigned_by:"Ekta"},
+  {id:"220-3",position:2,kind:"service",title:"MAHEIKA × Elle",description:"Video Editing",quantity:1,rate:2000,amount:2000,priced:true,assigned_by:null},
+];
+const canonicalPdf=await renderInvoicePdf({
+  invoice:{id:"fixture-220",invoice_number:"220",issue_date:"2026-10-01",due_date:null,source_total:12000,status:"sent"},
+  organization:canonicalOrganization,
+  client:canonicalClient,
+  projectName:"Elle India",
+  contents:canonical220,
+  templateKey:"clean",
+});
+await writeFile(join(out,"invoice-220-current.pdf"),canonicalPdf);
+
 console.log(`Rendered PDF fixtures to ${out}`);
 
 }

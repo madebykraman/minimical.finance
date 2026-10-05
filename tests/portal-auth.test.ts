@@ -13,3 +13,21 @@ test("portal sessions are one-way hashes",()=>{
  assert.equal(hash.length,64);
  assert.notEqual(hash,"session-token");
 });
+
+
+test("password rotation revokes portal sessions and tokens",()=>{
+ const migration=readFileSync("supabase/migrations/20261005061045_rotate_client_portal_password_sessions.sql","utf8");
+ assert.match(migration,/delete from public\.client_portal_sessions/);
+ assert.match(migration,/update public\.client_portal_tokens/);
+ assert.match(migration,/password_rotated/);
+ const route=readFileSync("app/api/client-portal/[id]/password/route.ts","utf8");
+ assert.match(route,/rotate_client_portal_password/);
+});
+
+test("client admin generates tokenized portal access instead of copying a bare slug",()=>{
+ const view=readFileSync("components/finance/FinanceViews.tsx","utf8");
+ assert.match(view,/\/api\/client-portal\/\"\+clientId\+\"\/token/);
+ assert.match(view,/Generate secure link/);
+ assert.match(view,/Prepare email invite/);
+ assert.doesNotMatch(view,/window\.location\.origin\+\"\/portal\/\"\+client\.portal_slug;await navigator\.clipboard/);
+});

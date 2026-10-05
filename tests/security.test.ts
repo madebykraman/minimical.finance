@@ -12,3 +12,24 @@ test("global chrome is organisation-led rather than product-branded",()=>{
   assert.doesNotMatch(s,/MinBooks|by Minimical|minimical\.finance/i,path);
  }
 });
+
+
+test("user-facing finance surfaces never expose legacy product branding",()=>{
+ const paths=[
+  "components/finance/FinanceShell.tsx",
+  "components/finance/FinanceWorkspace.tsx",
+  "components/finance/FinanceViews.tsx",
+  "app/layout.tsx",
+  "lib/finance/invoice-pdf.ts",
+ ];
+ for(const path of paths){
+  const s=readFileSync(path,"utf8");
+  assert.doesNotMatch(s,/MinBooks|by Minimical|minimical\.finance|FinOS/i,path);
+ }
+});
+
+test("aggregate organisation scope is handled before UUID filtering in shared views",()=>{
+ const s=readFileSync("components/finance/FinanceViews.tsx","utf8");
+ assert.match(s,/isAllOrganizationsScope\(organizationId\)/);
+ assert.match(s,/isAllOrganizationsScope\(activeOrganizationId\)/);
+});

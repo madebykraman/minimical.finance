@@ -28,8 +28,8 @@ test("issued invoice saves create immutable versions and pending PDF records",()
  assert.match(s,/invoice_reissued/);
  assert.match(s,/invoice_versions/);
  assert.match(s,/issued_version=v_next_version/);
- assert.match(s,/document_type.*invoice_pdf/s);
- assert.match(s,/status.*pending/s);
+ assert.match(s,/document_type[\s\S]*invoice_pdf/);
+ assert.match(s,/status[\s\S]*pending/);
  assert.match(s,/cannot be returned to draft/i);
 });
 

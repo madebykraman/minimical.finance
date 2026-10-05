@@ -28,7 +28,7 @@ export async function GET(_request:NextRequest,context:{params:Promise<{id:strin
   const organization:any=snapshot?.organization??live.organizations??settings??{};
   const project:any=snapshot?.project??live.projects??null;
   const contents:any[]=[...(snapshot?.contents??live.invoice_contents??[])].sort((a:any,b:any)=>Number(a.position??0)-Number(b.position??0));
-  const templateKey=getDocumentTemplate(organization.invoice_template_key,"invoice")?.key||"legacy_elle";
+  const templateKey=getDocumentTemplate(organization.invoice_template_key,"invoice")?.key||"clean";
 
   const bytes=await renderInvoicePdf({
     invoice,

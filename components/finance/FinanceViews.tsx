@@ -1086,6 +1086,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [statusFilter,setStatusFilter]=useState("all");
   const [clientFilter,setClientFilter]=useState("all");
   const [sharingId,setSharingId]=useState<string|null>(null);
+  const [shareMessage,setShareMessage]=useState("");
   async function load(){
     setLoading(true);
     let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,visible_to_client,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
@@ -1095,11 +1096,11 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   useEffect(()=>{void load()},[organizationId]);
   async function shareDocument(doc:any){
     if(!doc.client_id)return;
-    setSharingId(doc.id);
+    setSharingId(doc.id);setShareMessage("");
     const next=!doc.visible_to_client;
     const {error}=await supabase.from("documents").update({visible_to_client:next}).eq("id",doc.id);
     setSharingId(null);
-    if(error)return;
+    if(error){setShareMessage(error.message);return}
     setDocuments(rows=>rows.map(row=>row.id===doc.id?{...row,visible_to_client:next}:row));
     if(selected?.id===doc.id)setSelected((row:any)=>row?{...row,visible_to_client:next}:row);
   }
@@ -1136,6 +1137,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     <section className="data-panel">
       <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+documents.length+" registered"}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
       <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
+      {shareMessage&&<div className="auth-message" role="alert">{shareMessage}</div>}
       {docs.length?<div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
         <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>

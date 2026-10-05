@@ -454,6 +454,7 @@ export type Database = {
           mime_type: string | null
           organization_id: string | null
           payment_id: string | null
+          project_id: string | null
           size_bytes: number | null
           source_hash: string | null
           status: string
@@ -477,6 +478,7 @@ export type Database = {
           mime_type?: string | null
           organization_id?: string | null
           payment_id?: string | null
+          project_id?: string | null
           size_bytes?: number | null
           source_hash?: string | null
           status?: string
@@ -500,6 +502,7 @@ export type Database = {
           mime_type?: string | null
           organization_id?: string | null
           payment_id?: string | null
+          project_id?: string | null
           size_bytes?: number | null
           source_hash?: string | null
           status?: string
@@ -542,6 +545,13 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1300,7 +1310,15 @@ export type Database = {
         }
         Returns: string
       }
+      revoke_client_portal_access: {
+        Args: { p_client_id: string }
+        Returns: boolean
+      }
       rollback_import_batch: { Args: { p_batch_id: string }; Returns: Json }
+      rotate_client_portal_password: {
+        Args: { p_client_id: string; p_password_hash: string }
+        Returns: boolean
+      }
       save_invoice: {
         Args: {
           p_adjustment_note?: string

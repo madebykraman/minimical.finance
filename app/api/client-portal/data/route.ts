@@ -23,5 +23,6 @@ export async function GET(request:NextRequest){
     p_resource_type:"account",
   });
 
-  return NextResponse.json({...data,organization:organization||{}},{headers:{"Cache-Control":"private, no-store"}});
+  const payload=(typeof data==="object"&&data!==null&&!Array.isArray(data)?data:{}) as Record<string,unknown>;
+  return NextResponse.json({...payload,organization:organization||{}},{headers:{"Cache-Control":"private, no-store"}});
 }

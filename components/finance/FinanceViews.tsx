@@ -910,7 +910,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     <div className="drawer-head"><div><div className="eyebrow">INVOICE</div><h2 id="invoice-editor-title">#{draft.number}</h2><p>{draft.client} · {draft.project}</p></div><button className="icon-button" onClick={requestClose} aria-label="Close invoice editor"><X size={18}/></button></div>
     <div className="drawer-body">
       <div className="invoice-drawer-lockup">
-        <span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"m").slice(0,1).toUpperCase()}</span>
+        <span className="invoice-hero-mark">{(organizations.find(o=>o.id===draft.organizationId)?.name||"O").slice(0,1).toUpperCase()}</span>
         <div><b>{organizations.find(o=>o.id===draft.organizationId)?.name||"Organisation"}</b><span>#{draft.number}</span></div>
         <strong>{money(invoiceTotal(draft))}</strong>
       </div>

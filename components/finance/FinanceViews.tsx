@@ -236,6 +236,8 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
   const [migration,setMigration]=useState<any>(null);
+  const [createOpen,setCreateOpen]=useState(false);
+  const [createName,setCreateName]=useState("");
 
   useEffect(()=>{Promise.all([
     supabase.from("organizations").select("*").order("status").order("name"),
@@ -261,11 +263,13 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
     if(!error){setOrgs(v=>v.map(o=>o.id===selected.id?selected:o));window.dispatchEvent(new Event("finance:organization-updated"));}
   }
   async function create(){
-    const name=window.prompt("Organisation / brand name");
-    if(!name?.trim())return;
-    const {data,error}=await supabase.from("organizations").insert({name:name.trim(),legal_name:name.trim(),entity_type:"brand"}).select("*").single();
+    const name=createName.trim();
+    if(!name)return;
+    setSaving(true);setMessage("");
+    const {data,error}=await supabase.from("organizations").insert({name,legal_name:name,entity_type:"brand"}).select("*").single();
+    setSaving(false);
     if(error){setMessage(error.message);return}
-    setOrgs(v=>[...v,data]);setSelected(data);setEditOpen(true);setSection("identity");window.dispatchEvent(new Event("finance:organization-updated"));
+    setOrgs(v=>[...v,data]);setSelected(data);setEditOpen(true);setSection("identity");setCreateName("");setCreateOpen(false);window.dispatchEvent(new Event("finance:organization-updated"));
   }
 
   return <div className="settings-stack">
@@ -275,13 +279,14 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
     </section>}
 
     <section className="data-panel organisations-panel">
-      <div className="data-panel-head"><div><h2>Organisations & brands</h2><p>Choose the billing identity you want to edit. Changes are applied to future documents and the organisation’s own records.</p></div><button className="secondary" onClick={create}><Plus size={14}/>Add organisation</button></div>
+      <div className="data-panel-head"><div><h2>Organisations & brands</h2><p>Choose the billing identity you want to edit. Changes are applied to future documents and the organisation’s own records.</p></div><button className="secondary" onClick={()=>{setCreateName("");setCreateOpen(true)}}><Plus size={14}/>Add organisation</button></div>
       <div className="org-grid">{orgs.map(o=><button className={"org-card "+(selected?.id===o.id?"active":"")} key={o.id} onClick={()=>selectOrg(o)}>
         <div className="org-card-logo">{o.logo_path?<img src={o.logo_path} alt=""/>:<span>{String(o.name).slice(0,1).toUpperCase()}</span>}</div>
         <div><b>{o.name}</b><small>{o.entity_type} · {o.status}</small></div><ChevronRight size={14}/>
       </button>)}</div>
     </section>
 
+    {createOpen&&<ManagedDialog open onClose={()=>!saving&&setCreateOpen(false)} title="Add organisation" description="Create a billing identity, then complete its tax, banking and document settings."><form className="composer-body form-grid" onSubmit={e=>{e.preventDefault();void create()}}><label className="full-span">Organisation / brand name<input autoFocus required value={createName} onChange={e=>setCreateName(e.target.value)} placeholder="Organisation name"/></label>{message&&<div className="auth-message full-span" role="alert">{message}</div>}<div className="drawer-foot full-span"><button type="button" className="secondary" onClick={()=>setCreateOpen(false)} disabled={saving}>Cancel</button><button type="submit" className="primary" disabled={saving||!createName.trim()}>{saving?"Creating…":"Create organisation"}</button></div></form></ManagedDialog>}
     {selected&&<section className="settings-section-card org-editor">
       <button className="settings-section-toggle" onClick={()=>setEditOpen(v=>!v)}>
         <span><b>Edit {selected.name}</b><small>Organisation identity, tax, banking, numbering, branding and invoice footer.</small></span>
@@ -642,6 +647,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
   const [projects,setProjects]=useState<any[]>([]);
   const drawerRef=useRef<HTMLElement>(null);
   const previousFocusRef=useRef<HTMLElement|null>(null);
+  const [discardOpen,setDiscardOpen]=useState(false);
   const dirty = JSON.stringify(draft) !== JSON.stringify(invoice);
   useEffect(()=>{supabase.from("organizations").select("id,name,status,next_invoice_number,invoice_prefix").order("name").then(({data})=>setOrganizations(data||[]))},[]);
   useEffect(()=>{
@@ -673,7 +679,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     const onEscape=(event:globalThis.KeyboardEvent)=>{
       if(event.key!=="Escape")return;
       event.preventDefault();
-      if(!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
+      if(!dirty) onClose(); else setDiscardOpen(true);
     };
     document.addEventListener("keydown",onEscape);
     return()=>document.removeEventListener("keydown",onEscape);
@@ -706,7 +712,8 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     }
   };
   const requestClose = () => {
-    if (!dirty || window.confirm("Discard unsaved invoice changes?")) onClose();
+    if (!dirty) onClose();
+    else setDiscardOpen(true);
   };
   useEffect(() => {
     const onShortcut = (event: globalThis.KeyboardEvent) => {
@@ -758,7 +765,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
     </div>
     {validationError && <div className="auth-message invoice-validation-message" role="alert">{validationError}</div>}
     <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => downloadFile("/api/invoices/" + draft.id + "/pdf","invoice.pdf")}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
-  </aside></div>;
+  </aside>{discardOpen&&<ManagedDialog open onClose={()=>setDiscardOpen(false)} title="Discard invoice changes?" description="Your unsaved edits to this invoice will be lost."><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setDiscardOpen(false)}>Keep editing</button><button type="button" className="primary danger-button" onClick={onClose}>Discard changes</button></div></div></ManagedDialog>}</div>;
 }
 
 export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onCreate}:{initialNumber:string;initialOrganizationId:string|null;onClose:()=>void;onCreate:(d:{number:string;client:string;project:string;date:string;dueDate:string;organizationId?:string|null;contents:Content[]})=>Promise<void>|void}) {
@@ -773,10 +780,11 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
   const [clients,setClients]=useState<any[]>([]);
   const [projects,setProjects]=useState<any[]>([]);
   const [organizationName,setOrganizationName]=useState("");
+  const [discardOpen,setDiscardOpen]=useState(false);
   const organizationId=initialOrganizationId||"";
   const total=contents.reduce((sum,c)=>sum+contentAmount(c),0);
   const dirty=Boolean(client||project||contents.some(c=>c.title.trim()||c.rate!=null)||date!==new Date().toISOString().slice(0,10));
-  const requestClose=()=>{if(!dirty||window.confirm("Discard this invoice draft?"))onClose()};
+  const requestClose=()=>{if(!dirty)onClose();else setDiscardOpen(true)};
 
   useEffect(()=>{
     if(!organizationId){setClients([]);setProjects([]);return}
@@ -826,6 +834,7 @@ export function InvoiceComposer({initialNumber,initialOrganizationId,onClose,onC
         <button type="button" className="secondary" onClick={requestClose} disabled={saving}>Cancel</button>
         <button type="button" className="primary" disabled={!canCreate||saving} onClick={()=>void submit()}>{saving?<><InlineLoader label="Creating invoice" />Creating…</>:<><Check size={16}/>Create draft</>}</button>
       </div>
+      {discardOpen&&<ManagedDialog open onClose={()=>setDiscardOpen(false)} title="Discard invoice draft?" description="The client, project and line items in this unsaved draft will be lost."><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setDiscardOpen(false)}>Keep editing</button><button type="button" className="primary danger-button" onClick={onClose}>Discard draft</button></div></div></ManagedDialog>}
   </ManagedDialog>;
 }
 

@@ -371,7 +371,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   if (!authReady) {
     return (
       <div className="auth-screen">
-        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo">M</div><div><b>MinBooks</b><span>Preparing your workspace</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
+        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo" aria-hidden="true">·</div><div><b>Preparing workspace</b><span>Checking your session</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
       </div>
     );
   }
@@ -381,7 +381,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   if (!organizationsReady) {
     return (
       <div className="auth-screen">
-        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo">M</div><div><b>MinBooks</b><span>Loading organisations</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
+        <div className="workspace-loader" role="status" aria-live="polite"><div className="workspace-loader-head"><div className="loader-logo" aria-hidden="true">·</div><div><b>Loading organisations</b><span>Restoring your workspace</span></div></div><div className="loader-track"><i/></div><div className="loader-skeleton"><span/><span/><span/></div></div>
       </div>
     );
   }

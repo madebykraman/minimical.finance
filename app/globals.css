@@ -2277,3 +2277,18 @@ button{-webkit-tap-highlight-color:transparent}
   .payment-queue-tabs::-webkit-scrollbar{display:none}
   .payment-queue-tabs button{flex:0 0 auto;min-height:38px}
 }
+
+.portal-access-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.portal-access-actions .primary,.portal-access-actions .secondary{min-height:38px}
+.portal-link-box code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:720px){
+  .portal-access-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .portal-access-actions>*{min-width:0;justify-content:center}
+  .portal-access-actions>.primary{grid-column:1/-1}
+  .portal-link-box{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:7px!important}
+  .portal-link-box .secondary{width:100%!important;justify-content:center!important}
+}
+@media(max-width:390px){
+  .portal-access-actions{grid-template-columns:1fr}
+  .portal-access-actions>.primary{grid-column:auto}
+}

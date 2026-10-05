@@ -273,7 +273,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       clientName:v.client,
       assignedBy:clean(valueFor(v.primaryRow,mapping.assignedBy))||undefined,
       projectName:v.project||undefined,
-      invoiceNumber:v.invoiceNumber||undefined,
+      invoiceNumber:resolutions[v.key]==="auto"?undefined:(v.invoiceNumber||undefined),
       issueDate:v.issueDate,
       dueDate:v.dueDate||undefined,
       amount:v.amount,

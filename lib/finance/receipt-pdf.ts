@@ -36,6 +36,7 @@ export type ReceiptPdfInput={
   client:any;
   invoiceNumber:string;
   invoiceTotal:number;
+  invoiceBalance:number;
   payment:{
     amount:number;
     payment_date?:string|null;
@@ -88,13 +89,25 @@ export async function renderReceiptPdf(input:ReceiptPdfInput){
     ["METHOD",String(payment.method||"").replaceAll("_"," ").toUpperCase()||"—"],
     ["REFERENCE",payment.reference||"—"],
     ["INVOICE TOTAL",money(Number(input.invoiceTotal||0))],
+    ["REMAINING BALANCE",money(Number(input.invoiceBalance||0))],
   ];
   facts.forEach(([label,value],index)=>{const y=532-index*27;text(page,label,L,y,bold,7.2,MUTED);text(page,String(value),L+112,y,regular,8.5);});
 
-  page.drawRectangle({x:L,y:335,width:R-L,height:62,borderWidth:.55,borderColor:LINE});
-  text(page,"RECORD",L+12,375,bold,7.2,MUTED);
-  text(page,"This receipt records the payment captured against the invoice above.",L+12,355,regular,8.2);
-  if(payment.notes)text(page,safe(payment.notes),L+12,340,regular,7.5,MUTED);
+  text(page,"PAYEE",L,350,bold,7.5,MUTED);
+  page.drawLine({start:{x:L,y:339},end:{x:R,y:339},thickness:.55,color:LINE});
+  const payee=safe(org?.payee_name||org?.legal_name||org?.name||"Organisation");
+  const bank=safe(org?.bank_name);
+  const account=safe(org?.account_number);
+  const ifsc=safe(org?.ifsc_code);
+  text(page,payee,L,319,bold,8.8);
+  if(bank)text(page,`Bank: ${bank}`,L,303,regular,7.8,MUTED);
+  if(account)text(page,`A/C: ${account}`,L,288,regular,7.8,MUTED);
+  if(ifsc)text(page,`IFSC: ${ifsc}`,L+210,288,regular,7.8,MUTED);
+
+  page.drawRectangle({x:L,y:210,width:R-L,height:54,borderWidth:.55,borderColor:LINE});
+  text(page,"RECORD",L+12,246,bold,7.2,MUTED);
+  text(page,"This receipt records the payment captured against the invoice above.",L+12,228,regular,8.2);
+  if(payment.notes)text(page,safe(payment.notes),L+12,214,regular,7.5,MUTED);
 
   page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});
   text(page,safe(org?.invoice_footer_line_2)||"Thank you for your time.",L,39,regular,8.5);

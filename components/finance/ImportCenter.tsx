@@ -125,6 +125,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   const [inferredClient,setInferredClient]=useState<string>("");
   const [reviewKey,setReviewKey]=useState<string|null>(null);
   const [lastReport,setLastReport]=useState<null|{created:number;sourceRows:number;skipped:number;warnings:number;amount:number;organizations:number;clients:number}>(null);
+  const [rollbackBatch,setRollbackBatch]=useState<any>(null);
 
   const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
   const selectedRows=source?.rows??[];
@@ -304,11 +305,27 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       setMessage(`Import failed atomically: ${result.error||"unknown error"}. No partial rows were written.`);
       setBusy(false);await loadHistory();return;
     }
+    await Promise.all(ready.map((record,index)=>{
+      const imported=result.invoices[index];
+      if(!imported?.id)return Promise.resolve();
+      return supabase.from("import_batch_rows").update({invoice_id:imported.id}).eq("batch_id",batch.data.id).contains("resolution",{group_key:record.key});
+    }));
     await supabase.from("import_batch_rows").update({status:"imported"}).eq("batch_id",batch.data.id).eq("status","ready");
     await supabase.from("import_batches").update({status:"completed",imported_rows:result.created,completed_at:new Date().toISOString()}).eq("id",batch.data.id);
     setLastReport({created:result.created,sourceRows:selectedRows.length,skipped:skipped.length,warnings:warningCount,amount:readyAmount,organizations:readyOrganizations,clients:readyClients});
     setMessage(`Import complete: ${result.created} invoice records created from ${selectedRows.length} source rows.`);
     setBusy(false);await loadHistory();onComplete();
+  }
+
+  async function rollback(batch:any){
+    if(!batch?.id||busy)return;
+    setBusy(true);setMessage("");
+    const {data,error}=await supabase.rpc("rollback_import_batch",{p_batch_id:batch.id});
+    setBusy(false);setRollbackBatch(null);
+    if(error){setMessage(error.message);return}
+    const count=Number((data as any)?.rolled_back||0);
+    setMessage(`Rolled back ${count} imported draft invoice${count===1?"":"s"}. Client and project records were left intact.`);
+    await loadHistory();onComplete();
   }
 
   return <div className="import-page">
@@ -319,7 +336,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
 
     {!source?<>
       <section className="smart-import-drop"><div className="smart-import-orb"><Sparkles size={22}/></div><div><span className="eyebrow">AUTOMATIC ANALYSIS</span><h2>Import a spreadsheet. We’ll reconstruct it.</h2><p>CSV, XLS and XLSX are read locally first. It detects title/header rows, financial columns, invoice boundaries, continuation line items and ownership before anything is written.</p></div><label className="primary import-picker"><Upload size={15}/>Choose file<input type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={e=>{const f=e.target.files?.[0];if(f)void load(f)}} hidden/></label>{busy&&<span className="import-status">Analysing workbook…</span>}{message&&<div className="auth-message">{message}</div>}</section>
-      <section className="data-panel import-history"><div className="data-panel-head"><div><span className="eyebrow">History</span><h2>Import runs</h2><p>Every committed batch remains auditable.</p></div></div>{history.length?history.map(b=><div className="import-history-row" key={b.id}><span><b>{b.source_name}</b><small>{new Date(b.created_at).toLocaleString("en-IN")}</small></span><strong>{b.imported_rows} imported</strong><em className={b.status}>{b.status.replaceAll("_"," ")}</em></div>):<div className="empty-state"><FileText size={18}/><b>No import runs yet.</b><span>Completed and reviewed imports will appear here.</span></div>}</section>
+      <section className="data-panel import-history"><div className="data-panel-head"><div><span className="eyebrow">History</span><h2>Import runs</h2><p>Every committed batch remains auditable.</p></div></div>{history.length?history.map(b=><div className="import-history-row" key={b.id}><span><b>{b.source_name}</b><small>{new Date(b.created_at).toLocaleString("en-IN")}</small></span><strong>{b.imported_rows} imported</strong><em className={b.status}>{b.status.replaceAll("_"," ")}</em>{b.status==="completed"&&<button type="button" className="secondary mini-action import-rollback-action" onClick={()=>setRollbackBatch(b)} disabled={busy}><RefreshCw size={12}/>Undo</button>}</div>):<div className="empty-state"><FileText size={18}/><b>No import runs yet.</b><span>Completed and reviewed imports will appear here.</span></div>}</section>
     </>:<div className="smart-import-workflow">
       <section className="smart-import-hero"><div className="smart-file-icon"><FileSpreadsheet size={20}/></div><div className="smart-import-file"><strong>{source.name}</strong><span>{selectedRows.length.toLocaleString()} source rows · {invoiceRecords.length} document groups · {unassigned.length} unassigned</span></div><div className="smart-import-score"><span>Analysis confidence</span><strong>{Math.round(analysis?.confidence??source.confidence*100)}%</strong></div></section>
       {sources.length>1&&<div className="smart-sheet-strip">{sources.map(s=><button type="button" key={s.sheet} className={s.sheet===source.sheet?"active":""} onClick={()=>switchSheet(s)}>{s.sheet}<small>{s.rows.length} rows</small></button>)}</div>}
@@ -351,6 +368,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
       {message&&<div className={message.startsWith("Import complete")?"auth-success":"auth-message"}>{message}</div>}
       {lastReport&&<section className="data-panel import-complete-report"><div className="data-panel-head"><div><span className="eyebrow">Completed</span><h2>Import report</h2></div><Check size={16}/></div><div className="smart-reconciliation-summary"><div><strong>{lastReport.created}</strong><span>Imported</span></div><div><strong>{lastReport.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong><span>Invoice value</span></div><div><strong>{lastReport.clients}</strong><span>Clients</span></div><div><strong>{lastReport.skipped}</strong><span>Skipped</span></div></div></section>}
     </div>}
+    {rollbackBatch&&<ManagedDialog open onClose={()=>!busy&&setRollbackBatch(null)} title="Undo import batch?" description="Only untouched imported drafts can be removed. Any batch with payments, issued versions, documents, non-draft status, or post-import edits will be refused safely."><div className="composer-body"><div className="integrity warning"><AlertTriangle size={14}/><div><b>{rollbackBatch.source_name}</b><span>{rollbackBatch.imported_rows} imported invoice{rollbackBatch.imported_rows===1?"":"s"} · client and project records are never deleted by undo.</span></div></div><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setRollbackBatch(null)} disabled={busy}>Cancel</button><button type="button" className="primary danger-button" onClick={()=>void rollback(rollbackBatch)} disabled={busy}>{busy?"Checking…":"Undo safe drafts"}</button></div></div></ManagedDialog>}
     {reviewRecord&&<ManagedDialog open onClose={()=>setReviewKey(null)} title={reviewRecord.kind==="invoice"?`Invoice ${reviewRecord.invoiceNumber||"Auto number"}`:"Unassigned source row"} description={`Source row${reviewRecord.sourceIndexes.length===1?"":"s"} ${reviewRecord.sourceIndexes.map(i=>i+1).join(", ")}`} className="import-review-dialog">
       <div className="composer-body import-review-body">
         <div className="import-review-facts">

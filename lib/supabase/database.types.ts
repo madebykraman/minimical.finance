@@ -14,119 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      import_batches: {
-        Row: {
-          id: string
-          organization_id: string | null
-          created_by: string
-          source_name: string
-          source_type: string
-          status: string
-          total_rows: number
-          ready_rows: number
-          imported_rows: number
-          skipped_rows: number
-          blocked_rows: number
-          created_at: string
-          completed_at: string | null
-          metadata: Json
-        }
-        Insert: {
-          id?: string
-          organization_id?: string | null
-          created_by: string
-          source_name: string
-          source_type?: string
-          status?: string
-          total_rows?: number
-          ready_rows?: number
-          imported_rows?: number
-          skipped_rows?: number
-          blocked_rows?: number
-          created_at?: string
-          completed_at?: string | null
-          metadata?: Json
-        }
-        Update: {
-          id?: string
-          organization_id?: string | null
-          created_by?: string
-          source_name?: string
-          source_type?: string
-          status?: string
-          total_rows?: number
-          ready_rows?: number
-          imported_rows?: number
-          skipped_rows?: number
-          blocked_rows?: number
-          created_at?: string
-          completed_at?: string | null
-          metadata?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "import_batches_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      import_batch_rows: {
-        Row: {
-          id: string
-          batch_id: string
-          row_number: number
-          source_data: Json
-          normalized_data: Json
-          status: string
-          issue_codes: string[]
-          resolution: Json
-          invoice_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          batch_id: string
-          row_number: number
-          source_data?: Json
-          normalized_data?: Json
-          status?: string
-          issue_codes?: string[]
-          resolution?: Json
-          invoice_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          batch_id?: string
-          row_number?: number
-          source_data?: Json
-          normalized_data?: Json
-          status?: string
-          issue_codes?: string[]
-          resolution?: Json
-          invoice_id?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "import_batch_rows_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "import_batches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "import_batch_rows_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       account_profile: {
         Row: {
           address_lines: Json
@@ -659,6 +546,126 @@ export type Database = {
           },
         ]
       }
+      import_batch_rows: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          invoice_id: string | null
+          issue_codes: string[]
+          normalized_data: Json
+          resolution: Json
+          row_number: number
+          source_data: Json
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          issue_codes?: string[]
+          normalized_data?: Json
+          resolution?: Json
+          row_number: number
+          source_data?: Json
+          status?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          issue_codes?: string[]
+          normalized_data?: Json
+          resolution?: Json
+          row_number?: number
+          source_data?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_rows_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_financials"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "import_batch_rows_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          blocked_rows: number
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          id: string
+          imported_rows: number
+          metadata: Json
+          organization_id: string | null
+          ready_rows: number
+          skipped_rows: number
+          source_name: string
+          source_type: string
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          blocked_rows?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          imported_rows?: number
+          metadata?: Json
+          organization_id?: string | null
+          ready_rows?: number
+          skipped_rows?: number
+          source_name: string
+          source_type?: string
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          blocked_rows?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          imported_rows?: number
+          metadata?: Json
+          organization_id?: string | null
+          ready_rows?: number
+          skipped_rows?: number
+          source_name?: string
+          source_type?: string
+          status?: string
+          total_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_contents: {
         Row: {
           amount: number | null
@@ -883,8 +890,8 @@ export type Database = {
           payee_name: string | null
           phone: string | null
           receipt_prefix: string
-          status: string
           show_minbooks_branding: boolean
+          status: string
           updated_at: string
         }
         Insert: {
@@ -913,8 +920,8 @@ export type Database = {
           payee_name?: string | null
           phone?: string | null
           receipt_prefix?: string
-          status?: string
           show_minbooks_branding?: boolean
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -943,8 +950,8 @@ export type Database = {
           payee_name?: string | null
           phone?: string | null
           receipt_prefix?: string
-          status?: string
           show_minbooks_branding?: boolean
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -1227,14 +1234,6 @@ export type Database = {
       }
     }
     Functions: {
-      migrate_invoice_organizations: {
-        Args: {
-          p_invoice_ids: string[]
-          p_move_related?: boolean
-          p_target_organization_id: string
-        }
-        Returns: Json
-      }
       allocate_invoice_number: {
         Args: { p_organization_id: string }
         Returns: string
@@ -1264,9 +1263,9 @@ export type Database = {
         Args: { p_slug: string; p_token: string }
         Returns: Json
       }
+      import_invoice_batch: { Args: { p_rows: Json }; Returns: Json }
       invoice_snapshot: { Args: { p_invoice_id: string }; Returns: Json }
       issue_invoice: { Args: { p_invoice_id: string }; Returns: number }
-      import_invoice_batch: { Args: { p_rows: Json }; Returns: Json }
       log_client_portal_activity: {
         Args: {
           p_action: string
@@ -1277,6 +1276,14 @@ export type Database = {
           p_slug: string
         }
         Returns: undefined
+      }
+      migrate_invoice_organizations: {
+        Args: {
+          p_invoice_ids: string[]
+          p_move_related?: boolean
+          p_target_organization_id: string
+        }
+        Returns: Json
       }
       next_invoice_number: {
         Args: { p_organization_id: string }

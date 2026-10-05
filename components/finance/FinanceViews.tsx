@@ -415,10 +415,17 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilt
   </div>;
 }
 export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
-  const rows=invoices.flatMap(i=>i.payments.map(p=>({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
-  const collected=rows.reduce((sum,row)=>sum+row.amount,0);
+  const [query,setQuery]=useState("");
+  const [method,setMethod]=useState("all");
+  const [period,setPeriod]=useState<Period>("all");
+  const allRows=invoices.flatMap(i=>i.payments.map(p=>({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
+  const rows=allRows.filter(row=>{
+    const text=[row.invoice.number,row.invoice.client,row.invoice.project,row.reference,row.method].join(" ").toLowerCase();
+    return text.includes(query.toLowerCase())&&(method==="all"||row.method===method)&&(!row.payment_date||withinPeriod(row.payment_date,period));
+  });
+  const collected=allRows.reduce((sum,row)=>sum+row.amount,0);
   const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const openInvoices=invoices.filter(i=>invoiceBalance(i)>0);
+  const openInvoices=invoices.filter(i=>invoiceBalance(i)>0).sort((a,b)=>invoiceBalance(b)-invoiceBalance(a));
   return <div className="operations-page payments-page">
     <section className="operations-intro compact-page-head">
       <div><span className="eyebrow">Collections</span><h2>Payments</h2></div>
@@ -429,8 +436,13 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
       <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
       <div><span>OPEN INVOICES</span><b>{openInvoices.length}</b></div>
     </section>
+    {openInvoices.length>0&&<section className="data-panel payment-open-queue">
+      <div className="data-panel-head"><div><h2>Open balances</h2><span>Highest outstanding invoices first.</span></div><span className="panel-count">{openInvoices.length}</span></div>
+      <div className="payment-open-list">{openInvoices.slice(0,6).map(invoice=><div className="payment-open-row" key={invoice.id}><div><b>#{invoice.number} · {invoice.client}</b><span>{invoice.project||"No project"}{invoice.dueDate?" · Due "+dateLabel(invoice.dueDate):""}</span></div><strong>{money(invoiceBalance(invoice))}</strong><button type="button" className="secondary mini-action" onClick={()=>onOpenPayment(invoice)}>Record payment</button></div>)}</div>
+    </section>}
     <section className="data-panel payments-ledger">
-      <div className="data-panel-head"><div><h2>Ledger</h2><span>Recorded money received against invoices.</span></div><WalletCards size={16}/></div>
+      <div className="data-panel-head"><div><h2>Ledger</h2><span>{rows.length} of {allRows.length} recorded payments.</span></div><WalletCards size={16}/></div>
+      <div className="payment-ledger-filters"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search invoice, client or reference" aria-label="Search payments"/></div><select value={method} onChange={e=>setMethod(e.target.value)} aria-label="Payment method"><option value="all">All methods</option><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select><select value={period} onChange={e=>setPeriod(e.target.value as Period)} aria-label="Payment period">{(["month","quarter","half","year","all"] as Period[]).map(p=><option key={p} value={p}>{periodLabel(p)}</option>)}</select></div>
       {rows.length ? <div className="payment-ledger-list">{rows.map(row=>
         <div className="payment-ledger-row" key={row.id}>
           <button type="button" className="payment-ledger-open" onClick={()=>onOpenPayment(row.invoice)}>

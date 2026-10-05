@@ -2,9 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-for (const path of ["app/api/invoices/[id]/pdf/route.ts","app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts","app/api/client-portal/[slug]/receipt/[paymentId]/route.ts"]) {
- test("PDF route uses the shared Geist renderer: "+path,()=>{const s=readFileSync(path,"utf8");assert.doesNotMatch(s,/DejaVu/i);assert.match(s,/Geist-Regular\.ttf/);});
-}
+test("invoice PDF routes delegate to one shared renderer",()=>{
+ const renderer=readFileSync("lib/finance/invoice-pdf.ts","utf8");
+ for(const path of ["app/api/invoices/[id]/pdf/route.ts","app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts"]){
+  const route=readFileSync(path,"utf8");
+  assert.match(route,/renderInvoicePdf/);
+  assert.doesNotMatch(route,/PDFDocument/);
+ }
+ assert.match(renderer,/Geist-Regular\.ttf/);
+ assert.match(renderer,/Geist-SemiBold\.ttf/);
+ assert.match(renderer,/GeistMono-Regular\.ttf/);
+ assert.match(renderer,/62\.42/);
+ assert.match(renderer,/419\.3/);
+});
+test("receipt PDF route embeds Geist",()=>{
+ const s=readFileSync("app/api/client-portal/[slug]/receipt/[paymentId]/route.ts","utf8");
+ assert.doesNotMatch(s,/DejaVu/i);
+ assert.match(s,/Geist-Regular\.ttf/);
+});
 test("statement PDF route delegates to the shared Geist renderer",()=>{
   const route=readFileSync("app/api/client-portal/[slug]/statement/route.ts","utf8");
   const renderer=readFileSync("lib/finance/statement-pdf.ts","utf8");
@@ -14,7 +29,12 @@ test("statement PDF route delegates to the shared Geist renderer",()=>{
   assert.match(renderer,/Geist-SemiBold\.ttf/);
   assert.match(renderer,/GeistMono-Regular\.ttf/);
 });
-test("canonical invoice never truncates contents",()=>{const s=readFileSync("app/api/invoices/[id]/pdf/route.ts","utf8");assert.doesNotMatch(s,/contents\.slice\(0,\s*4\)/);});
+test("canonical invoice never truncates contents and supports continuation pages",()=>{
+ const s=readFileSync("lib/finance/invoice-pdf.ts","utf8");
+ assert.doesNotMatch(s,/contents\.slice\(0,\s*4\)/);
+ assert.match(s,/paginateItems/);
+ assert.match(s,/CONTINUED/);
+});
 
 test("PDF font preparation is deterministic",()=>{
  const s=readFileSync("scripts/prepare-pdf-font.mjs","utf8");
@@ -27,8 +47,7 @@ test("PDF font preparation is deterministic",()=>{
 
 test("financial PDF renderers never hard-code account identity",()=>{
  const paths=[
-  "app/api/invoices/[id]/pdf/route.ts",
-  "app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts",
+  "lib/finance/invoice-pdf.ts",
   "app/api/payments/[id]/receipt/route.ts",
   "app/api/client-portal/[slug]/receipt/[paymentId]/route.ts",
   "lib/finance/statement-pdf.ts",
@@ -49,4 +68,12 @@ test("portal invoice renderer prefers issued snapshots",()=>{
  assert.match(s,/snapshot\.organization/);
  assert.match(s,/snapshot\.client/);
  assert.match(s,/snapshot\.contents/);
+});
+
+
+test("shared invoice renderer preserves authoritative source total when present",()=>{
+ const s=readFileSync("lib/finance/invoice-pdf.ts","utf8");
+ assert.match(s,/hasAuthoritativeTotal/);
+ assert.match(s,/source_total/);
+ assert.match(s,/templateKey==="clean"/);
 });

@@ -2174,3 +2174,26 @@ button{-webkit-tap-highlight-color:transparent}
     grid-template-columns:18px minmax(0,1fr) 60px 26px!important;
   }
 }
+
+.client-mobile-actions{display:none}
+@media(max-width:720px){
+  .client-mobile-actions{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px;
+  }
+  .client-mobile-actions>a,.client-mobile-actions>button,.client-mobile-actions>.download-button{
+    min-width:0;
+    min-height:46px;
+    padding:0 6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    font-size:9px;
+    text-decoration:none;
+  }
+}
+@media(max-width:390px){
+  .client-mobile-actions{grid-template-columns:1fr 1fr}
+}

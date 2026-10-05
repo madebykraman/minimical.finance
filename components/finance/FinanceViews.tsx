@@ -230,6 +230,16 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
     setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  useEffect(()=>{
+    if(!organizationId||isAllOrganizationsScope(organizationId)){setDocumentClients([]);setDocumentProjects([]);return}
+    Promise.all([
+      supabase.from("clients").select("id,name").eq("organization_id",organizationId).is("archived_at",null).order("name"),
+      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).is("archived_at",null).order("name"),
+    ]).then(([clientsResult,projectsResult])=>{
+      setDocumentClients(clientsResult.data||[]);
+      setDocumentProjects(projectsResult.data||[]);
+    });
+  },[organizationId]);
 
   async function save(){
     if(!organization)return;
@@ -1250,7 +1260,7 @@ export function OrganizationMigrationView({invoices,organizations,activeOrganiza
 }
 
 export function DocumentsView({organizationId}:{organizationId?:string|null}) {
-  const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf"|"statement_pdf">("all");
+  const [kind,setKind]=useState<"all"|"invoice_pdf"|"receipt_pdf"|"statement_pdf"|"uploaded_file">("all");
   const [documents,setDocuments]=useState<any[]>([]);
   const [selected,setSelected]=useState<any|null>(null);
   const [versions,setVersions]=useState<any[]>([]);
@@ -1258,17 +1268,90 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [query,setQuery]=useState("");
   const [statusFilter,setStatusFilter]=useState("all");
   const [clientFilter,setClientFilter]=useState("all");
+  const [projectFilter,setProjectFilter]=useState("all");
   const [sharingId,setSharingId]=useState<string|null>(null);
   const [shareMessage,setShareMessage]=useState("");
   const [generationBusy,setGenerationBusy]=useState(false);
   const [generationMessage,setGenerationMessage]=useState("");
+  const [documentClients,setDocumentClients]=useState<any[]>([]);
+  const [documentProjects,setDocumentProjects]=useState<any[]>([]);
+  const [uploadOpen,setUploadOpen]=useState(false);
+  const [uploading,setUploading]=useState(false);
+  const [uploadFile,setUploadFile]=useState<File|null>(null);
+  const [uploadForm,setUploadForm]=useState({client_id:"",project_id:"",description:"",visible_to_client:false});
+  const [versionTarget,setVersionTarget]=useState<any|null>(null);
+  const [versionFile,setVersionFile]=useState<File|null>(null);
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,visible_to_client,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
+    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,project_id,visible_to_client,template_key,source_hash,checksum_sha256,storage_bucket,mime_type,clients(name),projects(name),invoices(invoice_number)").order("created_at",{ascending:false});
     if(organizationId&&!isAllOrganizationsScope(organizationId))query=query.eq("organization_id",organizationId);
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  const safeUploadName=(name:string)=>name.replace(/[^a-zA-Z0-9._-]/g,"-").replace(/-+/g,"-");
+  async function fileChecksum(file:File){
+    const digest=await globalThis.crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest)).map(value=>value.toString(16).padStart(2,"0")).join("");
+  }
+  function resetUpload(){
+    setUploadFile(null);
+    setUploadForm({client_id:"",project_id:"",description:"",visible_to_client:false});
+  }
+  async function uploadDocument(){
+    if(!organizationId||isAllOrganizationsScope(organizationId)){setGenerationMessage("Select a specific organisation before uploading a document.");return}
+    if(!uploadFile){setGenerationMessage("Choose a file to upload.");return}
+    if(uploadFile.size>25*1024*1024){setGenerationMessage("Documents must be 25 MB or smaller.");return}
+    if(uploadForm.visible_to_client&&!uploadForm.client_id){setGenerationMessage("Choose a client before sharing a document to the portal.");return}
+    setUploading(true);setGenerationMessage("");
+    const documentId=globalThis.crypto.randomUUID();
+    const checksum=await fileChecksum(uploadFile);
+    const path="organizations/"+organizationId+"/uploads/"+documentId+"/v1/"+safeUploadName(uploadFile.name);
+    const {error:storageError}=await supabase.storage.from("finos-documents").upload(path,uploadFile,{upsert:false,contentType:uploadFile.type||"application/octet-stream"});
+    if(storageError){setUploading(false);setGenerationMessage(storageError.message);return}
+    const {error}=await supabase.rpc("register_uploaded_document",{
+      p_document_id:documentId,
+      p_organization_id:organizationId,
+      p_client_id:uploadForm.client_id||undefined,
+      p_project_id:uploadForm.project_id||undefined,
+      p_file_path:path,
+      p_file_name:uploadFile.name,
+      p_description:uploadForm.description||undefined,
+      p_mime_type:uploadFile.type||"application/octet-stream",
+      p_size_bytes:uploadFile.size,
+      p_checksum_sha256:checksum,
+      p_visible_to_client:uploadForm.visible_to_client,
+    });
+    if(error){
+      await supabase.storage.from("finos-documents").remove([path]);
+      setUploading(false);setGenerationMessage(error.message);return
+    }
+    setUploading(false);setUploadOpen(false);resetUpload();await load();
+    setGenerationMessage("Document uploaded and version 1 stored.");
+  }
+  async function uploadDocumentVersion(){
+    if(!versionTarget||!versionFile)return;
+    if(versionFile.size>25*1024*1024){setGenerationMessage("Documents must be 25 MB or smaller.");return}
+    setUploading(true);setGenerationMessage("");
+    const nextVersion=Number(versionTarget.version_number||1)+1;
+    const checksum=await fileChecksum(versionFile);
+    const path="organizations/"+versionTarget.organization_id+"/uploads/"+versionTarget.id+"/v"+nextVersion+"/"+safeUploadName(versionFile.name);
+    const {error:storageError}=await supabase.storage.from("finos-documents").upload(path,versionFile,{upsert:false,contentType:versionFile.type||"application/octet-stream"});
+    if(storageError){setUploading(false);setGenerationMessage(storageError.message);return}
+    const {data,error}=await supabase.rpc("register_uploaded_document_version",{
+      p_document_id:versionTarget.id,
+      p_file_path:path,
+      p_file_name:versionFile.name,
+      p_mime_type:versionFile.type||"application/octet-stream",
+      p_size_bytes:versionFile.size,
+      p_checksum_sha256:checksum,
+    });
+    if(error){
+      await supabase.storage.from("finos-documents").remove([path]);
+      setUploading(false);setGenerationMessage(error.message);return
+    }
+    setUploading(false);setVersionFile(null);setVersionTarget(null);setSelected(null);await load();
+    setGenerationMessage("Stored document version "+String(data)+".");
+  }
   const generationUrl=(doc:any)=>{
     if(doc.document_type==="invoice_pdf"&&doc.invoice_id)return "/api/invoices/"+encodeURIComponent(doc.invoice_id)+"/pdf";
     if(doc.document_type==="receipt_pdf"&&doc.payment_id)return "/api/payments/"+encodeURIComponent(doc.payment_id)+"/receipt";
@@ -1319,7 +1402,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     let seriesQuery=supabase.from("documents").select("id,version_number,file_path,file_name,storage_bucket,mime_type,size_bytes,checksum_sha256,generated_at,created_at,status,template_key,source_hash").eq("document_type",doc.document_type);
     if(doc.invoice_id)seriesQuery=seriesQuery.eq("invoice_id",doc.invoice_id);
     else if(doc.payment_id)seriesQuery=seriesQuery.eq("payment_id",doc.payment_id);
-    else if(doc.client_id)seriesQuery=seriesQuery.eq("client_id",doc.client_id);
+    else if(doc.document_type==="statement_pdf"&&doc.client_id)seriesQuery=seriesQuery.eq("client_id",doc.client_id);
     else seriesQuery=seriesQuery.eq("id",doc.id);
     const {data:seriesDocs}=await seriesQuery.order("version_number",{ascending:false});
     const ids=(seriesDocs||[]).map((row:any)=>row.id);
@@ -1358,19 +1441,21 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const seriesKey=(d:any)=>d.invoice_id?"invoice:"+d.invoice_id:d.payment_id?"receipt:"+d.payment_id:d.document_type==="statement_pdf"&&d.client_id?"statement:"+d.client_id:d.document_type+":"+d.id;
   const currentDocuments=[...documents].sort((a,b)=>Number(b.version_number||0)-Number(a.version_number||0)||String(b.created_at||"").localeCompare(String(a.created_at||""))).filter((doc,index,rows)=>rows.findIndex(other=>seriesKey(other)===seriesKey(doc))===index);
   const clients=[...new Map(currentDocuments.filter(d=>d.client_id).map(d=>[d.client_id,d.clients?.name||"Client"])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  const projects=[...new Map(currentDocuments.filter(d=>d.project_id).map(d=>[d.project_id,d.projects?.name||"Project"])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
   const statuses=[...new Set(currentDocuments.map(d=>String(d.status||"unknown")))].sort();
   const docs=currentDocuments.filter(d=>{
     const typeMatch=kind==="all"||d.document_type===kind;
     const statusMatch=statusFilter==="all"||d.status===statusFilter;
     const clientMatch=clientFilter==="all"||d.client_id===clientFilter;
-    const text=[d.file_name,d.description,d.clients?.name,d.invoices?.invoice_number,d.template_key,d.document_type].join(" ").toLowerCase();
-    return typeMatch&&statusMatch&&clientMatch&&text.includes(query.toLowerCase());
+    const projectMatch=projectFilter==="all"||d.project_id===projectFilter;
+    const text=[d.file_name,d.description,d.clients?.name,d.projects?.name,d.invoices?.invoice_number,d.template_key,d.document_type].join(" ").toLowerCase();
+    return typeMatch&&statusMatch&&clientMatch&&projectMatch&&text.includes(query.toLowerCase());
   });
   const pendingGeneratable=currentDocuments.filter(d=>!d.file_path&&generationUrl(d)).length;
-  const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
-  const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
+  const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements",uploaded_file:"Files"} as const;
+  const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):d.document_type==="receipt_pdf"?(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt"):(d.file_name||"Uploaded file");
   return <div className="operations-page documents-page">
-    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, immutable source snapshots and generated file versions.</p></div><div className="operations-head-actions">{pendingGeneratable>0&&<button type="button" className="secondary" onClick={()=>void generatePending()} disabled={generationBusy}><RefreshCw size={14}/>{generationBusy?"Generating…":`Generate pending (${pendingGeneratable})`}</button>}</div></section>
+    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, uploaded client/project files and immutable version history.</p></div><div className="operations-head-actions">{pendingGeneratable>0&&<button type="button" className="secondary" onClick={()=>void generatePending()} disabled={generationBusy}><RefreshCw size={14}/>{generationBusy?"Generating…":`Generate pending (${pendingGeneratable})`}</button>}<button type="button" className="primary" onClick={()=>{if(!organizationId||isAllOrganizationsScope(organizationId)){setGenerationMessage("Select a specific organisation before uploading a document.");return}resetUpload();setUploadOpen(true)}}><Upload size={14}/>Upload file</button></div></section>
     <SegmentedTabs
   value={kind}
   onChange={setKind}
@@ -1379,21 +1464,23 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
  />
     <section className="data-panel">
       <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+currentDocuments.length+" current document"+(currentDocuments.length===1?"":"s")}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
-      <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
+      <div className="document-filter-row"><select value={clientFilter} onChange={e=>{setClientFilter(e.target.value);if(e.target.value==="all")setProjectFilter("all")}} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={projectFilter} onChange={e=>setProjectFilter(e.target.value)} aria-label="Document project"><option value="all">All projects</option>{projects.filter(([id])=>clientFilter==="all"||currentDocuments.some(d=>d.project_id===id&&d.client_id===clientFilter)).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||projectFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setProjectFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
       {shareMessage&&<div className="auth-message" role="alert">{shareMessage}</div>}
       {generationMessage&&<div className={generationMessage.includes("generated and stored")||generationMessage.startsWith("Generated and stored")?"auth-success":"auth-message"} role="status">{generationMessage}</div>}
       {docs.length?<div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
-        <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
-        <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>
+        <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="receipt_pdf"?<WalletCards size={15}/>:<FileText size={15}/>}</div>
+        <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Workspace"}{d.projects?.name?" · "+d.projects.name:""} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
         <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button>{d.file_path?<><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/><button type="button" className="secondary mini-action document-device-share" onClick={()=>void shareFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf",label(d))}><Share2 size={12}/>Share</button></>:generationUrl(d)?<button type="button" className="secondary mini-action" onClick={()=>void generateOne(d)} disabled={generationBusy}><RefreshCw size={12}/>{generationBusy?"Working…":"Generate"}</button>:<DownloadButton label="Download" disabled/>}</div>
       </div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No documents match.</b><span>Change the document type, client, status or search.</span></div>}
     </section>
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">
       <div className="document-history-body">
-        <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Portal</span><strong>{selected.client_id?(selected.visible_to_client?"Shared":"Private"):"Not linked"}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
+        <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Portal</span><strong>{selected.client_id?(selected.visible_to_client?"Shared":"Private"):"Not linked"}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>{selected.document_type==="uploaded_file"&&<div className="document-history-actions"><button type="button" className="secondary" onClick={()=>{setVersionFile(null);setVersionTarget(selected)}}><Upload size={14}/>Upload new version</button></div>}
         <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);await downloadFile(url,v.file_name||"document.pdf")}}/></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
       </div>
     </ManagedDialog>}
+    {uploadOpen&&<ManagedDialog open onClose={()=>!uploading&&setUploadOpen(false)} title="Upload document" description="Store a client or project file with checksum and version history. New files are private unless you explicitly share them."><div className="composer-body"><div className="form-grid"><label className="full-span">File<input type="file" onChange={e=>setUploadFile(e.target.files?.[0]||null)}/></label><label>Client<select value={uploadForm.client_id} onChange={e=>{const client_id=e.target.value;setUploadForm(v=>({...v,client_id,project_id:v.project_id&&documentProjects.some(p=>p.id===v.project_id&&p.client_id===client_id)?v.project_id:"",visible_to_client:client_id?v.visible_to_client:false}))}}><option value="">Workspace only</option>{documentClients.map(client=><option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Project<select value={uploadForm.project_id} disabled={!uploadForm.client_id} onChange={e=>setUploadForm(v=>({...v,project_id:e.target.value}))}><option value="">No project</option>{documentProjects.filter(project=>project.client_id===uploadForm.client_id).map(project=><option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="full-span">Description<input value={uploadForm.description} onChange={e=>setUploadForm(v=>({...v,description:e.target.value}))} placeholder="Contract, brief, tax document, source file…"/></label><label className="full-span document-share-toggle"><span>Share in client portal</span><input type="checkbox" checked={uploadForm.visible_to_client} disabled={!uploadForm.client_id} onChange={e=>setUploadForm(v=>({...v,visible_to_client:e.target.checked}))}/></label></div>{generationMessage&&<div className="auth-message" role="status">{generationMessage}</div>}<div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setUploadOpen(false)} disabled={uploading}>Cancel</button><button type="button" className="primary" onClick={()=>void uploadDocument()} disabled={uploading||!uploadFile}>{uploading?"Uploading…":"Upload document"}</button></div></div></ManagedDialog>}
+    {versionTarget&&<ManagedDialog open onClose={()=>!uploading&&setVersionTarget(null)} title={"New version · "+label(versionTarget)} description={"Store a replacement while preserving versions 1–"+String(versionTarget.version_number)+". Client visibility and associations remain unchanged."}><div className="composer-body"><label>Replacement file<input type="file" onChange={e=>setVersionFile(e.target.files?.[0]||null)}/></label>{generationMessage&&<div className="auth-message" role="status">{generationMessage}</div>}<div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setVersionTarget(null)} disabled={uploading}>Cancel</button><button type="button" className="primary" onClick={()=>void uploadDocumentVersion()} disabled={uploading||!versionFile}>{uploading?"Uploading…":"Store new version"}</button></div></div></ManagedDialog>}
   </div>;
 }

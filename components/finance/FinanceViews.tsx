@@ -1006,9 +1006,12 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [selected,setSelected]=useState<any|null>(null);
   const [versions,setVersions]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
+  const [query,setQuery]=useState("");
+  const [statusFilter,setStatusFilter]=useState("all");
+  const [clientFilter,setClientFilter]=useState("all");
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents").select("id,document_type,file_name,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
+    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
     if(organizationId)query=query.eq("organization_id",organizationId);
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
@@ -1024,7 +1027,15 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     if(error||!data?.signedUrl)throw new Error(error?.message||"Could not prepare this document version.");
     return data.signedUrl;
   }
-  const docs=documents.filter(d=>kind==="all"||d.document_type===kind);
+  const clients=[...new Map(documents.filter(d=>d.client_id).map(d=>[d.client_id,d.clients?.name||"Client"])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  const statuses=[...new Set(documents.map(d=>String(d.status||"unknown")))].sort();
+  const docs=documents.filter(d=>{
+    const typeMatch=kind==="all"||d.document_type===kind;
+    const statusMatch=statusFilter==="all"||d.status===statusFilter;
+    const clientMatch=clientFilter==="all"||d.client_id===clientFilter;
+    const text=[d.file_name,d.description,d.clients?.name,d.invoices?.invoice_number,d.template_key,d.document_type].join(" ").toLowerCase();
+    return typeMatch&&statusMatch&&clientMatch&&text.includes(query.toLowerCase());
+  });
   const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
   const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
@@ -1036,13 +1047,14 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   items={(Object.keys(labels) as (keyof typeof labels)[]).map(k => ({ value: k, label: labels[k] }))}
  />
     <section className="data-panel">
-      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" registered"}</p></div></div>
-      {docs.length?<div className="document-register">{docs.map(d=><button className="document-row document-row-button" key={d.id} onClick={()=>void openHistory(d)}>
+      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+documents.length+" registered"}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
+      <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
+      {docs.length?<div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
-        <div><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}</span></div>
+        <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}</span></button>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <span className="secondary document-download">History</span>
-      </button>)}</div>:<div className="empty-state"><FileText size={18}/><b>No registered documents in this scope.</b><span>Issued invoices, recorded payments, and generated statements create canonical document records.</span></div>}
+        <div className="document-row-actions"><button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>
+      </div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No documents match.</b><span>Change the document type, client, status or search.</span></div>}
     </section>
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">
       <div className="document-history-body">

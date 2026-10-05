@@ -152,7 +152,7 @@ export function FinanceShell({
 
       <div className="sidebar-bottom">
         <button type="button" className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>
-        <div className="profile"><div className="avatar">{String(session.user?.email||"M").slice(0,1).toUpperCase()}</div><div><b>Account</b><small>{session.user?.email||"Authenticated"}</small></div></div>
+        <div className="profile"><div className="avatar">{String(session.user?.email||"A").slice(0,1).toUpperCase()}</div><div><b>Account</b><small>{session.user?.email||"Authenticated"}</small></div></div>
       </div>
     </aside>
 

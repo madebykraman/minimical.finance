@@ -1283,7 +1283,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [versionFile,setVersionFile]=useState<File|null>(null);
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,project_id,visible_to_client,template_key,source_hash,checksum_sha256,storage_bucket,mime_type,clients(name),projects(name),invoices(invoice_number)").order("created_at",{ascending:false});
+    let query=supabase.from("documents").select("id,organization_id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,project_id,visible_to_client,template_key,source_hash,checksum_sha256,storage_bucket,mime_type,clients(name),projects(name),invoices(invoice_number)").order("created_at",{ascending:false});
     if(organizationId&&!isAllOrganizationsScope(organizationId))query=query.eq("organization_id",organizationId);
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
@@ -1311,11 +1311,11 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     const {error}=await supabase.rpc("register_uploaded_document",{
       p_document_id:documentId,
       p_organization_id:organizationId,
-      p_client_id:uploadForm.client_id||undefined,
-      p_project_id:uploadForm.project_id||undefined,
+      p_client_id:uploadForm.client_id||null,
+      p_project_id:uploadForm.project_id||null,
       p_file_path:path,
       p_file_name:uploadFile.name,
-      p_description:uploadForm.description||undefined,
+      p_description:uploadForm.description||null,
       p_mime_type:uploadFile.type||"application/octet-stream",
       p_size_bytes:uploadFile.size,
       p_checksum_sha256:checksum,

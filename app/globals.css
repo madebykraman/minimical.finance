@@ -2222,3 +2222,12 @@ button{-webkit-tap-highlight-color:transparent}
   .invoice-drawer-actions{grid-template-columns:1fr 1fr!important}
   .invoice-drawer-actions .invoice-payment-action{grid-column:1/-1!important}
 }
+
+.overview-context-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:14px}
+.overview-activity-row{width:100%;min-height:50px;padding:7px 13px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:9px;align-items:center;text-align:left}
+.overview-activity-row:hover{background:#15151a}.overview-activity-row .activity-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}.overview-activity-row div{min-width:0}.overview-activity-row b{display:block;font-size:10px;text-transform:capitalize}.overview-activity-row small{display:block;margin-top:2px;color:var(--text-tertiary);font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.overview-activity-row time{color:var(--text-tertiary);font:500 8px var(--font-data)}
+.overview-relationship-columns{display:grid;grid-template-columns:1fr 1fr}.overview-relationship-columns>div+div{border-left:1px solid var(--line)}
+.overview-relationship-head{width:100%;min-height:39px;padding:0 11px;border:0;border-bottom:1px solid var(--line);background:#0e0e10;color:var(--text-secondary);display:flex;align-items:center;gap:6px;font-size:9px;text-align:left}.overview-relationship-head svg:last-child{margin-left:auto}
+.overview-relationship-row{width:100%;min-height:48px;padding:7px 11px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left}.overview-relationship-row:hover{background:#15151a}.overview-relationship-row span{min-width:0}.overview-relationship-row b{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.overview-relationship-row small{display:block;margin-top:2px;color:var(--text-tertiary);font-size:8px}.overview-relationship-row strong{font:600 9px var(--font-data);white-space:nowrap}
+@media(max-width:900px){.overview-context-grid{grid-template-columns:1fr}}
+@media(max-width:720px){.overview-context-grid{grid-template-columns:1fr;gap:10px}.overview-relationships-panel{display:none}.overview-activity-row{min-height:52px}}

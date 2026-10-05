@@ -598,7 +598,7 @@ export function ReportsView({invoices}:{invoices:Invoice[]}) {
   </div>;
 }
 export function ProjectsView({invoices,organizationId,onOpen,onNew}:{invoices:Invoice[];organizationId:string|null;onOpen:(i:Invoice)=>void;onNew:()=>void}) {
-  const [projects,setProjects]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[projectQuery,setProjectQuery]=useState("");
+  const [projects,setProjects]=useState<any[]>([]),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[projectQuery,setProjectQuery]=useState(""),[selectedProjectId,setSelectedProjectId]=useState<string|null>(null);
   async function load(){setLoading(true);if(!organizationId){setProjects([]);setLoading(false);return}let query=supabase.from("projects").select("*, clients(name), organizations(name)").order("name");if(organizationId!==ALL_ORGANIZATIONS_ID)query=query.eq("organization_id",organizationId);const {data}=await query;setProjects(data||[]);setLoading(false)}
   useEffect(()=>{void load();const h=()=>setCreating(true);window.addEventListener("finance:new-project",h);return()=>window.removeEventListener("finance:new-project",h)},[organizationId]);
   const fallback=new Map<string,{name:string;client:string;invoices:Invoice[];billed:number;paid:number}>();invoices.forEach(i=>{const key=(i.projectId||i.project)+"::"+(i.clientId||i.client);const x=fallback.get(key)||{name:i.project,client:i.client,invoices:[],billed:0,paid:0};x.invoices.push(i);x.billed+=invoiceTotal(i);x.paid+=paidTotal(i);fallback.set(key,x)});
@@ -607,19 +607,89 @@ export function ProjectsView({invoices,organizationId,onOpen,onNew}:{invoices:In
   const visibleDerived=derived.filter(p=>[p.name,p.client].join(" ").toLowerCase().includes(projectQuery.toLowerCase()));
   const revenue=projects.reduce((s,p)=>s+invoices.filter(i=>i.projectId===p.id).reduce((a,i)=>a+invoiceTotal(i),0),0)+derived.reduce((s,p)=>s+p.billed,0);
   const cost=projects.reduce((s,p)=>s+Number(p.actual_cost||0),0);
+  const selectedProject=selectedProjectId?projects.find(p=>p.id===selectedProjectId):null;
+  if(selectedProject)return <ProjectWorkspace project={selectedProject} invoices={invoices} onBack={()=>setSelectedProjectId(null)} onOpenInvoice={onOpen} onSaved={load}/>;
   return <div className="operations-page">
     <section className="operations-intro compact-page-head"><div><span className="eyebrow">Production</span><h2>Projects</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{projects.length+derived.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New project</button></div></section>
     <section className="register-summary"><div><span>ACTIVE</span><b>{projects.filter(p=>p.status==="active").length+derived.length}</b></div><div><span>REVENUE</span><b>{money(revenue)}</b></div><div><span>RECORDED COST</span><b>{money(cost)}</b></div></section>
-    <section className="data-panel"><div className="data-panel-head"><div><h2>Register</h2><span>{visibleProjects.length+visibleDerived.length} shown</span></div><div className="search compact-search"><Search size={14}/><input value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} placeholder="Search projects" aria-label="Search projects"/></div></div>{loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:visibleProjects.length||visibleDerived.length?<div className="client-grid">{visibleProjects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load}/>)}
+    <section className="data-panel"><div className="data-panel-head"><div><h2>Register</h2><span>{visibleProjects.length+visibleDerived.length} shown</span></div><div className="search compact-search"><Search size={14}/><input value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} placeholder="Search projects" aria-label="Search projects"/></div></div>{loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading projects…</div>:visibleProjects.length||visibleDerived.length?<div className="client-grid">{visibleProjects.map(p=><ProjectCard key={p.id} p={p} invoices={invoices} onOpen={onOpen} onSaved={load} onDetail={()=>setSelectedProjectId(p.id)}/>)}
 {visibleDerived.map(p=><ProjectCard key={p.name+"::"+p.client} p={{name:p.name,clients:{name:p.client},budget_cost:0,actual_cost:0,status:"active"}} invoices={p.invoices} onOpen={onOpen}/>)}</div>:<div className="empty-state"><FolderKanban size={18}/><b>{projectQuery?"No projects match.":"No projects yet."}</b><span>{projectQuery?"Change the search.":"Create a project for this organisation."}</span></div>}</section>
     {creating&&<ProjectCreateModal organizationId={organizationId} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);void load()}}/>}
   </div>;
 }
-export function ProjectCard({p,invoices,onOpen,onSaved}:{p:any;invoices:Invoice[];onOpen:(i:Invoice)=>void;onSaved?:()=>void}) {
+export function ProjectWorkspace({project,invoices,onBack,onOpenInvoice,onSaved}:{project:any;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void}) {
+  const [tab,setTab]=useState<"overview"|"invoices"|"payments"|"documents"|"activity">("overview");
+  const [activity,setActivity]=useState<any[]>([]);
+  const [documents,setDocuments]=useState<any[]>([]);
+  const [editing,setEditing]=useState(false);
+  const rows=invoices.filter(i=>i.projectId===project.id);
+  const payments=rows.flatMap(i=>i.payments.map(payment=>({...payment,invoice:i}))).sort((a,b)=>String(b.payment_date||"").localeCompare(String(a.payment_date||"")));
+  const billed=rows.reduce((sum,i)=>sum+invoiceTotal(i),0);
+  const collected=rows.reduce((sum,i)=>sum+paidTotal(i),0);
+  const outstanding=rows.reduce((sum,i)=>sum+invoiceBalance(i),0);
+  const actualCost=Number(project.actual_cost||0);
+  const budgetCost=Number(project.budget_cost||0);
+  const profit=billed-actualCost;
+
+  useEffect(()=>{
+    let cancelled=false;
+    const invoiceIds=rows.map(i=>i.id);
+    const activityQuery=supabase.from("project_activity").select("*").eq("project_id",project.id).order("created_at",{ascending:false}).limit(50);
+    const documentQuery=invoiceIds.length
+      ? supabase.from("documents").select("id,file_name,file_path,document_type,status,created_at,invoice_id").in("invoice_id",invoiceIds).order("created_at",{ascending:false})
+      : Promise.resolve({data:[] as any[],error:null});
+    Promise.all([activityQuery,documentQuery]).then(([a,d]:any)=>{
+      if(cancelled)return;
+      setActivity(a.data||[]);
+      setDocuments(d.data||[]);
+    });
+    return()=>{cancelled=true};
+  },[project.id,rows.map(i=>i.id).join("|")]);
+
+  return <div className="project-workspace">
+    <header className="project-workspace-head">
+      <button type="button" className="back-link" onClick={onBack}>← Projects</button>
+      <div className="project-workspace-title"><span className="client-avatar"><FolderKanban size={16}/></span><div><span className="eyebrow">Project workspace</span><h2>{project.name}</h2><p>{project.clients?.name||"Unassigned client"} · {project.status||"active"}</p></div></div>
+      <button type="button" className="secondary" onClick={()=>setEditing(true)}>Edit project</button>
+    </header>
+
+    <section className="register-summary project-summary">
+      <div><span>BILLED</span><b>{money(billed)}</b></div>
+      <div><span>COLLECTED</span><b>{money(collected)}</b></div>
+      <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
+      <div><span>PROFIT</span><b>{money(profit)}</b></div>
+    </section>
+
+    <div className="client-tabs project-tabs">{(["overview","invoices","payments","documents","activity"] as const).map(key=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}>{key[0].toUpperCase()+key.slice(1)}</button>)}</div>
+
+    {tab==="overview"&&<div className="overview-grid project-overview-grid">
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Project</h2><span>{project.project_type||"General"}</span></div></div><div className="client-detail-list">
+        <div className="client-detail-row"><span>Status</span><strong>{project.status||"active"}</strong></div>
+        <div className="client-detail-row"><span>Budget cost</span><strong>{money(budgetCost)}</strong></div>
+        <div className="client-detail-row"><span>Actual cost</span><strong>{money(actualCost)}</strong></div>
+        <div className="client-detail-row"><span>Start</span><strong>{project.start_date?dateLabel(project.start_date):"—"}</strong></div>
+        <div className="client-detail-row"><span>End</span><strong>{project.end_date?dateLabel(project.end_date):"—"}</strong></div>
+      </div>{project.description&&<div className="project-description">{project.description}</div>}</section>
+      <section className="data-panel"><div className="data-panel-head"><div><h2>Recent invoices</h2><span>{rows.length} linked</span></div></div>{rows.slice(0,6).map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{dateLabel(i.date)}</small></span><StatusPill status={i.status as FinanceStatus}/><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!rows.length&&<div className="empty-state"><FileText size={18}/><b>No invoices linked.</b></div>}</section>
+    </div>}
+
+    {tab==="invoices"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Invoices</h2><span>{rows.length} records</span></div></div>{rows.map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.client}</strong><small>{dateLabel(i.date)}</small></span><StatusPill status={i.status as FinanceStatus}/><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!rows.length&&<div className="empty-state"><FileText size={18}/><b>No invoices linked.</b></div>}</section>}
+
+    {tab==="payments"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Payments</h2><span>{payments.length} received</span></div></div>{payments.length?<div className="payment-ledger-list">{payments.map(row=><div className="payment-ledger-row" key={row.id}><div className="payment-ledger-main"><b>#{row.invoice.number} · {row.invoice.client}</b><span>{row.payment_date?dateLabel(row.payment_date):"Date unknown"} · {row.method.replaceAll("_"," ")}</span></div><strong>{money(row.amount)}</strong><a className="text-action payment-receipt-action" href={"/api/payments/"+row.id+"/receipt"}>Receipt</a></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments recorded.</b></div>}</section>}
+
+    {tab==="documents"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Documents</h2><span>{documents.length} generated</span></div></div>{documents.length?<div className="client-detail-list">{documents.map(d=><div className="client-detail-row" key={d.id}><span>{d.file_name||d.document_type}</span><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No generated documents.</b><span>Invoice and receipt documents appear here when generated.</span></div>}</section>}
+
+    {tab==="activity"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Activity</h2><span>{activity.length} events</span></div></div>{activity.length?<div className="activity-list project-activity-list">{activity.map(event=><div className="activity-item" key={event.id}><span className="activity-dot"/><div><b>{String(event.action||"activity").replaceAll("_"," ")}</b><small>{new Date(event.created_at).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</small></div></div>)}</div>:<div className="empty-state"><RefreshCw size={18}/><b>No project activity yet.</b></div>}</section>}
+
+    {editing&&<ProjectEditModal project={project} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved()}}/>}
+  </div>;
+}
+
+export function ProjectCard({p,invoices,onOpen,onSaved,onDetail}:{p:any;invoices:Invoice[];onOpen:(i:Invoice)=>void;onSaved?:()=>void;onDetail?:()=>void}) {
  const [editing,setEditing]=useState(false);const [archiveConfirm,setArchiveConfirm]=useState(false);const [archiving,setArchiving]=useState(false);const [archiveError,setArchiveError]=useState("");
  const rows=invoices.filter(i=>(p.id&&i.projectId===p.id)||(!p.id&&i.project===p.name&&i.client===(p.clients?.name||"")));const billed=rows.reduce((s,i)=>s+invoiceTotal(i),0),paid=rows.reduce((s,i)=>s+paidTotal(i),0);
  async function archive(){if(!p.id)return;setArchiving(true);setArchiveError("");const {error}=await supabase.from("projects").update({status:"archived",updated_at:new Date().toISOString()}).eq("id",p.id);setArchiving(false);if(error)setArchiveError(error.message);else{setArchiveConfirm(false);onSaved?.()}}
- return <><article className="client-card project-card"><div className="client-avatar"><FolderKanban size={16}/></div><div><h3>{p.name}</h3><p>{p.clients?.name||"Unassigned client"} · {p.status||"active"}</p></div><strong>{money(billed)}</strong><small>{money(paid)} collected · {money(Math.max(billed-paid,0))} outstanding</small><div className="project-actions">{p.id&&<><button type="button" className="secondary mini-action" onClick={()=>setEditing(true)}>Edit</button><button type="button" className="secondary mini-action danger-button" onClick={()=>setArchiveConfirm(true)}>Archive</button></>}</div>{archiveError&&<div className="auth-message" role="alert">{archiveError}</div>}</article>{editing&&<ProjectEditModal project={p} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved?.()}}/>}{archiveConfirm&&<ManagedDialog open onClose={()=>!archiving&&setArchiveConfirm(false)} title="Archive project" description={`Archive “${p.name}”? Existing invoices and payment history will remain intact.`}><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setArchiveConfirm(false)} disabled={archiving}>Cancel</button><button type="button" className="primary danger-button" onClick={()=>void archive()} disabled={archiving}>{archiving?<><InlineLoader label="Archiving" />Archiving…</>:"Archive project"}</button></div></div></ManagedDialog>}</>;
+ return <><article className="client-card project-card"><div className="client-avatar"><FolderKanban size={16}/></div><div><h3>{p.name}</h3><p>{p.clients?.name||"Unassigned client"} · {p.status||"active"}</p></div><strong>{money(billed)}</strong><small>{money(paid)} collected · {money(Math.max(billed-paid,0))} outstanding</small><div className="project-actions">{p.id&&<>{onDetail&&<button type="button" className="secondary mini-action" onClick={onDetail}>Open</button>}<button type="button" className="secondary mini-action" onClick={()=>setEditing(true)}>Edit</button><button type="button" className="secondary mini-action danger-button" onClick={()=>setArchiveConfirm(true)}>Archive</button></>}</div>{archiveError&&<div className="auth-message" role="alert">{archiveError}</div>}</article>{editing&&<ProjectEditModal project={p} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved?.()}}/>}{archiveConfirm&&<ManagedDialog open onClose={()=>!archiving&&setArchiveConfirm(false)} title="Archive project" description={`Archive “${p.name}”? Existing invoices and payment history will remain intact.`}><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setArchiveConfirm(false)} disabled={archiving}>Cancel</button><button type="button" className="primary danger-button" onClick={()=>void archive()} disabled={archiving}>{archiving?<><InlineLoader label="Archiving" />Archiving…</>:"Archive project"}</button></div></div></ManagedDialog>}</>;
 }
 export function ProjectEditModal({project,onClose,onSaved}:{project:any;onClose:()=>void;onSaved:()=>void}){
  const [form,setForm]=useState<any>({name:project.name||"",status:project.status||"active",description:project.description||"",budget_cost:String(project.budget_cost||0),actual_cost:String(project.actual_cost||0)});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");

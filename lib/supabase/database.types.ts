@@ -1310,6 +1310,33 @@ export type Database = {
         }
         Returns: string
       }
+      register_uploaded_document: {
+        Args: {
+          p_checksum_sha256: string
+          p_client_id: string
+          p_description: string
+          p_document_id: string
+          p_file_name: string
+          p_file_path: string
+          p_mime_type: string
+          p_organization_id: string
+          p_project_id: string
+          p_size_bytes: number
+          p_visible_to_client?: boolean
+        }
+        Returns: string
+      }
+      register_uploaded_document_version: {
+        Args: {
+          p_checksum_sha256: string
+          p_document_id: string
+          p_file_name: string
+          p_file_path: string
+          p_mime_type: string
+          p_size_bytes: number
+        }
+        Returns: number
+      }
       revoke_client_portal_access: {
         Args: { p_client_id: string }
         Returns: boolean

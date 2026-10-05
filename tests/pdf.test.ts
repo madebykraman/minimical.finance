@@ -106,3 +106,15 @@ test("receipt renderer includes remaining balance and payee identity",()=>{
  assert.match(s,/account_number/);
  assert.match(s,/ifsc_code/);
 });
+
+
+test("statement routes persist canonical document versions",()=>{
+ for(const path of ["app/api/clients/[id]/statement/route.ts","app/api/client-portal/[slug]/statement/route.ts"]){
+  const s=readFileSync(path,"utf8");
+  assert.match(s,/document_versions/);
+  assert.match(s,/statement_pdf/);
+  assert.match(s,/sourceHash/);
+  assert.match(s,/finos-documents/);
+  assert.match(s,/storage.*upload/s);
+ }
+});

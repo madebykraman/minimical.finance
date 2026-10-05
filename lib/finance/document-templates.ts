@@ -10,18 +10,18 @@ export type DocumentTemplate = {
 
 export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
   {
-    key: "legacy_elle",
+    key: "clean",
     kind: "invoice",
-    name: "Approved legacy invoice",
-    description: "Canonical invoice geometry with organisation/client identity layered into reserved whitespace.",
+    name: "Canonical refined invoice",
+    description: "Current approved invoice renderer with Geist, metadata rail, constrained identity and deterministic pagination.",
     immutableGeometry: true,
   },
   {
-    key: "clean",
+    key: "legacy_elle",
     kind: "invoice",
-    name: "Workspace Clean",
-    description: "Alternative invoice treatment using the same financial source and line-item rules.",
-    immutableGeometry: false,
+    name: "Archived reference invoice",
+    description: "Previous sparse Elle geometry retained only for historical issued versions.",
+    immutableGeometry: true,
   },
   {
     key: "receipt-v1",

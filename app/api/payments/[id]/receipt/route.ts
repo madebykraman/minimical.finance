@@ -12,7 +12,7 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
 
   const {data:payment,error}=await supabase
     .from("payments")
-    .select("*,invoices(*,clients(*),organizations(*),invoice_contents(*))")
+    .select("*,invoices(*,clients(*),organizations(*),invoice_contents(*),payments(*))")
     .eq("id",id)
     .maybeSingle();
   if(error||!payment)return new NextResponse("Payment not found",{status:404});
@@ -23,12 +23,15 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
   const invoiceTotal=(invoice.invoice_contents||[]).reduce((sum:number,item:any)=>
     sum+(item.priced?Number(item.amount??Number(item.quantity||1)*Number(item.rate||0)):0),0
   );
+  const paidTotal=(invoice.payments||[]).reduce((sum:number,row:any)=>sum+Number(row.amount||0),0);
+  const invoiceBalance=Math.max(invoiceTotal-paidTotal,0);
   const templateKey=getDocumentTemplate("receipt-v1","receipt")?.key||"receipt-v1";
   const bytes=await renderReceiptPdf({
     organization,
     client,
     invoiceNumber:String(invoice.invoice_number||""),
     invoiceTotal,
+    invoiceBalance,
     payment:{
       amount:Number(payment.amount||0),
       payment_date:payment.payment_date,

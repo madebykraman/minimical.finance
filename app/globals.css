@@ -2208,3 +2208,17 @@ button{-webkit-tap-highlight-color:transparent}
   .smart-mapping-panel .data-panel-head{border-bottom:0}
   .smart-mapping-panel:has(.smart-mapping-editor) .smart-mapping-chips{display:grid!important}
 }
+
+.invoice-share-action,.document-device-share{display:inline-flex;align-items:center;gap:5px}
+@media(max-width:720px){
+  .invoice-drawer-actions{grid-template-columns:1fr 1fr 1fr!important}
+  .invoice-drawer-actions .download-button{grid-column:1!important}
+  .invoice-drawer-actions .invoice-share-action{grid-column:2!important;min-height:44px!important;justify-content:center}
+  .invoice-drawer-actions .invoice-payment-action{grid-column:3!important;min-width:0!important;justify-content:center}
+  .invoice-drawer-actions .invoice-save-action{grid-column:1/-1!important}
+  .document-device-share{min-height:38px!important}
+}
+@media(max-width:390px){
+  .invoice-drawer-actions{grid-template-columns:1fr 1fr!important}
+  .invoice-drawer-actions .invoice-payment-action{grid-column:1/-1!important}
+}

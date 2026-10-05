@@ -244,7 +244,7 @@ export async function listDocuments(organizationId?: string | null) {
     .from("documents")
     .select("*, organizations(name), clients(name), invoices(invoice_number)")
     .order("created_at", { ascending: false });
-  if (organizationId) query = query.eq("organization_id", organizationId);
+  if (organizationId && !isAllOrganizationsScope(organizationId)) query = query.eq("organization_id", organizationId);
   return query;
 }
 

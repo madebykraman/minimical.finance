@@ -14,6 +14,7 @@ import { ArrowDownToLine, Check, Loader2 } from "lucide-react";
 type Phase = "idle" | "loading" | "done";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+  downloadUrl?: string;
   label?: string;
   loadingLabel?: string;
   doneLabel?: string;
@@ -26,6 +27,7 @@ export function DownloadButton({
   doneLabel = "Ready",
   resetMs = 1800,
   onClick,
+  downloadUrl,
   disabled,
   ...props
 }: Props) {
@@ -38,8 +40,8 @@ export function DownloadButton({
 
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     if (phase !== "idle" || disabled) return;
-    onClick?.(e);
     setPhase("loading");
+    onClick?.(e);
     timer.current = setTimeout(() => {
       setPhase("done");
       timer.current = setTimeout(() => setPhase("idle"), resetMs);

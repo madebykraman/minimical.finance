@@ -634,6 +634,8 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
   const [client,setClient]=useState<any>(null),[documents,setDocuments]=useState<any[]>([]),[tab,setTab]=useState<"overview"|"invoices"|"payments"|"projects"|"documents"|"statement"|"settings">("overview"),[period,setPeriod]=useState<Period>("all"),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(""),[portalPassword,setPortalPassword]=useState("");
   const [form,setForm]=useState<any>({});
   const [portalCopied,setPortalCopied]=useState(false);
+  const [portalAccessUrl,setPortalAccessUrl]=useState("");
+  const [portalAction,setPortalAction]=useState<""|"link"|"invite">("");
   const [archiveOpen,setArchiveOpen]=useState(false);
   const [archiving,setArchiving]=useState(false);
   async function load(){setLoading(true);const [{data,error},{data:docs}]=await Promise.all([supabase.from("clients").select("id,name,legal_name,email,phone,pan,gstin,address_lines,portal_enabled,portal_slug,portal_message,allow_profile_edit,show_projects,show_documents,logo_path,portal_password_set_at").eq("id",clientId).single(),supabase.from("documents").select("*").eq("client_id",clientId).order("created_at",{ascending:false})]);if(error)setMessage(error.message);setClient(data);setDocuments(docs||[]);setLoading(false)}
@@ -654,7 +656,42 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
     setMessage("Logo uploaded. Save the client to persist the profile.");
   }
   async function archiveClient(){setArchiving(true);setMessage("");const {error}=await supabase.from("clients").update({archived_at:new Date().toISOString(),portal_enabled:false,updated_at:new Date().toISOString()}).eq("id",clientId);setArchiving(false);if(error){setMessage(error.message);setArchiveOpen(false);return}setArchiveOpen(false);onArchived();onSaved()}
-  async function setPassword(){if(portalPassword.length<10){setMessage("Use at least 10 characters.");return}const r=await fetch("/api/client-portal/"+clientId+"/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:portalPassword})});const j=await r.json();if(!r.ok){setMessage(j.error||"Could not set portal password.");return}setPortalPassword("");setClient((p:any)=>({...p,portal_password_set_at:new Date().toISOString(),portal_enabled:true}));setForm((p:any)=>({...p,portal_enabled:true}));setMessage("Protected portal access enabled.")}
+  async function setPassword(){
+    if(portalPassword.length<10){setMessage("Use at least 10 characters.");return}
+    const r=await fetch("/api/client-portal/"+clientId+"/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:portalPassword})});
+    const j=await r.json();
+    if(!r.ok){setMessage(j.error||"Could not set portal password.");return}
+    setPortalPassword("");
+    setPortalAccessUrl("");
+    setClient((p:any)=>({...p,portal_password_set_at:new Date().toISOString(),portal_enabled:true}));
+    setForm((p:any)=>({...p,portal_enabled:true}));
+    setMessage(client.portal_password_set_at?"Password rotated. Previous portal sessions and access links were revoked.":"Protected portal access enabled. Generate a secure access link next.");
+  }
+  async function createPortalLink(){
+    if(portalAction)return;
+    setPortalAction("link");setMessage("");
+    try{
+      const r=await fetch("/api/client-portal/"+clientId+"/token",{method:"POST",credentials:"same-origin"});
+      const j=await r.json();
+      if(!r.ok)throw new Error(j.error||"Could not create a secure portal link.");
+      setPortalAccessUrl(String(j.url||""));
+      setMessage("Fresh secure access link created. Older links were revoked.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Could not create a secure portal link.")}
+    finally{setPortalAction("")}
+  }
+  async function preparePortalInvite(){
+    if(portalAction)return;
+    setPortalAction("invite");setMessage("");
+    try{
+      const r=await fetch("/api/client-portal/"+clientId+"/invite",{method:"POST",credentials:"same-origin"});
+      const j=await r.json();
+      if(!r.ok)throw new Error(j.error||"Could not prepare the invitation.");
+      setPortalAccessUrl(String(j.url||""));
+      if(j.mailto)window.location.href=String(j.mailto);
+      setMessage("Invitation prepared with a fresh secure link. Share the password separately.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Could not prepare the invitation.")}
+    finally{setPortalAction("")}
+  }
   if(loading)return <div className="empty-state">Loading client workspace…</div>;if(!client)return <div className="empty-state">Client not found.</div>;
   const projectNames=[...new Set(rows.map(i=>i.project).filter(Boolean))];
   return <div className="client-portal">
@@ -688,7 +725,7 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
       <div className="settings-row"><div><b>Visible sections</b><p>Projects and documents can be controlled independently.</p></div><label><span>Projects</span><input type="checkbox" checked={form.show_projects!==false} onChange={e=>setForm((p:any)=>({...p,show_projects:e.target.checked}))}/></label><label><span>Documents</span><input type="checkbox" checked={form.show_documents!==false} onChange={e=>setForm((p:any)=>({...p,show_documents:e.target.checked}))}/></label></div>
       {message&&<div className="auth-message">{message}</div>}<div className="client-portal-actions"><button className="primary" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save client"}</button><button className="secondary danger-button" onClick={()=>setArchiveOpen(true)} disabled={saving||archiving}>Archive</button></div>
       </div></section>
-      <section className="settings-section-card"><div className="settings-section-body"><div className="portal-access-head"><div><b>Protected portal</b><p>Enable access only after a password is configured. The link itself contains no secret.</p></div><span className={client.portal_enabled&&client.portal_password_set_at?"status paid":"status"}>{client.portal_enabled&&client.portal_password_set_at?"Protected":"Disabled"}</span></div><label>Portal password<input type="password" value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder="10+ characters" autoComplete="new-password"/></label><button className="primary" onClick={()=>void setPassword()}>{client.portal_password_set_at?"Reset protected password":"Set protected access"}</button>{client.portal_slug&&<div className="portal-link-box"><code>{typeof window!=="undefined"?window.location.origin:""}/portal/{client.portal_slug}</code><button className="secondary" onClick={async()=>{const url=window.location.origin+"/portal/"+client.portal_slug;await navigator.clipboard.writeText(url);setPortalCopied(true);setTimeout(()=>setPortalCopied(false),1600)}}>{portalCopied?"Copied":"Copy link"}</button></div>}</div></section>
+      <section className="settings-section-card"><div className="settings-section-body"><div className="portal-access-head"><div><b>Protected portal</b><p>Password + rotating secure link. Password resets revoke old sessions and links.</p></div><span className={client.portal_enabled&&client.portal_password_set_at?"status paid":"status"}>{client.portal_enabled&&client.portal_password_set_at?"Protected":"Disabled"}</span></div><label>Portal password<input type="password" value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder="10+ characters" autoComplete="new-password"/></label><div className="portal-access-actions"><button className="primary" onClick={()=>void setPassword()} disabled={!!portalAction}>{client.portal_password_set_at?"Rotate password":"Set protected access"}</button><button type="button" className="secondary" disabled={!client.portal_enabled||!client.portal_password_set_at||!!portalAction} onClick={()=>void createPortalLink()}><KeyRound size={14}/>{portalAction==="link"?"Creating…":"Generate secure link"}</button>{client.email&&<button type="button" className="secondary" disabled={!client.portal_enabled||!client.portal_password_set_at||!!portalAction} onClick={()=>void preparePortalInvite()}><Mail size={14}/>{portalAction==="invite"?"Preparing…":"Prepare email invite"}</button>}</div>{portalAccessUrl&&<div className="portal-link-box"><code>{portalAccessUrl}</code><button type="button" className="secondary" onClick={async()=>{await navigator.clipboard.writeText(portalAccessUrl);setPortalCopied(true);setTimeout(()=>setPortalCopied(false),1600)}}>{portalCopied?"Copied":"Copy secure link"}</button></div>}</div></section>
     </section>}
     {archiveOpen&&<ManagedDialog open onClose={()=>!archiving&&setArchiveOpen(false)} title="Archive client" description={`Archive “${client.name}”? Existing invoices, payments and documents remain in the financial record, while client portal access is disabled.`}><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setArchiveOpen(false)} disabled={archiving}>Cancel</button><button type="button" className="primary danger-button" onClick={()=>void archiveClient()} disabled={archiving}>{archiving?<><InlineLoader label="Archiving" />Archiving…</>:"Archive client"}</button></div></div></ManagedDialog>}
   </div>;

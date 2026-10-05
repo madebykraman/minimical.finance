@@ -16,7 +16,7 @@ const iso=(d:Date)=>d.toISOString().slice(0,10);
 const label=(p:string,s:Date)=>p==="month"?"This month":p==="3months"?"Last 3 months":p==="6months"?"Last 6 months":p==="fy"?`FY ${s.getFullYear()}-${String(s.getFullYear()+1).slice(-2)}`:"All time";
 
 export async function GET(request:NextRequest,context:{params:Promise<{slug:string}>}){
-  const {slug}=await context.params;const session=request.cookies.get("portal_session")?.value||"";const period=request.nextUrl.searchParams.get("period")||"all";
+  const {slug}=await context.params;const session=request.cookies.get("portal_session")?.value||"";const period=request.nextUrl.searchParams.get("period")||"all";const status=request.nextUrl.searchParams.get("status")||"all";
   if(!session)return new NextResponse("Unauthorized",{status:401});
   const supabase=createServiceClient();
   const [{data,error},{data:orgData}]=await Promise.all([
@@ -26,20 +26,31 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"statement_downloaded",p_resource_type:"statement"});
   const payload:any=data;const org:any=orgData||{};const [start,end]=bounds(period);const client:any=payload.client||{};
-  const {data:rows,error:ledgerError}=await supabase.rpc("statement_ledger",{p_client_id:client.id,p_start:"2000-01-01",p_end:iso(end)});
-  if(ledgerError)return new NextResponse("Statement unavailable",{status:500});
-  const all=(rows||[]).map((r:any)=>({transaction_date:String(r.transaction_date),transaction_type:String(r.transaction_type),reference:String(r.reference||""),debit:Number(r.debit||0),credit:Number(r.credit||0),running_balance:Number(r.running_balance||0)}));
-  const openingRows=all.filter(r=>r.transaction_date<iso(start));const openingBalance=openingRows.length?openingRows[openingRows.length-1].running_balance:0;
-  const current=all.filter(r=>r.transaction_date>=iso(start)&&r.transaction_date<=iso(end));let running=openingBalance;
-  const ledger=current.map(r=>{running+=r.debit-r.credit;return {...r,running_balance:running}});
-  const periodText=label(period,start);
+  const statusMatch=(invoice:any)=>{
+    if(status==="all")return true;
+    if(status==="paid")return Number(invoice.balance||0)<=0;
+    if(status==="overdue")return !!invoice.is_overdue&&Number(invoice.balance||0)>0;
+    if(status==="partial")return Number(invoice.paid||0)>0&&Number(invoice.balance||0)>0;
+    return Number(invoice.balance||0)>0&&!invoice.is_overdue;
+  };
+  const selectedInvoices=(payload.invoices||[]).filter(statusMatch);
+  const selectedIds=new Set(selectedInvoices.map((invoice:any)=>invoice.id));
+  const transactions=[
+    ...selectedInvoices.map((invoice:any)=>({transaction_date:String(invoice.issue_date),transaction_type:"invoice",reference:"#"+String(invoice.invoice_number||""),debit:Number(invoice.total||0),credit:0})),
+    ...(payload.payments||[]).filter((payment:any)=>selectedIds.has(payment.invoice_id)&&payment.payment_date).map((payment:any)=>({transaction_date:String(payment.payment_date),transaction_type:"payment",reference:String(payment.receipt_number||payment.reference||payment.id||""),debit:0,credit:Number(payment.amount||0)})),
+  ].filter(row=>row.transaction_date<=iso(end)).sort((a,b)=>a.transaction_date.localeCompare(b.transaction_date)||a.transaction_type.localeCompare(b.transaction_type)||a.reference.localeCompare(b.reference));
+  const openingBalance=transactions.filter(row=>row.transaction_date<iso(start)).reduce((sum,row)=>sum+row.debit-row.credit,0);
+  const current=transactions.filter(row=>row.transaction_date>=iso(start)&&row.transaction_date<=iso(end));let running=openingBalance;
+  const ledger=current.map(row=>{running+=row.debit-row.credit;return {...row,running_balance:running}});
+  const statusText=status==="all"?"":status==="open"?"Outstanding":status==="partial"?"Partially paid":status[0].toUpperCase()+status.slice(1);
+  const periodText=label(period,start)+(statusText?" · "+statusText:"");
   const {data:clientMeta}=await supabase.from("clients").select("organization_id").eq("id",client.id).maybeSingle();
   const organizationId=clientMeta?.organization_id||null;
   const identity={
     organization:{name:org.name,legal_name:org.legal_name,email:org.email,phone:org.phone,address_lines:org.address_lines,pan:org.pan,gstin:org.gstin,logo_path:org.logo_path,invoice_footer_line_2:org.invoice_footer_line_2},
     client:{name:client.name,legal_name:client.legal_name,email:client.email,phone:client.phone,address_lines:client.address_lines,pan:client.pan,gstin:client.gstin,logo_path:client.logo_path},
   };
-  const sourceHash=createHash("sha256").update(JSON.stringify({identity,period,periodText,start:iso(start),end:iso(end),openingBalance,ledger})).digest("hex");
+  const sourceHash=createHash("sha256").update(JSON.stringify({identity,period,status,periodText,start:iso(start),end:iso(end),openingBalance,ledger})).digest("hex");
   const filename=String(client.name||"Client").replace(/[^a-z0-9]+/gi,"-")+"-Account-Statement-"+period+".pdf";
   const {data:existing}=await supabase.from("documents").select("*").eq("client_id",client.id).eq("document_type","statement_pdf").maybeSingle();
 
@@ -80,7 +91,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
     document_id:documentId!,version_number:versionNumber,file_path:filePath,file_name:filename,
     storage_bucket:"finos-documents",mime_type:"application/pdf",size_bytes:bytes.length,
     checksum_sha256:checksum,generated_at:generatedAt,generated_by:null,
-    metadata:{source_hash:sourceHash,period,period_label:periodText,period_start:iso(start),period_end:iso(end),source:"client_portal"},
+    metadata:{source_hash:sourceHash,period,status,period_label:periodText,period_start:iso(start),period_end:iso(end),source:"client_portal"},
   },{onConflict:"document_id,version_number"});
 
   return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=\""+filename+"\"","Cache-Control":"private, no-store"}});

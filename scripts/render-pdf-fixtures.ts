@@ -68,7 +68,7 @@ const invoiceClean=await renderInvoicePdf({
 await writeFile(join(out,"invoice-clean.pdf"),invoiceClean);
 
 const receipt=await renderReceiptPdf({
-  organization,client,invoiceNumber:"FIX-220",invoiceTotal:calculatedTotal,
+  organization,client,invoiceNumber:"FIX-220",invoiceTotal:calculatedTotal,invoiceBalance:7250,
   payment:{amount:12500,payment_date:"2026-10-05",method:"bank_transfer",reference:"UTR-FIXTURE-20261005",receipt_number:"RCP-FIX-220"},
 });
 await writeFile(join(out,"receipt.pdf"),receipt);

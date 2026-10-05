@@ -552,6 +552,7 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilt
 }
 export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpenPayment:(i:Invoice)=>void}) {
   const [query,setQuery]=useState("");
+  const [queueFilter,setQueueFilter]=useState<"all"|"overdue"|"due_soon">("all");
   const [method,setMethod]=useState("all");
   const [period,setPeriod]=useState<Period>("all");
   const allRows=invoices.flatMap(i=>i.payments.map(p=>({...p,invoice:i}))).sort((a,b)=>(b.payment_date||"").localeCompare(a.payment_date||""));
@@ -561,7 +562,19 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
   });
   const collected=allRows.reduce((sum,row)=>sum+row.amount,0);
   const outstanding=invoices.reduce((sum,i)=>sum+invoiceBalance(i),0);
-  const openInvoices=invoices.filter(i=>invoiceBalance(i)>0).sort((a,b)=>invoiceBalance(b)-invoiceBalance(a));
+  const today=new Date();
+  const openInvoices=invoices.filter(i=>invoiceBalance(i)>0);
+  const overdueInvoices=openInvoices.filter(i=>daysOverdue(i)>0);
+  const dueSoonInvoices=openInvoices.filter(i=>i.dueDate&&daysOverdue(i)<=0&&(()=>{const due=new Date(i.dueDate+"T00:00:00");const days=Math.ceil((due.getTime()-today.getTime())/86400000);return days>=0&&days<=14})());
+  const queueInvoices=openInvoices
+    .filter(i=>queueFilter==="all"||queueFilter==="overdue"?queueFilter==="all"||daysOverdue(i)>0:dueSoonInvoices.includes(i))
+    .sort((a,b)=>{
+      const aOver=daysOverdue(a)>0?1:0,bOver=daysOverdue(b)>0?1:0;
+      if(aOver!==bOver)return bOver-aOver;
+      const ad=a.dueDate||"9999-12-31",bd=b.dueDate||"9999-12-31";
+      if(ad!==bd)return ad.localeCompare(bd);
+      return invoiceBalance(b)-invoiceBalance(a);
+    });
   return <div className="operations-page payments-page">
     <section className="operations-intro compact-page-head">
       <div><span className="eyebrow">Collections</span><h2>Payments</h2></div>
@@ -571,10 +584,12 @@ export function PaymentsView({invoices,onOpenPayment}:{invoices:Invoice[];onOpen
       <div><span>COLLECTED</span><b>{money(collected)}</b></div>
       <div><span>OUTSTANDING</span><b>{money(outstanding)}</b></div>
       <div><span>OPEN INVOICES</span><b>{openInvoices.length}</b></div>
+      <div><span>OVERDUE</span><b>{overdueInvoices.length}</b></div>
+      <div><span>DUE SOON</span><b>{dueSoonInvoices.length}</b></div>
     </section>
     {openInvoices.length>0&&<section className="data-panel payment-open-queue">
-      <div className="data-panel-head"><div><h2>Open balances</h2><span>Highest outstanding invoices first.</span></div><span className="panel-count">{openInvoices.length}</span></div>
-      <div className="payment-open-list">{openInvoices.slice(0,6).map(invoice=><div className="payment-open-row" key={invoice.id}><div><b>#{invoice.number} · {invoice.client}</b><span>{invoice.project||"No project"}{invoice.dueDate?" · Due "+dateLabel(invoice.dueDate):""}</span></div><strong>{money(invoiceBalance(invoice))}</strong><button type="button" className="secondary mini-action" onClick={()=>onOpenPayment(invoice)}>Record payment</button></div>)}</div>
+      <div className="data-panel-head"><div><h2>Collection queue</h2><span>Overdue first, then nearest due date.</span></div><div className="payment-queue-tabs"><button type="button" className={queueFilter==="all"?"active":""} onClick={()=>setQueueFilter("all")}>All {openInvoices.length}</button><button type="button" className={queueFilter==="overdue"?"active":""} onClick={()=>setQueueFilter("overdue")}>Overdue {overdueInvoices.length}</button><button type="button" className={queueFilter==="due_soon"?"active":""} onClick={()=>setQueueFilter("due_soon")}>Due soon {dueSoonInvoices.length}</button></div></div>
+      <div className="payment-open-list">{queueInvoices.slice(0,8).map(invoice=><div className="payment-open-row" key={invoice.id}><div><b>#{invoice.number} · {invoice.client}</b><span>{invoice.project||"No project"}{invoice.dueDate?" · Due "+dateLabel(invoice.dueDate):""}{daysOverdue(invoice)>0?" · "+daysOverdue(invoice)+"d overdue":dueSoonInvoices.includes(invoice)?" · due soon":""}</span></div><strong>{money(invoiceBalance(invoice))}</strong><button type="button" className="secondary mini-action" onClick={()=>onOpenPayment(invoice)}>Record payment</button></div>)}{!queueInvoices.length&&<div className="empty-state"><ShieldCheck size={18}/><b>No invoices in this queue.</b></div>}</div>
     </section>}
     <section className="data-panel payments-ledger">
       <div className="data-panel-head"><div><h2>Ledger</h2><span>{rows.length} of {allRows.length} recorded payments.</span></div><WalletCards size={16}/></div>
@@ -656,7 +671,7 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
     {tab==="invoices"&&<section className="data-panel"><div className="data-panel-head"><h2>Invoices</h2></div>{rows.map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.project||"Invoice"}</strong><small>{dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}</section>}
     {tab==="payments"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Payments</h2><span>{scopedPayments.length} in {periodLabel(period)}</span></div></div>{scopedPayments.length?<div className="payment-ledger-list">{scopedPayments.map(row=><div className="payment-ledger-row" key={row.id}><div className="payment-ledger-main"><b>#{row.invoice.number} · {row.invoice.project||"Invoice"}</b><span>{row.payment_date?dateLabel(row.payment_date):"Date unknown"} · {row.method.replaceAll("_"," ")}{row.reference?" · "+row.reference:""}</span></div><strong>{money(row.amount)}</strong><DownloadButton className="payment-receipt-action" label="Receipt" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/payments/"+row.id+"/receipt","Receipt-"+row.invoice.number+".pdf")}/></div>)}</div>:<div className="empty-state"><WalletCards size={18}/><b>No payments in this period.</b></div>}</section>}
     {tab==="projects"&&<section className="data-panel"><div className="data-panel-head"><h2>Projects</h2></div>{projectNames.length?projectNames.map(p=><div className="client-detail-row" key={p}><span>{p}</span><strong>{money(rows.filter(i=>i.project===p).reduce((s,i)=>s+invoiceTotal(i),0))}</strong></div>):<div className="empty-state"><FolderKanban size={18}/><b>No projects linked.</b></div>}</section>}
-    {tab==="documents"&&<section className="data-panel"><div className="data-panel-head"><h2>Documents</h2></div>{documents.length?documents.map(d=><div className="client-detail-row" key={d.id}><span>{d.file_name||"Document"}</span><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>):<div className="empty-state"><FileText size={18}/><b>No shared documents.</b><span>Documents appear here when explicitly shared with this client.</span></div>}</section>}{tab==="statement"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Account statement</h2><span>{periodLabel(period)}</span></div><a className="text-action" href={"/api/clients/"+clientId+"/statement?period="+period}>Download</a></div><div className="statement-summary"><div><span>Billed</span><b>{money(billed)}</b></div><div><span>Collected</span><b>{money(paid)}</b></div><div><span>Outstanding</span><b>{money(open)}</b></div></div></section>}
+    {tab==="documents"&&<section className="data-panel"><div className="data-panel-head"><h2>Documents</h2></div>{documents.length?documents.map(d=><div className="client-detail-row" key={d.id}><span>{d.file_name||"Document"}</span><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>):<div className="empty-state"><FileText size={18}/><b>No shared documents.</b><span>Documents appear here when explicitly shared with this client.</span></div>}</section>}{tab==="statement"&&<section className="data-panel"><div className="data-panel-head"><div><h2>Account statement</h2><span>{periodLabel(period)}</span></div><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/clients/"+clientId+"/statement?period="+period,"statement.pdf")}/></div><div className="statement-summary"><div><span>Billed</span><b>{money(billed)}</b></div><div><span>Collected</span><b>{money(paid)}</b></div><div><span>Outstanding</span><b>{money(open)}</b></div></div></section>}
     {tab==="settings"&&<section className="settings-stack">
       <section className="settings-section-card"><div className="settings-section-body">
       <div className="client-logo-upload"><div className="client-logo-frame">{form.logo_path?<img src={form.logo_path} alt="Client logo"/>:<div className="client-logo-placeholder">{String(form.name||client.name||"C").slice(0,1).toUpperCase()}</div>}</div><label className="secondary"><Upload size={14}/>Upload logo<input hidden type="file" accept="image/png,image/jpeg" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadClientLogo(file)}}/></label></div>

@@ -487,13 +487,41 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInv
     </div>
   </div>;
 }
-export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilter,setClientFilter,projectFilter,setProjectFilter,paymentFilter,setPaymentFilter,dateFilter,setDateFilter,sourceInvoices,loading,onOpen,onStatus,onNew,onPayments,onImport}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;clientFilter:string;setClientFilter:(v:string)=>void;projectFilter:string;setProjectFilter:(v:string)=>void;paymentFilter:"all"|"open"|"partial"|"paid"|"overdue";setPaymentFilter:(v:"all"|"open"|"partial"|"paid"|"overdue")=>void;dateFilter:"all"|"month"|"3months"|"6months"|"fy";setDateFilter:(v:"all"|"month"|"3months"|"6months"|"fy")=>void;sourceInvoices:Invoice[];loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void;onPayments:()=>void;onImport:()=>void}) {
+export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilter,setClientFilter,projectFilter,setProjectFilter,paymentFilter,setPaymentFilter,dateFilter,setDateFilter,sourceInvoices,loading,onOpen,onStatus,onNew,onPayments,onImport}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;clientFilter:string;setClientFilter:(v:string)=>void;projectFilter:string;setProjectFilter:(v:string)=>void;paymentFilter:"all"|"open"|"partial"|"paid"|"overdue";setPaymentFilter:(v:"all"|"open"|"partial"|"paid"|"overdue")=>void;dateFilter:"all"|"month"|"3months"|"6months"|"fy";setDateFilter:(v:"all"|"month"|"3months"|"6months"|"fy")=>void;sourceInvoices:Invoice[];loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void|Promise<void>;onNew:()=>void;onPayments:()=>void;onImport:()=>void}) {
+  const [selecting,setSelecting]=useState(false);
+  const [selectedIds,setSelectedIds]=useState<string[]>([]);
+  const [bulkBusy,setBulkBusy]=useState(false);
+  const [bulkMessage,setBulkMessage]=useState("");
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0), overdue=filtered.filter(i=>daysOverdue(i)>0).length;
   const clientOptions=[...new Map(sourceInvoices.filter(i=>i.clientId).map(i=>[i.clientId!,i.client])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
   const projectOptions=[...new Map(sourceInvoices.filter(i=>i.projectId).map(i=>[i.projectId!,i.project])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
   const advancedCount=[clientFilter,projectFilter,paymentFilter,dateFilter].filter(v=>v!=="all").length;
+  const selectedInvoices=filtered.filter(invoice=>selectedIds.includes(invoice.id));
+  const selectedDrafts=selectedInvoices.filter(invoice=>invoice.status==="draft");
+  const selectedIssued=selectedInvoices.filter(invoice=>invoice.status!=="draft"&&invoice.status!=="void");
+  const toggleSelected=(id:string)=>setSelectedIds(ids=>ids.includes(id)?ids.filter(value=>value!==id):[...ids,id]);
+  async function issueSelected(){
+    if(!selectedDrafts.length)return;
+    setBulkBusy(true);setBulkMessage("");
+    for(const invoice of selectedDrafts)await Promise.resolve(onStatus(invoice,"sent"));
+    setBulkBusy(false);setSelectedIds([]);
+    setBulkMessage("Issued "+selectedDrafts.length+" draft invoice"+(selectedDrafts.length===1?"":"s")+" and requested canonical PDF generation.");
+  }
+  async function generateSelected(){
+    if(!selectedIssued.length)return;
+    setBulkBusy(true);setBulkMessage("");let generated=0;const failures:string[]=[];
+    for(const invoice of selectedIssued){
+      try{
+        const response=await fetch("/api/invoices/"+encodeURIComponent(invoice.id)+"/pdf",{cache:"no-store",credentials:"same-origin"});
+        if(!response.ok)throw new Error((await response.text().catch(()=>"")).trim()||"generation failed");
+        await response.arrayBuffer();generated+=1;
+      }catch(error){failures.push("#"+invoice.number+" "+(error instanceof Error?error.message:"generation failed"))}
+    }
+    setBulkBusy(false);
+    setBulkMessage(failures.length?"Generated "+generated+" of "+selectedIssued.length+". "+failures.slice(0,2).join(" · "):"Generated and stored "+generated+" invoice PDF"+(generated===1?"":"s")+".");
+  }
   return <div className="operations-page">
-    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{filtered.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New invoice</button></div></section>
+    <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{filtered.length}</b><span>records</span></div><button type="button" className="secondary invoice-select-toggle" onClick={()=>{setSelecting(value=>!value);setSelectedIds([]);setBulkMessage("")}}>{selecting?"Done":"Select"}</button><button className="primary" onClick={onNew}><Plus size={14}/>New invoice</button></div></section>
     <MobileQuickActions onNewInvoice={onNew} onPayments={onPayments} onImport={onImport} onInvoices={()=>window.scrollTo({top:0,behavior:"smooth"})} />
     <section className="register-summary"><div><span>OPEN</span><b>{money(open)}</b></div><div><span>OVERDUE</span><b>{overdue}</b></div><div><span>VIEW</span><b>{status==="all"?"All":statusLabel(status)}</b></div></section>
     <section className="data-panel operations-register">
@@ -516,7 +544,9 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilt
           {advancedCount>0&&<button type="button" className="text-action invoice-filter-reset" onClick={()=>{setClientFilter("all");setProjectFilter("all");setPaymentFilter("all");setDateFilter("all")}}>Reset filters</button>}
         </div>
       </details>
-      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<><div className="invoice-register-header"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>ISSUED</span><span>DUE / BALANCE</span><span>TOTAL</span><span>STATUS</span></div><div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div></>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search, status or register filters.</span></div>}
+      {selecting&&<div className="invoice-bulk-bar"><span><b>{selectedIds.length}</b> selected</span><button type="button" className="secondary mini-action" disabled={!selectedDrafts.length||bulkBusy} onClick={()=>void issueSelected()}><Check size={13}/>Issue drafts ({selectedDrafts.length})</button><button type="button" className="secondary mini-action" disabled={!selectedIssued.length||bulkBusy} onClick={()=>void generateSelected()}><FileText size={13}/>Generate PDFs ({selectedIssued.length})</button>{selectedIds.length>0&&<button type="button" className="text-action" onClick={()=>setSelectedIds([])}>Clear</button>}</div>}
+      {bulkMessage&&<div className={bulkMessage.startsWith("Generated and stored")||bulkMessage.startsWith("Issued ")?"auth-success":"auth-message"} role="status">{bulkMessage}</div>}
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<><div className="invoice-register-header"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>ISSUED</span><span>DUE / BALANCE</span><span>TOTAL</span><span>STATUS</span></div><div className="invoice-list">{filtered.map(i=><div className={"invoice-bulk-row "+(selectedIds.includes(i.id)?"selected":"")} key={i.id}>{selecting&&<label className="invoice-select-box" onClick={event=>event.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(i.id)} onChange={()=>toggleSelected(i.id)} aria-label={"Select invoice "+i.number}/><span aria-hidden="true"/></label>}<InvoiceCard invoice={i} onOpen={()=>selecting?toggleSelected(i.id):onOpen(i)} onStatus={onStatus}/></div>)}</div></>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search, status or register filters.</span></div>}
     </section>
   </div>;
 }

@@ -1669,3 +1669,17 @@ button{-webkit-tap-highlight-color:transparent}
 .workspace-landing-head h1{margin:4px 0 0;font-size:22px;line-height:1.1;letter-spacing:-.04em}
 .workspace-landing-list .workspace-minimal-row:last-child{border-bottom:0}
 @media(max-width:640px){.workspace-landing-screen{padding:32px 14px}.workspace-landing-head h1{font-size:20px}.workspace-minimal-row{min-height:66px}}
+
+.import-review-dialog{width:min(680px,calc(100vw - 28px))}
+.import-review-body{display:grid;gap:16px}
+.import-review-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.import-review-facts>div{min-height:62px;padding:11px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#101012;display:grid;align-content:center;gap:4px}
+.import-review-facts>div:nth-child(3n){border-right:0}.import-review-facts>div:nth-last-child(-n+3){border-bottom:0}
+.import-review-facts span{font-size:8px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em}.import-review-facts strong{font-size:11px;overflow-wrap:anywhere}
+.import-review-issues{display:grid;gap:6px}.import-review-issues .auth-message,.import-review-issues .integrity{margin:0}
+.import-review-lines{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#101012}.import-review-lines .block-head{padding:12px 13px;border-bottom:1px solid var(--line)}
+.import-review-line{min-height:48px;padding:8px 12px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px}.import-review-line:last-child{border-bottom:0}
+.import-review-line>span{font:600 9px var(--font-data);color:var(--text-tertiary)}.import-review-line b{display:block;font-size:10px}.import-review-line small{display:block;margin-top:2px;color:var(--text-tertiary);font-size:8px}.import-review-line>strong{font:650 10px var(--font-data)}
+.mini-resolution.review{display:inline-flex;align-items:center;gap:5px}
+.import-complete-report{border-color:#285442}
+@media(max-width:640px){.import-review-facts{grid-template-columns:1fr 1fr}.import-review-facts>div{border-right:1px solid var(--line);border-bottom:1px solid var(--line)!important}.import-review-facts>div:nth-child(2n){border-right:0}.import-review-facts>div:nth-last-child(-n+2){border-bottom:0!important}}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Check, ChevronDown, FileSpreadsheet, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, ChevronDown, Eye, FileSpreadsheet, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
 import {
   analyzeImportSource,
   inferImportMapping,
@@ -18,6 +18,7 @@ import { importInvoiceRows } from "@/lib/finance/repository";
 import type { Status } from "@/lib/finance/domain";
 import { ALL_ORGANIZATIONS_ID } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
+import { ManagedDialog } from "@/components/finance/FinanceUI";
 
 type Organization = { id:string; name?:string|null; status?:string|null };
 type ImportRecord = {
@@ -122,6 +123,8 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   const [reviewMapping,setReviewMapping]=useState(false);
   const [showAllRows,setShowAllRows]=useState(false);
   const [inferredClient,setInferredClient]=useState<string>("");
+  const [reviewKey,setReviewKey]=useState<string|null>(null);
+  const [lastReport,setLastReport]=useState<null|{created:number;sourceRows:number;skipped:number;warnings:number;amount:number;organizations:number;clients:number}>(null);
 
   const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
   const selectedRows=source?.rows??[];
@@ -193,6 +196,10 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   const skipped=validation.filter(v=>v.skipped);
   const blocked=validation.filter(v=>!v.skipped&&v.errors.length>0);
   const warningCount=validation.reduce((n,v)=>n+v.warnings.length,0);
+  const reviewRecord=reviewKey?validation.find(v=>v.key===reviewKey)||null:null;
+  const readyAmount=ready.reduce((sum,v)=>sum+Number(v.amount||0),0);
+  const readyOrganizations=new Set(ready.map(v=>v.org?.id).filter(Boolean)).size;
+  const readyClients=new Set(ready.map(v=>v.client).filter(Boolean)).size;
 
   useEffect(()=>{
     if(!invoiceRecords.length||!mapping.invoiceNumber){setDuplicates(new Set());return;}
@@ -227,7 +234,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   }
 
   async function load(file:File){
-    setBusy(true);setMessage("");setResolutions({});setReviewMapping(false);setInferredClient("");
+    setBusy(true);setMessage("");setResolutions({});setReviewMapping(false);setInferredClient("");setReviewKey(null);setLastReport(null);
     try{
       const parsed=await parseSpreadsheet(file);
       const ranked=[...parsed].sort((a,b)=>(b.rows.length*b.confidence)-(a.rows.length*a.confidence));
@@ -245,7 +252,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   }
 
   function switchSheet(next:ImportSource){
-    setSource(next);setResolutions({});setShowAllRows(false);
+    setSource(next);setResolutions({});setShowAllRows(false);setReviewKey(null);setLastReport(null);
     const nextAnalysis=analyzeImportSource(next);let smartMapping={...nextAnalysis.mapping};
     if(!smartMapping.organization&&(activeOrganizationId&&activeOrganizationId!==ALL_ORGANIZATIONS_ID||activeOrgs.length===1))smartMapping.organization="__ACTIVE_ORGANISATION__";
     setAnalysis({...nextAnalysis,mapping:smartMapping});setMapping(smartMapping);setInferredClient("");
@@ -299,6 +306,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
     }
     await supabase.from("import_batch_rows").update({status:"imported"}).eq("batch_id",batch.data.id).eq("status","ready");
     await supabase.from("import_batches").update({status:"completed",imported_rows:result.created,completed_at:new Date().toISOString()}).eq("id",batch.data.id);
+    setLastReport({created:result.created,sourceRows:selectedRows.length,skipped:skipped.length,warnings:warningCount,amount:readyAmount,organizations:readyOrganizations,clients:readyClients});
     setMessage(`Import complete: ${result.created} invoice records created from ${selectedRows.length} source rows.`);
     setBusy(false);await loadHistory();onComplete();
   }
@@ -306,7 +314,7 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
   return <div className="import-page">
     <div className="import-head">
       <div><span className="eyebrow">DATA INTAKE</span><h1>Smart import</h1><p>Drop the source in. The importer analyses its structure, reconstructs document groups, resolves ownership and stops only where a human decision is actually required.</p></div>
-      {source&&<button type="button" className="secondary" onClick={()=>{setSource(null);setSources([]);setAnalysis(null);setMapping({});setMessage("");setResolutions({});setInferredClient("")}}><RefreshCw size={14}/>Start over</button>}
+      {source&&<button type="button" className="secondary" onClick={()=>{setSource(null);setSources([]);setAnalysis(null);setMapping({});setMessage("");setResolutions({});setInferredClient("");setReviewKey(null);setLastReport(null)}}><RefreshCw size={14}/>Start over</button>}
     </div>
 
     {!source?<>
@@ -334,13 +342,29 @@ export function ImportCenter({organizations,activeOrganizationId,onComplete}:{or
           <span className="smart-row-org">{v.org?.name||"Organisation unresolved"}</span>
           <strong className="smart-row-amount">{v.amount==null?"—":v.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong>
           <span className={"smart-row-state "+(v.skipped?"skip":v.errors.length?"error":"ok")}>{v.errors.length?v.errors[0]:v.warnings.length?v.warnings[0]:"Ready"}</span>
-          {((v.duplicate)||(v.kind==="unassigned"))&&!v.skipped&&<div className="smart-row-actions">{v.duplicate&&<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="auto")delete n[v.key];else n[v.key]="auto";return n})}>{resolutions[v.key]==="auto"?"Auto-number selected":"Auto-number"}</button>}<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="skip")delete n[v.key];else n[v.key]="skip";return n})}>{resolutions[v.key]==="skip"?"Skipped":"Skip row"}</button></div>}
+          <div className="smart-row-actions"><button type="button" className="mini-resolution review" onClick={()=>setReviewKey(v.key)}><Eye size={12}/>Review</button>{((v.duplicate)||(v.kind==="unassigned"))&&!v.skipped&&<>{v.duplicate&&<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="auto")delete n[v.key];else n[v.key]="auto";return n})}>{resolutions[v.key]==="auto"?"Auto-number selected":"Auto-number"}</button>}<button type="button" className="mini-resolution" onClick={()=>setResolutions(x=>{const n={...x};if(n[v.key]==="skip")delete n[v.key];else n[v.key]="skip";return n})}>{resolutions[v.key]==="skip"?"Skipped":"Skip row"}</button></>}</div>
         </div>)}</div>
         {validation.length>8&&<button type="button" className="secondary smart-show-all" onClick={()=>setShowAllRows(v=>!v)}>{showAllRows?"Show first 8":"Review all "+validation.length+" groups"}</button>}
       </section>
 
-      <section className="smart-import-footer"><div><span>Import plan</span><strong>{ready.length} invoice records · {selectedRows.length} source rows</strong><small>{blocked.length?blocked.length+" exceptions must be resolved before commit.":warningCount?warningCount+" non-blocking warnings will be preserved in the audit trail.":"No unresolved exceptions."}</small></div><button type="button" className="primary smart-commit" disabled={busy||!ready.length||blocked.length>0} onClick={()=>void commit()}>{busy?"Importing…":<>Import {ready.length} invoices <ArrowRight size={15}/></>}</button></section>
+      <section className="smart-import-footer"><div><span>Commit preview</span><strong>{ready.length} invoices · {readyAmount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong><small>{blocked.length?blocked.length+" exceptions must be resolved before commit.":`${readyClients} client${readyClients===1?"":"s"} · ${readyOrganizations} organisation${readyOrganizations===1?"":"s"} · ${skipped.length} skipped · ${warningCount} warning${warningCount===1?"":"s"}`}</small></div><button type="button" className="primary smart-commit" disabled={busy||!ready.length||blocked.length>0} onClick={()=>void commit()}>{busy?"Importing…":<>Import {ready.length} invoices <ArrowRight size={15}/></>}</button></section>
       {message&&<div className={message.startsWith("Import complete")?"auth-success":"auth-message"}>{message}</div>}
+      {lastReport&&<section className="data-panel import-complete-report"><div className="data-panel-head"><div><span className="eyebrow">Completed</span><h2>Import report</h2></div><Check size={16}/></div><div className="smart-reconciliation-summary"><div><strong>{lastReport.created}</strong><span>Imported</span></div><div><strong>{lastReport.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong><span>Invoice value</span></div><div><strong>{lastReport.clients}</strong><span>Clients</span></div><div><strong>{lastReport.skipped}</strong><span>Skipped</span></div></div></section>}
     </div>}
+    {reviewRecord&&<ManagedDialog open onClose={()=>setReviewKey(null)} title={reviewRecord.kind==="invoice"?`Invoice ${reviewRecord.invoiceNumber||"Auto number"}`:"Unassigned source row"} description={`Source row${reviewRecord.sourceIndexes.length===1?"":"s"} ${reviewRecord.sourceIndexes.map(i=>i+1).join(", ")}`} className="import-review-dialog">
+      <div className="composer-body import-review-body">
+        <div className="import-review-facts">
+          <div><span>Organisation</span><strong>{reviewRecord.org?.name||"Unresolved"}</strong></div>
+          <div><span>Client</span><strong>{reviewRecord.client||"Unresolved"}</strong></div>
+          <div><span>Project</span><strong>{reviewRecord.project||"—"}</strong></div>
+          <div><span>Issue date</span><strong>{reviewRecord.issueDate||"Unresolved"}</strong></div>
+          <div><span>Status</span><strong>{reviewRecord.derivedStatus||"draft"}</strong></div>
+          <div><span>Total</span><strong>{Number(reviewRecord.amount||0).toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong></div>
+        </div>
+        {(reviewRecord.errors.length>0||reviewRecord.warnings.length>0)&&<div className="import-review-issues">{reviewRecord.errors.map((issue:string)=><div className="auth-message" key={"e-"+issue}><AlertTriangle size={13}/>{issue}</div>)}{reviewRecord.warnings.map((issue:string)=><div className="integrity warning" key={"w-"+issue}><AlertTriangle size={13}/><span>{issue}</span></div>)}</div>}
+        <section className="import-review-lines"><div className="block-head"><div><h3>Document group</h3><p>{reviewRecord.items.length} reconstructed line item{reviewRecord.items.length===1?"":"s"}.</p></div></div>{reviewRecord.items.map((item:any)=><div className="import-review-line" key={item.index}><span>{item.index+1}</span><div><b>{item.title}</b>{item.note&&<small>{item.note}</small>}</div><strong>{item.amount==null?"TBD":item.amount.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong></div>)}</section>
+        <div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setReviewKey(null)}>Done</button></div>
+      </div>
+    </ManagedDialog>}
   </div>;
 }

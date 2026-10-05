@@ -13,6 +13,9 @@ export type FinanceView =
 export const ALL_ORGANIZATIONS_ID = "__all__" as const;
 export type OrganizationScope = string | typeof ALL_ORGANIZATIONS_ID;
 
+export const isAllOrganizationsScope = (value?: string | null) =>
+  value === ALL_ORGANIZATIONS_ID;
+
 export const financeViewLabel: Record<FinanceView, string> = {
   overview: "Overview",
   invoices: "Invoices",

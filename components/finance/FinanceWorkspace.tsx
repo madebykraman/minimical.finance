@@ -323,6 +323,24 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     }
   };
 
+  const openClientComposer = () => {
+    if (!organizationId || allOrganizations) {
+      setActionError("Select a specific organisation before adding a client.");
+      return;
+    }
+    navigateTo("clients");
+    requestAnimationFrame(() => window.dispatchEvent(new Event("finance:new-client")));
+  };
+
+  const openProjectComposer = () => {
+    if (!organizationId || allOrganizations) {
+      setActionError("Select a specific organisation before adding a project.");
+      return;
+    }
+    navigateTo("projects");
+    requestAnimationFrame(() => window.dispatchEvent(new Event("finance:new-project")));
+  };
+
   const selectOrganization = (id: string | null) => {
     if (!id) return;
     const workspace = id;
@@ -389,6 +407,8 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             onClose={() => setCommandOpen(false)}
             onNavigate={navigateTo}
             onNewInvoice={openInvoiceComposer}
+            onNewClient={openClientComposer}
+            onNewProject={openProjectComposer}
           />
           {selected && (
             <InvoiceDrawer
@@ -449,10 +469,10 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           onOpen={setSelected}
           selectedClientId={selectedClientId}
           setSelectedClientId={setSelectedClientId}
-          onNew={()=>window.dispatchEvent(new Event("finance:new-client"))}
+          onNew={openClientComposer}
         />
       )}
-      {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} onNew={()=>window.dispatchEvent(new Event("finance:new-project"))} />}
+      {activeView === "projects" && <ProjectsView invoices={orgInvoices} organizationId={organizationId} onOpen={setSelected} onNew={openProjectComposer} />}
       {activeView === "reports" && <ReportsView invoices={orgInvoices} />}
       {activeView === "migrations" && (
         <OrganizationMigrationView

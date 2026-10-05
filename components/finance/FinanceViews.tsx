@@ -1087,6 +1087,8 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [clientFilter,setClientFilter]=useState("all");
   const [sharingId,setSharingId]=useState<string|null>(null);
   const [shareMessage,setShareMessage]=useState("");
+  const [generationBusy,setGenerationBusy]=useState(false);
+  const [generationMessage,setGenerationMessage]=useState("");
   async function load(){
     setLoading(true);
     let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,visible_to_client,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
@@ -1094,6 +1096,41 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  const generationUrl=(doc:any)=>{
+    if(doc.document_type==="invoice_pdf"&&doc.invoice_id)return "/api/invoices/"+encodeURIComponent(doc.invoice_id)+"/pdf";
+    if(doc.document_type==="receipt_pdf"&&doc.payment_id)return "/api/payments/"+encodeURIComponent(doc.payment_id)+"/receipt";
+    return null;
+  };
+  async function generateDocument(doc:any){
+    const url=generationUrl(doc);
+    if(!url)throw new Error("This document type cannot be regenerated from the register yet.");
+    const response=await fetch(url,{method:"GET",cache:"no-store",credentials:"same-origin"});
+    if(!response.ok){
+      const body=(await response.text().catch(()=>"")).trim();
+      throw new Error(body||"PDF generation failed.");
+    }
+  }
+  async function generatePending(){
+    const pending=documents.filter(d=>!d.file_path&&generationUrl(d));
+    if(!pending.length){setGenerationMessage("No pending invoice or receipt PDFs in this scope.");return}
+    setGenerationBusy(true);setGenerationMessage("");
+    const failures:string[]=[];
+    for(const doc of pending){
+      try{await generateDocument(doc)}
+      catch(error){failures.push(label(doc)+": "+(error instanceof Error?error.message:"generation failed"))}
+    }
+    await load();
+    setGenerationBusy(false);
+    setGenerationMessage(failures.length
+      ? `Generated ${pending.length-failures.length} of ${pending.length}. ${failures.slice(0,2).join(" · ")}`
+      : `Generated and stored ${pending.length} PDF${pending.length===1?"":"s"}.`);
+  }
+  async function generateOne(doc:any){
+    setGenerationBusy(true);setGenerationMessage("");
+    try{await generateDocument(doc);await load();setGenerationMessage(label(doc)+" generated and stored.")}
+    catch(error){setGenerationMessage(error instanceof Error?error.message:"PDF generation failed.")}
+    finally{setGenerationBusy(false)}
+  }
   async function shareDocument(doc:any){
     if(!doc.client_id)return;
     setSharingId(doc.id);setShareMessage("");
@@ -1124,10 +1161,11 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     const text=[d.file_name,d.description,d.clients?.name,d.invoices?.invoice_number,d.template_key,d.document_type].join(" ").toLowerCase();
     return typeMatch&&statusMatch&&clientMatch&&text.includes(query.toLowerCase());
   });
+  const pendingGeneratable=documents.filter(d=>!d.file_path&&generationUrl(d)).length;
   const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
   const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
-    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, immutable source snapshots and generated file versions.</p></div></section>
+    <section className="compact-page-head"><div><span className="eyebrow">Document register</span><h2>Documents</h2><p>Canonical financial documents, immutable source snapshots and generated file versions.</p></div><div className="operations-head-actions">{pendingGeneratable>0&&<button type="button" className="secondary" onClick={()=>void generatePending()} disabled={generationBusy}><RefreshCw size={14}/>{generationBusy?"Generating…":`Generate pending (${pendingGeneratable})`}</button>}</div></section>
     <SegmentedTabs
   value={kind}
   onChange={setKind}
@@ -1138,11 +1176,12 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
       <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+documents.length+" registered"}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
       <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
       {shareMessage&&<div className="auth-message" role="alert">{shareMessage}</div>}
+      {generationMessage&&<div className={generationMessage.includes("generated and stored")||generationMessage.startsWith("Generated and stored")?"auth-success":"auth-message"} role="status">{generationMessage}</div>}
       {docs.length?<div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
         <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>
+        <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button>{d.file_path?<DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/>:generationUrl(d)?<button type="button" className="secondary mini-action" onClick={()=>void generateOne(d)} disabled={generationBusy}><RefreshCw size={12}/>{generationBusy?"Working…":"Generate"}</button>:<DownloadButton label="Download" disabled/>}</div>
       </div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No documents match.</b><span>Change the document type, client, status or search.</span></div>}
     </section>
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">

@@ -20,3 +20,24 @@ test("safe import rollback is fail-closed",()=>{
  assert.match(s,/rolled_back/);
  assert.match(s,/created_invoices/);
 });
+
+
+test("issued invoice saves create immutable versions and pending PDF records",()=>{
+ const s=readFileSync("supabase/migrations/20261005044055_enforce_invoice_issue_versioning_on_save.sql","utf8");
+ assert.match(s,/perform public\.issue_invoice\(p_invoice_id\)/);
+ assert.match(s,/invoice_reissued/);
+ assert.match(s,/invoice_versions/);
+ assert.match(s,/issued_version=v_next_version/);
+ assert.match(s,/document_type.*invoice_pdf/s);
+ assert.match(s,/status.*pending/s);
+ assert.match(s,/cannot be returned to draft/i);
+});
+
+test("canonical financial documents are private until explicitly shared",()=>{
+ const first=readFileSync("supabase/migrations/20261005044554_explicit_client_document_sharing.sql","utf8");
+ const reissue=readFileSync("supabase/migrations/20261005044627_explicit_reissued_document_sharing.sql","utf8");
+ assert.match(first,/false, 'Canonical issued invoice'/);
+ assert.match(first,/false,'Canonical payment receipt'/);
+ assert.match(first,/visible_to_client=false/);
+ assert.match(reissue,/false,'Canonical issued invoice'/);
+});

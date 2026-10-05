@@ -11,13 +11,14 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { ArrowDownToLine, Check, Loader2 } from "lucide-react";
 
-type Phase = "idle" | "loading" | "done";
+type Phase = "idle" | "loading" | "done" | "error";
 
 type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>,"onClick"> & {
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
   label?: string;
   loadingLabel?: string;
   doneLabel?: string;
+  errorLabel?: string;
   resetMs?: number;
 };
 
@@ -25,6 +26,7 @@ export function DownloadButton({
   label = "Download PDF",
   loadingLabel = "Preparing",
   doneLabel = "Ready",
+  errorLabel = "Retry",
   resetMs = 1800,
   onClick,
   disabled,
@@ -40,15 +42,18 @@ export function DownloadButton({
   async function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     if (phase !== "idle" || disabled) return;
     setPhase("loading");
-    onClick?.(e);
-    timer.current = setTimeout(() => {
+    try {
+      await onClick?.(e);
       setPhase("done");
-      timer.current = setTimeout(() => setPhase("idle"), resetMs);
-    }, 500);
+    } catch {
+      setPhase("error");
+    }
+    timer.current = setTimeout(() => setPhase("idle"), resetMs);
   }
 
   const busy = phase === "loading";
   const done = phase === "done";
+  const error = phase === "error";
 
   return (
     <button
@@ -56,13 +61,14 @@ export function DownloadButton({
       type={props.type ?? "button"}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
+      aria-label={error ? errorLabel : undefined}
       onClick={handleClick}
-      className={"state-action-button ui-pressable " + (busy ? "is-loading " : "") + (done ? "is-done " : "") + (props.className ?? "")}
+      className={"state-action-button ui-pressable " + (busy ? "is-loading " : "") + (done ? "is-done " : "") + (error ? "is-error " : "") + (props.className ?? "")}
     >
       <span className="state-action-icon" aria-hidden>
         {busy ? <Loader2 size={14} className="spin" /> : done ? <Check size={14} /> : <ArrowDownToLine size={14} />}
       </span>
-      <span>{busy ? loadingLabel : done ? doneLabel : label}</span>
+      <span>{busy ? loadingLabel : done ? doneLabel : error ? errorLabel : label}</span>
     </button>
   );
 }

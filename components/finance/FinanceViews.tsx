@@ -20,6 +20,20 @@ import { DOCUMENT_TEMPLATES } from "@/lib/finance/document-templates";
 
 const supabase = createClient();
 
+async function downloadFile(url:string, fallbackName:string) {
+  const response=await fetch(url,{credentials:"same-origin"});
+  if(!response.ok) throw new Error("Download failed.");
+  const blob=await response.blob();
+  const objectUrl=URL.createObjectURL(blob);
+  const anchor=document.createElement("a");
+  anchor.href=objectUrl;
+  anchor.download=response.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/i)?.[1]||fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 type Period = "month" | "quarter" | "half" | "year" | "all";
 
 export function AuthScreen() {
@@ -123,7 +137,7 @@ export function SettingsView({email,activeOrganizationId,onSignOut}:{email:strin
     {tab==="organizations"&&<OrganizationsSettings activeOrganizationId={activeOrganizationId}/>}
     {tab==="account"&&<AccountIdentitySettings organizationId={activeOrganizationId}/>}
     {tab==="workspace"&&<div className="settings-stack">
-      <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><DownloadButton label="Export backup" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>{window.location.href="/api/export/finance"}} /></div></div>}</section>
+      <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><DownloadButton label="Export backup" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/export/finance","finos-finance-backup.json")} /></div></div>}</section>
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="access"?"":"access")}><span><b>Access boundary</b><small>Authenticated owner access and database-enforced workspace isolation.</small></span><span>{open==="access"?"Collapse":"Edit"}</span></button>{open==="access"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Workspace access</b><p>Protected by authenticated session and row-level security.</p></div><span className="settings-good">Protected</span></div></div>}</section>
     </div>}
     {tab==="security"&&<div className="settings-stack">
@@ -743,7 +757,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
     {validationError && <div className="auth-message invoice-validation-message" role="alert">{validationError}</div>}
-    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => { window.location.href = "/api/invoices/" + draft.id + "/pdf"; }}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
+    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => downloadFile("/api/invoices/" + draft.id + "/pdf","invoice.pdf")}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
   </aside></div>;
 }
 

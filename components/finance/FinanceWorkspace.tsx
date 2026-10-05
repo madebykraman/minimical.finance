@@ -12,6 +12,9 @@ import {
 } from "@/lib/finance/repository";
 import {
   calculateStats,
+  daysOverdue,
+  invoiceBalance,
+  paidTotal,
 } from "@/lib/finance/domain";
 import type { Content, Invoice, PaymentMethod, Status } from "@/lib/finance/domain";
 import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
@@ -36,6 +39,17 @@ import {
 
 const supabase = createClient();
 const WORKSPACE_KEY = "finance.organizationId";
+type InvoicePaymentFilter = "all" | "open" | "partial" | "paid" | "overdue";
+type InvoiceDateFilter = "all" | "month" | "3months" | "6months" | "fy";
+const invoiceInDateFilter=(date:string,filter:InvoiceDateFilter,today=new Date())=>{
+  if(filter==="all")return true;
+  const value=new Date(date+"T00:00:00");const end=new Date(today.getFullYear(),today.getMonth()+1,0);
+  if(filter==="month")return value>=new Date(today.getFullYear(),today.getMonth(),1)&&value<=end;
+  if(filter==="3months")return value>=new Date(today.getFullYear(),today.getMonth()-2,1)&&value<=end;
+  if(filter==="6months")return value>=new Date(today.getFullYear(),today.getMonth()-5,1)&&value<=end;
+  const fyStart=new Date(today.getMonth()>=3?today.getFullYear():today.getFullYear()-1,3,1);
+  return value>=fyStart&&value<=new Date(fyStart.getFullYear()+1,2,31);
+};
 
 export type { FinanceView };
 
@@ -61,6 +75,10 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | Status>("all");
+  const [invoiceClient, setInvoiceClient] = useState("all");
+  const [invoiceProject, setInvoiceProject] = useState("all");
+  const [invoicePayment, setInvoicePayment] = useState<InvoicePaymentFilter>("all");
+  const [invoiceDate, setInvoiceDate] = useState<InvoiceDateFilter>("all");
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [composer, setComposer] = useState(false);
   const [paymentFor, setPaymentFor] = useState<Invoice | null>(null);
@@ -291,8 +309,17 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     const text = [i.number, i.client, i.project, i.notes, ...i.contents.map(c => c.title)]
       .join(" ")
       .toLowerCase();
-    return (status === "all" || i.status === status) && text.includes(query.toLowerCase());
-  }), [orgInvoices, query, status]);
+    const statusMatch=status==="all"||i.status===status;
+    const clientMatch=invoiceClient==="all"||i.clientId===invoiceClient;
+    const projectMatch=invoiceProject==="all"||i.projectId===invoiceProject;
+    const balance=invoiceBalance(i),paid=paidTotal(i);
+    const paymentMatch=invoicePayment==="all"
+      ||(invoicePayment==="open"&&balance>0)
+      ||(invoicePayment==="partial"&&paid>0&&balance>0)
+      ||(invoicePayment==="paid"&&balance<=0)
+      ||(invoicePayment==="overdue"&&daysOverdue(i)>0);
+    return statusMatch&&clientMatch&&projectMatch&&paymentMatch&&invoiceInDateFilter(i.date,invoiceDate)&&text.includes(query.toLowerCase());
+  }), [orgInvoices, query, status, invoiceClient, invoiceProject, invoicePayment, invoiceDate]);
 
   const stats = useMemo(() => calculateStats(orgInvoices), [orgInvoices]);
 
@@ -315,6 +342,10 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     setCommandOpen(false);
     setQuery("");
     setStatus("all");
+    setInvoiceClient("all");
+    setInvoiceProject("all");
+    setInvoicePayment("all");
+    setInvoiceDate("all");
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (organizationId) params.set("organization", organizationId); else params.delete("organization");
@@ -481,6 +512,15 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           setQuery={setQuery}
           status={status}
           setStatus={setStatus}
+          clientFilter={invoiceClient}
+          setClientFilter={setInvoiceClient}
+          projectFilter={invoiceProject}
+          setProjectFilter={setInvoiceProject}
+          paymentFilter={invoicePayment}
+          setPaymentFilter={setInvoicePayment}
+          dateFilter={invoiceDate}
+          setDateFilter={setInvoiceDate}
+          sourceInvoices={orgInvoices}
           loading={loading}
           onOpen={setSelected}
           onStatus={markStatus}

@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
-  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
+  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Mail, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
 } from "lucide-react";
 import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
@@ -567,6 +567,12 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
   const projectNames=[...new Set(rows.map(i=>i.project).filter(Boolean))];
   return <div className="client-portal">
     <div className="client-portal-head"><button className="back-link" onClick={onBack}>← Clients</button><div className="client-title-lockup">{client.logo_path?<img className="client-logo-small" src={client.logo_path} alt=""/>:<div className="client-avatar">{String(client.name||"?").slice(0,1).toUpperCase()}</div>}<div><span className="eyebrow">Client workspace</span><h2>{client.name}</h2><p>{client.legal_name||"Billing profile incomplete"}{client.email?" · "+client.email:""}</p></div></div><button className="secondary" onClick={()=>setTab("settings")}><Settings2 size={14}/>Settings</button></div>
+    <div className="client-mobile-actions" aria-label="Client quick actions">
+      {client.phone&&<a className="secondary" href={"tel:"+client.phone}><Phone size={14}/>Call</a>}
+      {client.email&&<a className="secondary" href={"mailto:"+client.email}><Mail size={14}/>Email</a>}
+      <DownloadButton label="Statement" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/clients/"+clientId+"/statement?period="+period,"statement.pdf")}/>
+      <button type="button" className="secondary" onClick={()=>setTab("invoices")}><Receipt size={14}/>Invoices</button>
+    </div>
     <div className="client-tabs">{(["overview","invoices","payments","projects","documents","statement","settings"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t==="statement"?"Statement":t[0].toUpperCase()+t.slice(1)}</button>)}</div>
     {tab!=="settings"&&<div className="period-strip">{(["month","3months","6months","fy","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div>}
     {tab==="overview"&&<div className="client-dashboard"><section className="overview-position"><div><span>Outstanding</span><strong>{money(open)}</strong><small>{periodLabel(period)}</small></div><div className="overview-position-facts"><div><span>Billed</span><b>{money(billed)}</b></div><div><span>Collected</span><b>{money(paid)}</b></div><div><span>Invoices</span><b>{scoped.length}</b></div></div></section><div className="overview-grid"><section className="data-panel"><div className="data-panel-head"><h2>Recent invoices</h2></div>{scoped.slice(0,8).map(i=><button className="invoice-register-row" key={i.id} onClick={()=>onOpenInvoice(i)}><b>#{i.number}</b><span><strong>{i.project||"Invoice"}</strong><small>{dateLabel(i.date)}</small></span><em className={i.status}>{statusLabel(i.status)}</em><strong>{money(invoiceTotal(i))}</strong><ChevronRight size={13}/></button>)}{!scoped.length&&<div className="empty-state"><FileText size={18}/><b>No invoices in this period.</b></div>}</section><section className="data-panel"><div className="data-panel-head"><h2>Portal</h2></div><div className="client-detail-list"><div className="client-detail-row"><span>Access</span><strong>{client.portal_enabled&&client.portal_password_set_at?"Protected":"Not enabled"}</strong></div><div className="client-detail-row"><span>Projects</span><strong>{client.show_projects!==false?"Visible":"Hidden"}</strong></div><div className="client-detail-row"><span>Documents</span><strong>{client.show_documents!==false?"Visible":"Hidden"}</strong></div></div></section></div></div>}

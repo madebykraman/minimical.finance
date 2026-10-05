@@ -8,6 +8,19 @@ import { isAllOrganizationsScope } from "./types";
 
 const supabase = createClient();
 
+export type FinanceMutationResult = { error: string | null; warning?: string | null };
+
+async function generateDocument(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { method: "GET", cache: "no-store", credentials: "same-origin" });
+    if (response.ok) return null;
+    const message = (await response.text().catch(() => "")).trim();
+    return message || `Document generation failed with status ${response.status}.`;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Document generation failed.";
+  }
+}
+
 export async function listInvoices(organizationId?: string | null): Promise<{ data: Invoice[]; error: string | null }> {
   let query = supabase
     .from("invoices")
@@ -37,23 +50,31 @@ export async function logActivity(
   return error?.message ?? null;
 }
 
-export async function setInvoiceStatus(invoice: Invoice, next: Status) {
+export async function setInvoiceStatus(invoice: Invoice, next: Status): Promise<FinanceMutationResult> {
   const total = invoiceTotal(invoice);
   const paid = paidTotal(invoice);
-  if (next === "paid" && paid < total) return "An invoice can only be marked paid after the full balance has been received.";
-  if (next === "partially_paid" && (paid <= 0 || paid >= total)) return "Partially paid requires a payment recorded against a remaining balance.";
-  if (next === "sent" && paid > 0) return "This invoice already has a payment. Its status must remain partially paid or paid.";
+  if (next === "paid" && paid < total) return { error: "An invoice can only be marked paid after the full balance has been received." };
+  if (next === "partially_paid" && (paid <= 0 || paid >= total)) return { error: "Partially paid requires a payment recorded against a remaining balance." };
+  if (next === "sent" && paid > 0) return { error: "This invoice already has a payment. Its status must remain partially paid or paid." };
+
   if (next === "sent" && invoice.status === "draft") {
     const { error } = await supabase.rpc("issue_invoice", { p_invoice_id: invoice.id });
-    return error?.message ?? null;
+    if (error) return { error: error.message };
+    const pdfError = await generateDocument("/api/invoices/" + encodeURIComponent(invoice.id) + "/pdf");
+    return {
+      error: null,
+      warning: pdfError ? "Invoice issued, but its PDF could not be stored: " + pdfError : null,
+    };
   }
+
   const { error } = await supabase
     .from("invoices")
     .update({ status: next, updated_at: new Date().toISOString() })
     .eq("id", invoice.id);
 
-  if (error) return error.message;
-  return logActivity(invoice.id, "invoice_status_changed", { from: invoice.status, to: next });
+  if (error) return { error: error.message };
+  const activityError = await logActivity(invoice.id, "invoice_status_changed", { from: invoice.status, to: next });
+  return { error: activityError };
 }
 
 export async function saveInvoice(next: Invoice) {
@@ -208,9 +229,14 @@ export async function createInvoice(draft: {
   return { id: result.data.id, error: activityError };
 }
 
-export async function issueInvoice(invoiceId: string) {
+export async function issueInvoice(invoiceId: string): Promise<FinanceMutationResult> {
   const { error } = await supabase.rpc("issue_invoice", { p_invoice_id: invoiceId });
-  return error?.message ?? null;
+  if (error) return { error: error.message };
+  const pdfError = await generateDocument("/api/invoices/" + encodeURIComponent(invoiceId) + "/pdf");
+  return {
+    error: null,
+    warning: pdfError ? "Invoice issued, but its PDF could not be stored: " + pdfError : null,
+  };
 }
 
 export async function listDocuments(organizationId?: string | null) {
@@ -228,13 +254,13 @@ export async function recordPayment(
   date: string,
   method: PaymentMethod,
   reference: string,
-) {
-  if (!Number.isFinite(amount) || amount <= 0) return "Enter a valid payment amount.";
+): Promise<FinanceMutationResult> {
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter a valid payment amount." };
 
   const balance = invoiceBalance(invoice);
-  if (amount > balance) return "Payment cannot exceed the current invoice balance.";
+  if (amount > balance) return { error: "Payment cannot exceed the current invoice balance." };
 
-  const { error } = await supabase.rpc("record_invoice_payment", {
+  const { data: paymentId, error } = await supabase.rpc("record_invoice_payment", {
     p_invoice_id: invoice.id,
     p_amount: amount,
     p_payment_date: date,
@@ -243,7 +269,14 @@ export async function recordPayment(
     p_notes: undefined,
   });
 
-  return error?.message ?? null;
+  if (error) return { error: error.message };
+  const receiptError = paymentId
+    ? await generateDocument("/api/payments/" + encodeURIComponent(String(paymentId)) + "/receipt")
+    : "Payment was recorded without a receipt identifier.";
+  return {
+    error: null,
+    warning: receiptError ? "Payment recorded, but its receipt PDF could not be stored: " + receiptError : null,
+  };
 }
 
 export async function getInvoiceFinancials() {

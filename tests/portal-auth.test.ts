@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { hashPortalPassword, verifyPortalPassword, hashPortalSession } from "../lib/portal/auth";
 
 test("portal passwords are salted and verifiable",()=>{

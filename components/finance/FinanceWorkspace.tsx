@@ -254,10 +254,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }
 
   async function saveInvoice(next: Invoice) {
-    const error = await saveInvoiceRecord(next);
-    if (error) return setActionError(error);
+    const result = await saveInvoiceRecord(next);
+    if (result.error) return setActionError(result.error);
     await loadInvoices();
     setSelected(null);
+    setActionError(result.warning || "");
   }
 
   async function createInvoice(draft: {

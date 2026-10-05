@@ -57,8 +57,8 @@ function icon(page:any,x:number,y:number,type:"document"|"person"|"bank"|"mail"|
 }
 async function embedLogo(pdf:any,url:string|null|undefined){if(!url)return null;try{const res=await fetch(url,{cache:"no-store"});if(!res.ok)return null;const bytes=new Uint8Array(await res.arrayBuffer());const type=(res.headers.get("content-type")||"").toLowerCase();return type.includes("png")||url.toLowerCase().includes(".png")?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);}catch{return null}}
 function addressLines(value:unknown){return (Array.isArray(value)?value.map(safe):[]).filter(Boolean).slice(0,3);}
-function contactEmail(org:any){return safe(org?.email)||"framedbyaman@gmail.com";}
-function contactPhone(org:any){return safe(org?.phone)||"+91 87095 39814";}
+function contactEmail(org:any){return safe(org?.email);}
+function contactPhone(org:any){return safe(org?.phone);}
 
 export async function GET(request:NextRequest,context:{params:Promise<{id:string}>}){
   const {id}=await context.params;const supabase=await createClient();
@@ -93,13 +93,13 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     const showBranding=org.show_minbooks_branding!==false;
     page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});
     text(page,safe(org.invoice_footer_line_2)||"Thank you for your time and the opportunity to work together.",L,39,regular,8.5);
-    icon(page,L,14,"mail");text(page,email,L+18,16,regular,7.5,MUTED);
-    icon(page,L+185,14,"phone");text(page,phone,L+203,16,regular,7.5,MUTED);
+    if(email){icon(page,L,14,"mail");text(page,email,L+18,16,regular,7.5,MUTED);}
+    if(phone){const phoneX=email?L+185:L;icon(page,phoneX,14,"phone");text(page,phone,phoneX+18,16,regular,7.5,MUTED);}
     if(showBranding)text(page,"MinBooks · Generated from the financial record",R-185,16,regular,6.5,MUTED);
   };
 
   const drawIdentity=(page:any,continuation=false)=>{
-    if(continuation){text(page,String(org.name||org.legal_name||"MinBooks"),L,790,bold,11);right(page,`Invoice #${invoice.invoice_number}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}
+    if(continuation){text(page,String(org.name||org.legal_name||"Organisation"),L,790,bold,11);right(page,`Invoice #${invoice.invoice_number}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}
     const top=788;
     if(orgLogo){const d=orgLogo.scale(Math.min(38/orgLogo.width,22/orgLogo.height));page.drawImage(orgLogo,{x:L,y:top-d.height,width:d.width,height:d.height});}
     if(clientLogo){const d=clientLogo.scale(Math.min(34/clientLogo.width,20/clientLogo.height));page.drawImage(clientLogo,{x:R-d.width,y:top-d.height,width:d.width,height:d.height});}

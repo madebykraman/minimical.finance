@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { calculateStats, contentAmount, invoiceBalance, invoiceTotal, paidTotal, daysOverdue, isInvoiceOverdue, paymentTransition } from "../lib/finance/domain";
+import { ALL_ORGANIZATIONS_ID, isAllOrganizationsScope } from "../lib/finance/types";
 
 const base={id:"1",number:"180",client:"Elle India",project:"Video Editing",date:"2026-08-05",dueDate:"2026-09-04",status:"sent" as const,sourceTotal:10000,notes:null,adjustment:null,organizationId:null,clientId:null,projectId:null,contents:[
 {id:"a",title:"The Devil Wears Prada 2",kind:"service" as const,quantity:1,rate:2000,amount:2000,priced:true},
@@ -35,4 +36,11 @@ test("zero-billed invoices never report a positive collection rate",()=>{
  assert.equal(stats.collected,0);
  assert.equal(stats.outstanding,0);
  assert.equal(stats.rate,0);
+});
+
+
+test("aggregate organisation scope is never treated as an organisation UUID",()=>{
+ assert.equal(isAllOrganizationsScope(ALL_ORGANIZATIONS_ID),true);
+ assert.equal(isAllOrganizationsScope("00000000-0000-0000-0000-000000000000"),false);
+ assert.equal(isAllOrganizationsScope(null),false);
 });

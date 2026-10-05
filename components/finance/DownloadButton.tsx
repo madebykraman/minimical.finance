@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
-import { ArrowDownToLine, Check, Loader2 } from "lucide-react";
+import { ArrowDownToLine, Check, CircleAlert, Loader2 } from "lucide-react";
 
 type Phase = "idle" | "loading" | "done" | "error";
 
@@ -40,7 +40,11 @@ export function DownloadButton({
   }, []);
 
   async function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
-    if (phase !== "idle" || disabled) return;
+    if (phase === "loading" || phase === "done" || disabled) return;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
     setPhase("loading");
     try {
       await onClick?.(e);
@@ -61,12 +65,12 @@ export function DownloadButton({
       type={props.type ?? "button"}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
-      aria-label={error ? errorLabel : undefined}
+      aria-label={error ? errorLabel : props["aria-label"]}
       onClick={handleClick}
       className={"state-action-button ui-pressable " + (busy ? "is-loading " : "") + (done ? "is-done " : "") + (error ? "is-error " : "") + (props.className ?? "")}
     >
       <span className="state-action-icon" aria-hidden>
-        {busy ? <Loader2 size={14} className="spin" /> : done ? <Check size={14} /> : <ArrowDownToLine size={14} />}
+        {busy ? <Loader2 size={14} className="spin" /> : done ? <Check size={14} /> : error ? <CircleAlert size={14} /> : <ArrowDownToLine size={14} />}
       </span>
       <span>{busy ? loadingLabel : done ? doneLabel : error ? errorLabel : label}</span>
     </button>

@@ -230,16 +230,6 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
     setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
-  useEffect(()=>{
-    if(!organizationId||isAllOrganizationsScope(organizationId)){setDocumentClients([]);setDocumentProjects([]);return}
-    Promise.all([
-      supabase.from("clients").select("id,name").eq("organization_id",organizationId).is("archived_at",null).order("name"),
-      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).is("archived_at",null).order("name"),
-    ]).then(([clientsResult,projectsResult])=>{
-      setDocumentClients(clientsResult.data||[]);
-      setDocumentProjects(projectsResult.data||[]);
-    });
-  },[organizationId]);
 
   async function save(){
     if(!organization)return;
@@ -1288,6 +1278,16 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  useEffect(()=>{
+    if(!organizationId||isAllOrganizationsScope(organizationId)){setDocumentClients([]);setDocumentProjects([]);return}
+    Promise.all([
+      supabase.from("clients").select("id,name").eq("organization_id",organizationId).is("archived_at",null).order("name"),
+      supabase.from("projects").select("id,name,client_id").eq("organization_id",organizationId).is("archived_at",null).order("name"),
+    ]).then(([clientsResult,projectsResult])=>{
+      setDocumentClients(clientsResult.data||[]);
+      setDocumentProjects(projectsResult.data||[]);
+    });
+  },[organizationId]);
   const safeUploadName=(name:string)=>name.replace(/[^a-zA-Z0-9._-]/g,"-").replace(/-+/g,"-");
   async function fileChecksum(file:File){
     const digest=await globalThis.crypto.subtle.digest("SHA-256",await file.arrayBuffer());
@@ -1320,7 +1320,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
       p_size_bytes:uploadFile.size,
       p_checksum_sha256:checksum,
       p_visible_to_client:uploadForm.visible_to_client,
-    });
+    } as any);
     if(error){
       await supabase.storage.from("finos-documents").remove([path]);
       setUploading(false);setGenerationMessage(error.message);return

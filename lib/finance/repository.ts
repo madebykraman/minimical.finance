@@ -77,8 +77,8 @@ export async function setInvoiceStatus(invoice: Invoice, next: Status): Promise<
   return { error: activityError };
 }
 
-export async function saveInvoice(next: Invoice) {
-  if (!next.organizationId) return "Select a billing organisation before saving the invoice.";
+export async function saveInvoice(next: Invoice): Promise<FinanceMutationResult> {
+  if (!next.organizationId) return { error: "Select a billing organisation before saving the invoice." };
 
   const { error } = await supabase.rpc("save_invoice", {
     p_invoice_id: next.id,
@@ -102,7 +102,14 @@ export async function saveInvoice(next: Invoice) {
     })),
   });
 
-  return error?.message ?? null;
+  if (error) return { error: error.message };
+  const pdfError = next.status !== "draft" && next.status !== "void"
+    ? await generateDocument("/api/invoices/" + encodeURIComponent(next.id) + "/pdf")
+    : null;
+  return {
+    error: null,
+    warning: pdfError ? "Invoice saved, but its issued PDF could not be stored: " + pdfError : null,
+  };
 }
 
 // Organisation-aware invoice creation

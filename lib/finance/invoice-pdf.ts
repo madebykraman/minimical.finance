@@ -125,7 +125,6 @@ async function renderLegacy(input:InvoicePdfInput){
     const footer1=safe(org?.invoice_footer_line_1)||(org?.email?`Please contact ${safe(org.email)} in case of any queries.`:"");
     if(footer1)drawText(page,footer1,X.left,Y.footer1,regular,9.4);
     drawText(page,safe(org?.invoice_footer_line_2)||"Thank you for your time.",X.left,Y.footer2,regular,9.4);
-    if(org?.show_minbooks_branding===true)right(page,"MinBooks",X.right,Y.footer2,regular,6.5);
   };
   const drawFirstIdentity=(page:any)=>{
     if(orgLogo){const d=orgLogo.scale(Math.min(48/orgLogo.width,24/orgLogo.height));page.drawImage(orgLogo,{x:X.left,y:794-d.height,width:d.width,height:d.height});}
@@ -229,7 +228,6 @@ async function renderClean(input:InvoicePdfInput){
     const email=safe(org?.email),phone=safe(org?.phone);
     if(email){cleanIcon(page,L,14,"mail");draw(page,email,L+18,16,regular,7.5,MUTED);}
     if(phone){const x=email?L+185:L;cleanIcon(page,x,14,"phone");draw(page,phone,x+18,16,regular,7.5,MUTED);}
-    if(org?.show_minbooks_branding===true)right(page,"MinBooks",R,16,regular,6.5,MUTED);
   };
   const identity=(page:any,continuation=false)=>{
     if(continuation){draw(page,safe(org?.name||org?.legal_name||"Organisation"),L,790,bold,11);right(page,`Invoice #${safe(invoice.invoice_number)}`,R,790,mono,8,MUTED);page.drawLine({start:{x:L,y:779},end:{x:R,y:779},thickness:.6,color:LINE});return 760;}

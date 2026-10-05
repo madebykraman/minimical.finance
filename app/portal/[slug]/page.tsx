@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { ArrowDownToLine, ArrowRight, Building2, CheckCircle2, ChevronDown, FileText, LockKeyhole, LogOut, Receipt, WalletCards } from "lucide-react";
 
 type Period="month"|"3months"|"6months"|"fy"|"all";

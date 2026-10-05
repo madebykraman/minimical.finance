@@ -19,6 +19,6 @@ export async function GET(){
  };
  const json=JSON.stringify(payload,null,2);
  const checksum=createHash("sha256").update(json).digest("hex");
- const envelope={manifest:{format:"finos-finance-export",schema_version:2,sha256:checksum,generated_at:payload.exported_at,storage_note:"Database metadata and file paths are exported. Private storage objects must also be backed up from the finos-documents and finos-assets buckets."},data:payload};
- return new NextResponse(JSON.stringify(envelope,null,2),{headers:{"Content-Type":"application/json","Content-Disposition":'attachment; filename="finos-finance-backup.json"',"Cache-Control":"private,no-store","X-FinOS-Backup-SHA256":checksum}});
+ const envelope={manifest:{format:"finance-workspace-export",schema_version:2,sha256:checksum,generated_at:payload.exported_at,storage_note:"Database metadata and file paths are exported. Private storage objects must also be backed up from the finos-documents and finos-assets buckets."},data:payload};
+ return new NextResponse(JSON.stringify(envelope,null,2),{headers:{"Content-Type":"application/json","Content-Disposition":'attachment; filename="finance-workspace-backup.json"',"Cache-Control":"private,no-store","X-Finance-Backup-SHA256":checksum}});
 }

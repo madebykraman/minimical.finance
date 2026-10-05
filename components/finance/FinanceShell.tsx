@@ -99,7 +99,7 @@ export function FinanceShell({
 
   const mark=(org:WorkspaceOrganization|null)=>{
     if(org?.id===ALL_ORGANIZATIONS_ID) return "∑";
-    return org?.logo_path ? <img src={org.logo_path} alt="" /> : String(org?.name||"M").slice(0,1).toUpperCase();
+    return org?.logo_path ? <img src={org.logo_path} alt="" /> : String(org?.name||"O").slice(0,1).toUpperCase();
   };
 
   const closeWorkspaceMenu=()=>{
@@ -120,11 +120,6 @@ export function FinanceShell({
 
   return <main className="shell" style={{"--org-accent":activeOrganization?.accent_hex||"#7046dd"} as CSSProperties}>
     <aside className="sidebar">
-      <div className="brand-lockup">
-        <div className="brand-mark">M</div>
-        <div><strong>MinBooks</strong><small>by Minimical</small></div>
-      </div>
-
       <div className="rail-workspace workspace-switcher-wrap">
         <button type="button" ref={desktopWorkspaceTriggerRef} className="rail-workspace-trigger" onClick={()=>workspaceMenuOpen?closeWorkspaceMenu():setWorkspaceMenuOpen(true)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
           <span className="rail-workspace-mark">{mark(activeOrganization)}</span>

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 import { mapInvoice, invoiceTotal, paidTotal, invoiceBalance } from "./domain";
 import type { Content, Invoice, PaymentMethod, Status } from "./domain";
+import { isAllOrganizationsScope } from "./types";
 
 const supabase = createClient();
 
@@ -13,7 +14,9 @@ export async function listInvoices(organizationId?: string | null): Promise<{ da
     .select("*, clients(name), projects(name), invoice_contents(*), payments(*), activity_log(*)")
     .order("issue_date", { ascending: false });
 
-  if (organizationId) query = query.eq("organization_id", organizationId);
+  if (organizationId && !isAllOrganizationsScope(organizationId)) {
+    query = query.eq("organization_id", organizationId);
+  }
 
   const { data, error } = await query;
 
@@ -81,7 +84,7 @@ export async function saveInvoice(next: Invoice) {
   return error?.message ?? null;
 }
 
-// FinOS organisation-aware invoice creation
+// Organisation-aware invoice creation
 export async function createInvoice(draft: {
   number: string;
   client: string;

@@ -35,6 +35,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
     client,
     invoiceNumber:String(invoice?.invoice_number||payment.invoice_number||""),
     invoiceTotal:Number(invoice?.total||0),
+    invoiceBalance:Number(invoice?.balance||0),
     payment:{
       amount:Number(payment.amount||0),
       payment_date:payment.payment_date,

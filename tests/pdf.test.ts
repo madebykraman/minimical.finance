@@ -118,3 +118,23 @@ test("statement routes persist canonical document versions",()=>{
   assert.match(s,/storage[\s\S]*upload/);
  }
 });
+
+
+test("issued invoice PDF routes preserve stored immutable bytes",()=>{
+  const admin=readFileSync("app/api/invoices/[id]/pdf/route.ts","utf8");
+  const portal=readFileSync("app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts","utf8");
+  assert.match(admin,/searchParams\.get\("version"\)/);
+  assert.match(admin,/status===\"stored\"/);
+  assert.match(admin,/storage[\s\S]*download/);
+  assert.match(admin,/upsert:false/);
+  assert.match(portal,/status===\"stored\"/);
+  assert.match(portal,/storage[\s\S]*download/);
+  assert.match(portal,/source:\"client_portal\"/);
+});
+
+test("document history can materialize pending historical invoice versions",()=>{
+  const view=readFileSync("components/finance/FinanceViews.tsx","utf8");
+  assert.match(view,/pdf\?version=/);
+  assert.match(view,/generateHistoricalVersion/);
+  assert.match(view,/Pending file/);
+});

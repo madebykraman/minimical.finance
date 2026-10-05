@@ -8,11 +8,13 @@ import {
   FileInput,
   FileText,
   FolderKanban,
+  FolderPlus,
   LayoutDashboard,
   Plus,
   Receipt,
   Search,
   Settings2,
+  UserPlus,
   WalletCards,
   X,
 } from "lucide-react";
@@ -33,11 +35,15 @@ export function FinanceCommandPalette({
   onClose,
   onNavigate,
   onNewInvoice,
+  onNewClient,
+  onNewProject,
 }: {
   open: boolean;
   onClose: () => void;
   onNavigate: (view: FinanceView) => void;
   onNewInvoice: () => void;
+  onNewClient: () => void;
+  onNewProject: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -86,6 +92,8 @@ export function FinanceCommandPalette({
     };
     return [
       { id: "new-invoice", label: "New invoice", detail: "Create a billable record", keywords: "invoice create bill billing", icon: Plus, action: () => { onNewInvoice(); onClose(); } },
+      { id: "new-client", label: "New client", detail: "Add a billing relationship", keywords: "client customer create add", icon: UserPlus, action: () => { onNewClient(); onClose(); } },
+      { id: "new-project", label: "New project", detail: "Add work under an organisation", keywords: "project job create add", icon: FolderPlus, action: () => { onNewProject(); onClose(); } },
       { id: "overview", label: "Overview", detail: "Financial position and attention", keywords: "dashboard home overview", icon: LayoutDashboard, action: () => navigate("overview") },
       { id: "invoices", label: "Invoices", detail: "Receivables register", keywords: "invoice receivables register", icon: Receipt, action: () => navigate("invoices") },
       { id: "payments", label: "Payments", detail: "Collections ledger", keywords: "payments collections money received", icon: WalletCards, action: () => navigate("payments") },
@@ -97,7 +105,7 @@ export function FinanceCommandPalette({
       { id: "migrations", label: "Migrations", detail: "Move historical records between organisations", keywords: "migration organisation historical", icon: ArrowLeftRight, action: () => navigate("migrations") },
       { id: "settings", label: "Settings", detail: "Organisation and workspace controls", keywords: "settings organisation account security", icon: Settings2, action: () => navigate("settings") },
     ];
-  }, [onClose, onNavigate, onNewInvoice]);
+  }, [onClose, onNavigate, onNewClient, onNewInvoice, onNewProject]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

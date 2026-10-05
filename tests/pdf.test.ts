@@ -115,6 +115,6 @@ test("statement routes persist canonical document versions",()=>{
   assert.match(s,/statement_pdf/);
   assert.match(s,/sourceHash/);
   assert.match(s,/finos-documents/);
-  assert.match(s,/storage.*upload/s);
+  assert.match(s,/storage[\s\S]*upload/);
  }
 });

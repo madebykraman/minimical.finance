@@ -23,3 +23,20 @@ test("PDF font preparation is deterministic",()=>{
  assert.match(s,/Geist-SemiBold\.ttf/);
  assert.match(s,/GeistMono-Regular\.ttf/);
 });
+
+
+test("financial PDF renderers never hard-code account identity",()=>{
+ const paths=[
+  "app/api/invoices/[id]/pdf/route.ts",
+  "app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts",
+  "app/api/payments/[id]/receipt/route.ts",
+  "app/api/client-portal/[slug]/receipt/[paymentId]/route.ts",
+  "lib/finance/statement-pdf.ts",
+ ];
+ for(const path of paths){
+  const s=readFileSync(path,"utf8");
+  assert.doesNotMatch(s,/framedbyaman@gmail\.com/i,path);
+  assert.doesNotMatch(s,/87095\s*39814/i,path);
+  assert.doesNotMatch(s,/Kumar Aman/i,path);
+ }
+});

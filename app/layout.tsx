@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MinBooks — Finance OS",
-  description: "Invoices, receipts, statements and financial records for modern independent businesses.",
+  title: "Finance workspace",
+  description: "Invoices, payments, documents and financial records for independent businesses.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

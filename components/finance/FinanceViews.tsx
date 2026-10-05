@@ -917,9 +917,10 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     setVersions(data||[]);
   }
   async function versionUrl(version:any){
-    if(!version.file_path)return null;
-    const {data}=await supabase.storage.from(version.storage_bucket||"finos-documents").createSignedUrl(version.file_path,60);
-    return data?.signedUrl||null;
+    if(!version.file_path)throw new Error("This document version has no stored file.");
+    const {data,error}=await supabase.storage.from(version.storage_bucket||"finos-documents").createSignedUrl(version.file_path,60);
+    if(error||!data?.signedUrl)throw new Error(error?.message||"Could not prepare this document version.");
+    return data.signedUrl;
   }
   const docs=documents.filter(d=>kind==="all"||d.document_type===kind);
   const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
@@ -944,7 +945,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">
       <div className="document-history-body">
         <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
-        <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><button type="button" className="secondary" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);if(url)window.open(url,"_blank","noopener,noreferrer")}}>Open</button></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
+        <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);await downloadFile(url,v.file_name||"document.pdf")}}/></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
       </div>
     </ManagedDialog>}
   </div>;

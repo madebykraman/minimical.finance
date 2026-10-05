@@ -70,3 +70,9 @@ test("Elle-style tracker headers map to document semantics",()=>{
   assert.equal(mapping.notes,"Notes");
   assert.equal(mapping.status,"Status");
 });
+
+
+test("duplicate auto-number resolution clears imported invoice number",()=>{
+ const s=readFileSync("components/finance/ImportCenter.tsx","utf8");
+ assert.match(s,/invoiceNumber:resolutions\[v\.key\]===\"auto\"\?undefined/);
+});

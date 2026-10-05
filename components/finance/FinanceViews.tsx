@@ -394,6 +394,24 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInv
   const collection=stats.billed>0?Math.min(100,Math.round(stats.collected/stats.billed*100)):0;
   const greeting = today.getHours() < 12 ? "Good morning." : today.getHours() < 18 ? "Good afternoon." : "Good evening.";
   const scopeLabel = organization?.id===ALL_ORGANIZATIONS_ID ? "Across all organisations" : organization?.name || "Your workspace";
+  const activity=invoices.flatMap(invoice=>invoice.activities.map(event=>({...event,invoice}))).sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,6);
+  const activityLabel=(action:string)=>({
+    invoice_created:"Invoice created",
+    invoice_issued:"Invoice issued",
+    invoice_status_changed:"Status changed",
+    payment_recorded:"Payment recorded",
+    invoice_imported:"Invoice imported",
+    source_reconciliation:"Source reconciled",
+  } as Record<string,string>)[action]||action.replaceAll("_"," ");
+  const clientBalances=[...invoices.reduce((map,invoice)=>{
+    const current=map.get(invoice.client)||{billed:0,open:0,count:0};
+    current.billed+=invoiceTotal(invoice);current.open+=invoiceBalance(invoice);current.count+=1;map.set(invoice.client,current);return map;
+  },new Map<string,{billed:number;open:number;count:number}>()).entries()].sort((a,b)=>b[1].open-a[1].open).slice(0,4);
+  const projectBilling=[...invoices.reduce((map,invoice)=>{
+    const key=invoice.project&&invoice.project!=="No project"?invoice.project:"Unassigned";
+    const current=map.get(key)||{billed:0,open:0};
+    current.billed+=invoiceTotal(invoice);current.open+=invoiceBalance(invoice);map.set(key,current);return map;
+  },new Map<string,{billed:number;open:number}>()).entries()].sort((a,b)=>b[1].billed-a[1].billed).slice(0,4);
 
   return <div className="overview-home">
     <header className="overview-welcome">
@@ -451,6 +469,20 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInv
           <div><b>{a.label}</b><small>{a.meta}</small></div>
           <strong>{money(invoiceBalance(a.invoice))}</strong><ChevronRight size={13}/>
         </button>)}</div> : <div className="overview-clear-state"><span><ShieldCheck size={16}/></span><div><b>You’re caught up.</b><p>No overdue or near-due invoices need action right now.</p></div></div>}
+      </section>
+    </div>
+
+    <div className="overview-context-grid">
+      <section className="data-panel overview-activity-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">ACTIVITY</span><h2>Financial timeline</h2></div><button className="text-action" onClick={()=>onNavigate("reports")}>Reports <ArrowUpRight size={12}/></button></div>
+        {activity.length?<div className="activity-list">{activity.map(event=><button type="button" className="overview-activity-row" key={event.id} onClick={()=>onOpen(event.invoice)}><span className="activity-dot"/><div><b>{activityLabel(event.action)}</b><small>#{event.invoice.number} · {event.invoice.client}</small></div><time>{new Date(event.created_at).toLocaleDateString("en-IN",{day:"2-digit",month:"short"})}</time></button>)}</div>:<div className="empty-state"><RefreshCw size={18}/><b>No activity yet.</b><span>Invoice and payment actions will appear here.</span></div>}
+      </section>
+      <section className="data-panel overview-relationships-panel">
+        <div className="data-panel-head"><div><span className="eyebrow">RELATIONSHIPS</span><h2>Clients & projects</h2></div></div>
+        <div className="overview-relationship-columns">
+          <div><button type="button" className="overview-relationship-head" onClick={()=>onNavigate("clients")}><Building2 size={13}/>Clients <ChevronRight size={12}/></button>{clientBalances.map(([name,value])=><button type="button" className="overview-relationship-row" key={name} onClick={()=>onNavigate("clients")}><span><b>{name}</b><small>{value.count} invoice{value.count===1?"":"s"}</small></span><strong>{money(value.open)}</strong></button>)}</div>
+          <div><button type="button" className="overview-relationship-head" onClick={()=>onNavigate("projects")}><FolderKanban size={13}/>Projects <ChevronRight size={12}/></button>{projectBilling.map(([name,value])=><button type="button" className="overview-relationship-row" key={name} onClick={()=>onNavigate("projects")}><span><b>{name}</b><small>{money(value.billed)} billed</small></span><strong>{money(value.open)}</strong></button>)}</div>
+        </div>
       </section>
     </div>
   </div>;

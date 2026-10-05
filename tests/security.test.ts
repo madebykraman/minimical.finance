@@ -44,3 +44,12 @@ test("admin and statement period keys stay aligned",()=>{
  }
  assert.doesNotMatch(views,/"quarter"|"half"|"year"/);
 });
+
+
+test("portal invoice payload exposes adjustment without internal invoice notes",()=>{
+ const migration=readFileSync("supabase/migrations/20261005033655_portal_invoice_adjustment_visibility.sql","utf8");
+ assert.match(migration,/'adjustment',i\.adjustment_note/);
+ assert.doesNotMatch(migration,/'notes',i\.notes/);
+ const page=readFileSync("app/portal/[slug]/invoice/[id]/page.tsx","utf8");
+ assert.match(page,/data\.adjustment/);
+});

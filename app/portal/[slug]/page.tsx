@@ -43,11 +43,10 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
   }
   const invoices=useMemo(()=>data?.invoices||[],[data]); const payments=useMemo(()=>data?.payments||[],[data]);
   const scoped=invoices.filter(i=>inPeriod(i.issue_date,period)&&statusMatch(i,status));
-  const periodInvoices=invoices.filter(i=>inPeriod(i.issue_date,period));
-  const billed=periodInvoices.reduce((s,i)=>s+Number(i.total||0),0),paid=periodInvoices.reduce((s,i)=>s+Number(i.paid||0),0),outstanding=periodInvoices.reduce((s,i)=>s+Number(i.balance||0),0);
+  const billed=scoped.reduce((s,i)=>s+Number(i.total||0),0),paid=scoped.reduce((s,i)=>s+Number(i.paid||0),0),outstanding=scoped.reduce((s,i)=>s+Number(i.balance||0),0);
   const allBalance=invoices.reduce((s,i)=>s+Number(i.balance||0),0),overdue=invoices.filter(i=>i.is_overdue&&i.balance>0).length;
-  const filteredStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period="+period;
-  const fullStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period=all";
+  const filteredStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period="+period+"&status="+status;
+  const fullStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period=all&status=all";
 
   if(loading&& !data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><Building2 size={16}/></div><p>Opening secure client account…</p></div></main>;
   if(!data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><LockKeyhole size={16}/></div><div className="portal-kicker">SECURE CLIENT ACCOUNT</div><h1>Enter your portal password.</h1><p>This link identifies your account. Your password protects the financial records inside it.</p><form onSubmit={login} className="portal-login"><label>Password<input autoFocus type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Portal password" required/></label>{error&&<div className="portal-login-error">{error}</div>}<button className="portal-button dark" disabled={loginBusy}>{loginBusy?"Signing in…":"Open account"}</button></form></div></main>;

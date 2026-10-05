@@ -53,6 +53,17 @@ function validateOrganizationDraft(org:any){
   if(!Number.isInteger(next)||next<1)return "Next invoice number must be a positive whole number.";
   return "";
 }
+function validateClientDraft(client:any){
+  const name=String(client?.name||"").trim();
+  const email=String(client?.email||"").trim();
+  const pan=String(client?.pan||"").trim().toUpperCase();
+  const gstin=String(client?.gstin||"").trim().toUpperCase();
+  if(!name)return "Client name is required.";
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return "Enter a valid client email.";
+  if(pan&&!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan))return "Client PAN must use the standard 10-character format.";
+  if(gstin&&!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin))return "Client GSTIN must use the standard 15-character format.";
+  return "";
+}
 function normalizedOrganizationDraft(org:any){
   return {
     ...org,
@@ -524,7 +535,7 @@ export function ClientsView({invoices,organizationId,onOpen,selectedClientId,set
 }
 export function ClientCreateModal({organizationId,onClose,onSaved}:{organizationId:string|null;onClose:()=>void;onSaved:()=>void}) {
   const [form,setForm]=useState({name:"",legal_name:"",email:"",phone:"",pan:"",gstin:"",address:""});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
-  async function save(e:FormEvent){e.preventDefault();if(!form.name.trim())return setMessage("Client name is required.");setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
+  async function save(e:FormEvent){e.preventDefault();const validation=validateClientDraft(form);if(validation)return setMessage(validation);setSaving(true);const slug=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Math.random().toString(36).slice(2,8);const {error}=await supabase.from("clients").insert({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim().toUpperCase()||null,gstin:form.gstin.trim().toUpperCase()||null,address_lines:form.address.split("\n").map(v=>v.trim()).filter(Boolean),portal_slug:slug,organization_id:organizationId});setSaving(false);if(error)setMessage(error.message);else onSaved();}
   return <ManagedDialog open onClose={onClose} title="Create client" description="Create a billing and portal workspace for this client."><div className="composer-body"><form className="password-settings" onSubmit={save}><div className="form-grid"><label>Client name<input required value={form.name} onChange={e=>setForm((f:any)=>({...f,name:e.target.value}))}/></label><label>Billed-to / legal name<input value={form.legal_name} onChange={e=>setForm((f:any)=>({...f,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={form.email} onChange={e=>setForm((f:any)=>({...f,email:e.target.value}))}/></label><label>Phone<input value={form.phone} onChange={e=>setForm((f:any)=>({...f,phone:e.target.value}))}/></label><label>PAN<input value={form.pan} onChange={e=>setForm((f:any)=>({...f,pan:e.target.value}))}/></label><label>GSTIN<input value={form.gstin} onChange={e=>setForm((f:any)=>({...f,gstin:e.target.value}))}/></label></div><label>Address lines<textarea value={form.address} onChange={e=>setForm((f:any)=>({...f,address:e.target.value}))} placeholder="One line per row"/></label>{message&&<div className="auth-message" role="alert">{message}</div>}<div className="drawer-foot"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={saving}>{saving?"Creating…":"Create client"}</button></div></form></div></ManagedDialog>;
 }
 export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,onArchived}:{clientId:string;invoices:Invoice[];onBack:()=>void;onOpenInvoice:(i:Invoice)=>void;onSaved:()=>void;onArchived:()=>void}) {
@@ -539,7 +550,7 @@ export function ClientWorkspace({clientId,invoices,onBack,onOpenInvoice,onSaved,
   const rows=invoices.filter(i=>i.clientId===clientId),scoped=rows.filter(i=>withinPeriod(i.date,period)),billed=scoped.reduce((s,i)=>s+invoiceTotal(i),0),paid=scoped.reduce((s,i)=>s+paidTotal(i),0),open=Math.max(billed-paid,0);
   const clientPayments=rows.flatMap(i=>i.payments.map(payment=>({...payment,invoice:i}))).sort((a,b)=>String(b.payment_date||"").localeCompare(String(a.payment_date||"")));
   const scopedPayments=clientPayments.filter(payment=>!payment.payment_date||withinPeriod(payment.payment_date,period));
-  async function save(){if(form.portal_enabled&&!client.portal_password_set_at){setMessage("Set a portal password before enabling client access.");return}setSaving(true);const {error}=await supabase.from("clients").update({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim()||null,gstin:form.gstin.trim()||null,address_lines:form.address.split("\n").map((v:string)=>v.trim()).filter(Boolean),portal_enabled:form.portal_enabled,allow_profile_edit:form.allow_profile_edit,show_projects:form.show_projects,show_documents:form.show_documents,portal_message:form.portal_message.trim()||null,logo_path:form.logo_path||null,updated_at:new Date().toISOString()}).eq("id",clientId);setSaving(false);setMessage(error?error.message:"Saved.");if(!error){setClient((p:any)=>({...p,...form}));onSaved()}}
+  async function save(){const validation=validateClientDraft(form);if(validation){setMessage(validation);return}if(form.portal_enabled&&!client.portal_password_set_at){setMessage("Set a portal password before enabling client access.");return}setSaving(true);const {error}=await supabase.from("clients").update({name:form.name.trim(),legal_name:form.legal_name.trim()||null,email:form.email.trim()||null,phone:form.phone.trim()||null,pan:form.pan.trim().toUpperCase()||null,gstin:form.gstin.trim().toUpperCase()||null,address_lines:form.address.split("\n").map((v:string)=>v.trim()).filter(Boolean),portal_enabled:form.portal_enabled,allow_profile_edit:form.allow_profile_edit,show_projects:form.show_projects,show_documents:form.show_documents,portal_message:form.portal_message.trim()||null,logo_path:form.logo_path||null,updated_at:new Date().toISOString()}).eq("id",clientId);setSaving(false);setMessage(error?error.message:"Saved.");if(!error){setClient((p:any)=>({...p,...form}));onSaved()}}
   async function uploadClientLogo(file:File){
     if(!["image/png","image/jpeg"].includes(file.type)){setMessage("Client logo must be a PNG or JPEG.");return}
     if(file.size>2*1024*1024){setMessage("Client logo must be under 2 MB.");return}

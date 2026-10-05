@@ -53,3 +53,11 @@ test("portal invoice payload exposes adjustment without internal invoice notes",
  const page=readFileSync("app/portal/[slug]/invoice/[id]/page.tsx","utf8");
  assert.match(page,/data\.adjustment/);
 });
+
+
+test("portal data route returns protected organisation identity",()=>{
+ const s=readFileSync("app/api/client-portal/data/route.ts","utf8");
+ assert.match(s,/get_client_portal_organization/);
+ assert.match(s,/organization:organization\|\|\{\}/);
+ assert.match(s,/hashPortalSession/);
+});

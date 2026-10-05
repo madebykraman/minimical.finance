@@ -9,7 +9,7 @@ import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
 } from "@/lib/finance/domain";
 import type { Activity, Content, Invoice, Payment, Status, ContentKind, PaymentMethod } from "@/lib/finance/domain";
-import { ALL_ORGANIZATIONS_ID, type FinanceView } from "@/lib/finance/types";
+import { ALL_ORGANIZATIONS_ID, isAllOrganizationsScope, type FinanceView } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/client";
 import { money, dateLabel } from "@/lib/finance/format";
 import { DownloadButton } from "@/components/finance/DownloadButton";
@@ -35,6 +35,46 @@ async function downloadFile(url:string, fallbackName:string) {
 }
 
 type Period = "month" | "quarter" | "half" | "year" | "all";
+
+function validateOrganizationDraft(org:any){
+  const name=String(org?.name||"").trim();
+  const email=String(org?.email||"").trim();
+  const pan=String(org?.pan||"").trim().toUpperCase();
+  const gstin=String(org?.gstin||"").trim().toUpperCase();
+  const ifsc=String(org?.ifsc_code||"").trim().toUpperCase();
+  const accent=String(org?.accent_hex||"").trim();
+  const next=Number(org?.next_invoice_number||1);
+  if(!name)return "Organisation name is required.";
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return "Enter a valid organisation email.";
+  if(pan&&!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan))return "PAN must use the standard 10-character format.";
+  if(gstin&&!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin))return "GSTIN must use the standard 15-character format.";
+  if(ifsc&&!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc))return "IFSC must use the standard 11-character format.";
+  if(accent&&!/^#[0-9A-Fa-f]{6}$/.test(accent))return "Brand accent must be a six-digit hex colour.";
+  if(!Number.isInteger(next)||next<1)return "Next invoice number must be a positive whole number.";
+  return "";
+}
+function normalizedOrganizationDraft(org:any){
+  return {
+    ...org,
+    name:String(org?.name||"").trim(),
+    legal_name:String(org?.legal_name||"").trim()||null,
+    email:String(org?.email||"").trim()||null,
+    phone:String(org?.phone||"").trim()||null,
+    pan:String(org?.pan||"").trim().toUpperCase()||null,
+    gstin:String(org?.gstin||"").trim().toUpperCase()||null,
+    ifsc_code:String(org?.ifsc_code||"").trim().toUpperCase()||null,
+    accent_hex:String(org?.accent_hex||"").trim()||null,
+    invoice_prefix:String(org?.invoice_prefix||"").trim(),
+    payee_name:String(org?.payee_name||"").trim()||null,
+    bank_name:String(org?.bank_name||"").trim()||null,
+    branch_name:String(org?.branch_name||"").trim()||null,
+    branch_code:String(org?.branch_code||"").trim()||null,
+    account_number:String(org?.account_number||"").trim()||null,
+    invoice_footer_line_1:String(org?.invoice_footer_line_1||"").trim()||null,
+    invoice_footer_line_2:String(org?.invoice_footer_line_2||"").trim()||null,
+    show_minbooks_branding:false,
+  };
+}
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -137,7 +177,7 @@ export function SettingsView({email,activeOrganizationId,onSignOut}:{email:strin
     {tab==="organizations"&&<OrganizationsSettings activeOrganizationId={activeOrganizationId}/>}
     {tab==="account"&&<AccountIdentitySettings organizationId={activeOrganizationId}/>}
     {tab==="workspace"&&<div className="settings-stack">
-      <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><DownloadButton label="Export backup" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/export/finance","finos-finance-backup.json")} /></div></div>}</section>
+      <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="defaults"?"":"defaults")}><span><b>Workspace defaults</b><small>Non-branded system behaviour. Organisation identity is always authoritative.</small></span><span>{open==="defaults"?"Collapse":"Edit"}</span></button>{open==="defaults"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><Building2 size={16}/></div><div><b>Selected organisation</b><p>{isAllOrganizationsScope(activeOrganizationId)?"All organisations":activeOrganizationId||"None selected"}</p></div></div><div className="settings-row"><div className="settings-icon"><FileText size={16}/></div><div><b>PDF renderer</b><p>Geist Sans + Geist Mono, organisation-specific template and identity.</p></div><span className="settings-good">Active</span></div><div className="settings-row"><div className="settings-icon"><ArrowDownToLine size={16}/></div><div><b>Data export</b><p>Download a complete JSON backup of the finance workspace.</p></div><DownloadButton label="Export backup" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/export/finance","finos-finance-backup.json")} /></div></div>}</section>
       <section className="settings-section-card"><button className="settings-section-toggle" onClick={()=>setOpen(open==="access"?"":"access")}><span><b>Access boundary</b><small>Authenticated owner access and database-enforced workspace isolation.</small></span><span>{open==="access"?"Collapse":"Edit"}</span></button>{open==="access"&&<div className="settings-section-body"><div className="settings-row"><div className="settings-icon"><ShieldCheck size={16}/></div><div><b>Workspace access</b><p>Protected by authenticated session and row-level security.</p></div><span className="settings-good">Protected</span></div></div>}</section>
     </div>}
     {tab==="security"&&<div className="settings-stack">
@@ -157,7 +197,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
 
   async function load(){
     setLoading(true);
-    if(!organizationId){setOrganization(null);setLoading(false);return}
+    if(!organizationId||isAllOrganizationsScope(organizationId)){setOrganization(null);setLoading(false);return}
     const {data,error}=await supabase.from("organizations").select("*").eq("id",organizationId).maybeSingle();
     if(error)setMessage(error.message);
     setOrganization(data||null);
@@ -167,10 +207,14 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
 
   async function save(){
     if(!organization)return;
+    const validation=validateOrganizationDraft(organization);
+    if(validation){setMessage(validation);return}
+    const next=normalizedOrganizationDraft(organization);
     setSaving(true);
-    const {error}=await supabase.from("organizations").update({...organization,updated_at:new Date().toISOString()}).eq("id",organization.id);
+    const {error}=await supabase.from("organizations").update({...next,updated_at:new Date().toISOString()}).eq("id",organization.id);
     setSaving(false);
-    setMessage(error?error.message:"Organisation identity saved.");if(!error)window.dispatchEvent(new Event("finance:organization-updated"));
+    setMessage(error?error.message:"Organisation identity saved.");
+    if(!error){setOrganization(next);window.dispatchEvent(new Event("finance:organization-updated"))}
   }
   async function upload(file:File){
     if(!organization)return;
@@ -220,7 +264,7 @@ export function AccountIdentitySettings({organizationId}:{organizationId:string|
         <label>Branch code<input value={organization.branch_code||""} onChange={e=>setOrganization((p:any)=>({...p,branch_code:e.target.value}))}/></label>
         <label>IFSC code<input value={organization.ifsc_code||""} onChange={e=>setOrganization((p:any)=>({...p,ifsc_code:e.target.value}))}/></label>
         <label className="full-span">Footer line 1<input value={organization.invoice_footer_line_1||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_1:e.target.value}))}/></label>
-        <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label><label className="settings-toggle-row full-span"><span><b>Show MinBooks attribution</b><small>New organisations have this enabled by default. Turn it off for your own documents.</small></span><input type="checkbox" checked={organization.show_minbooks_branding!==false} onChange={e=>setOrganization((p:any)=>({...p,show_minbooks_branding:e.target.checked}))}/></label>
+        <label className="full-span">Footer line 2<input value={organization.invoice_footer_line_2||""} onChange={e=>setOrganization((p:any)=>({...p,invoice_footer_line_2:e.target.value}))}/></label>
       </div></div>}
     </section>
     {message&&<div className="auth-success">{message}</div>}
@@ -256,17 +300,20 @@ export function OrganizationsSettings({activeOrganizationId}:{activeOrganization
   function toggle(key:string){setSection(section===key?"":key);}
   async function save(){
     if(!selected)return;
+    const validation=validateOrganizationDraft(selected);
+    if(validation){setMessage(validation);return}
+    const next=normalizedOrganizationDraft(selected);
     setSaving(true);
-    const {error}=await supabase.from("organizations").update({...selected,updated_at:new Date().toISOString()}).eq("id",selected.id);
+    const {error}=await supabase.from("organizations").update({...next,updated_at:new Date().toISOString()}).eq("id",selected.id);
     setSaving(false);
     setMessage(error?error.message:"Organisation saved.");
-    if(!error){setOrgs(v=>v.map(o=>o.id===selected.id?selected:o));window.dispatchEvent(new Event("finance:organization-updated"));}
+    if(!error){setSelected(next);setOrgs(v=>v.map(o=>o.id===selected.id?next:o));window.dispatchEvent(new Event("finance:organization-updated"));}
   }
   async function create(){
     const name=createName.trim();
     if(!name)return;
     setSaving(true);setMessage("");
-    const {data,error}=await supabase.from("organizations").insert({name,legal_name:name,entity_type:"brand"}).select("*").single();
+    const {data,error}=await supabase.from("organizations").insert({name,legal_name:name,entity_type:"brand",show_minbooks_branding:false}).select("*").single();
     setSaving(false);
     if(error){setMessage(error.message);return}
     setOrgs(v=>[...v,data]);setSelected(data);setEditOpen(true);setSection("identity");setCreateName("");setCreateOpen(false);window.dispatchEvent(new Event("finance:organization-updated"));
@@ -962,7 +1009,7 @@ export function OrganizationMigrationView({invoices,organizations,activeOrganiza
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const activeOrgs=organizations.filter(o=>!["dissolved","discontinued"].includes(String(o.status)));
-  const candidates=invoices.filter(i=>!activeOrganizationId||i.organizationId===activeOrganizationId);
+  const candidates=invoices.filter(i=>!activeOrganizationId||isAllOrganizationsScope(activeOrganizationId)||i.organizationId===activeOrganizationId);
   const selectedRows=candidates.filter(i=>selected.includes(i.id));
   const targetOrg=activeOrgs.find(o=>o.id===target);
   const toggle=(id:string)=>setSelected(rows=>rows.includes(id)?rows.filter(x=>x!==id):[...rows,id]);
@@ -1012,7 +1059,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   async function load(){
     setLoading(true);
     let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
-    if(organizationId)query=query.eq("organization_id",organizationId);
+    if(organizationId&&!isAllOrganizationsScope(organizationId))query=query.eq("organization_id",organizationId);
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);

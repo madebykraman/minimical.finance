@@ -381,8 +381,11 @@ export function Overview({stats,invoices,organization,onOpen,onNavigate,onNewInv
     </div>
   </div>;
 }
-export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,onOpen,onStatus,onNew,onPayments,onImport}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void;onPayments:()=>void;onImport:()=>void}) {
+export function InvoiceView({filtered,query,setQuery,status,setStatus,clientFilter,setClientFilter,projectFilter,setProjectFilter,paymentFilter,setPaymentFilter,dateFilter,setDateFilter,sourceInvoices,loading,onOpen,onStatus,onNew,onPayments,onImport}:{filtered:Invoice[];query:string;setQuery:(v:string)=>void;status:"all"|Status;setStatus:(v:"all"|Status)=>void;clientFilter:string;setClientFilter:(v:string)=>void;projectFilter:string;setProjectFilter:(v:string)=>void;paymentFilter:"all"|"open"|"partial"|"paid"|"overdue";setPaymentFilter:(v:"all"|"open"|"partial"|"paid"|"overdue")=>void;dateFilter:"all"|"month"|"3months"|"6months"|"fy";setDateFilter:(v:"all"|"month"|"3months"|"6months"|"fy")=>void;sourceInvoices:Invoice[];loading:boolean;onOpen:(i:Invoice)=>void;onStatus:(i:Invoice,s:Status)=>void;onNew:()=>void;onPayments:()=>void;onImport:()=>void}) {
   const open=filtered.reduce((sum,i)=>sum+invoiceBalance(i),0), overdue=filtered.filter(i=>daysOverdue(i)>0).length;
+  const clientOptions=[...new Map(sourceInvoices.filter(i=>i.clientId).map(i=>[i.clientId!,i.client])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  const projectOptions=[...new Map(sourceInvoices.filter(i=>i.projectId).map(i=>[i.projectId!,i.project])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  const advancedCount=[clientFilter,projectFilter,paymentFilter,dateFilter].filter(v=>v!=="all").length;
   return <div className="operations-page">
     <section className="operations-intro compact-page-head"><div><span className="eyebrow">Receivables</span><h2>Invoices</h2></div><div className="operations-head-actions"><div className="operations-count"><b>{filtered.length}</b><span>records</span></div><button className="primary" onClick={onNew}><Plus size={14}/>New invoice</button></div></section>
     <MobileQuickActions onNewInvoice={onNew} onPayments={onPayments} onImport={onImport} onInvoices={()=>window.scrollTo({top:0,behavior:"smooth"})} />
@@ -397,7 +400,17 @@ export function InvoiceView({filtered,query,setQuery,status,setStatus,loading,on
     label: value === "all" ? "All" : value === "partially_paid" ? "Partial" : statusLabel(value),
   }))}
  /></div></div>
-      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<><div className="invoice-register-header"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>ISSUED</span><span>DUE / BALANCE</span><span>TOTAL</span><span>STATUS</span></div><div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div></>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search or status filter.</span></div>}
+      <details className="invoice-advanced-filters">
+        <summary>More filters{advancedCount? <span>{advancedCount}</span>:null}</summary>
+        <div className="invoice-filter-grid">
+          <label>Client<select value={clientFilter} onChange={e=>{setClientFilter(e.target.value);if(e.target.value==="all")setProjectFilter("all")}}><option value="all">All clients</option>{clientOptions.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+          <label>Project<select value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="all">All projects</option>{projectOptions.filter(([id])=>clientFilter==="all"||sourceInvoices.some(i=>i.projectId===id&&i.clientId===clientFilter)).map(([id,name])=><option key={id} value={id}>{name||"Unnamed project"}</option>)}</select></label>
+          <label>Payment<select value={paymentFilter} onChange={e=>setPaymentFilter(e.target.value as "all"|"open"|"partial"|"paid"|"overdue")}><option value="all">Any payment state</option><option value="open">Outstanding</option><option value="partial">Partially paid</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></label>
+          <label>Date<select value={dateFilter} onChange={e=>setDateFilter(e.target.value as "all"|"month"|"3months"|"6months"|"fy")}><option value="all">All time</option><option value="month">This month</option><option value="3months">Last 3 months</option><option value="6months">Last 6 months</option><option value="fy">This financial year</option></select></label>
+          {advancedCount>0&&<button type="button" className="text-action invoice-filter-reset" onClick={()=>{setClientFilter("all");setProjectFilter("all");setPaymentFilter("all");setDateFilter("all")}}>Reset filters</button>}
+        </div>
+      </details>
+      {loading?<div className="empty-state"><div className="loading-mark"><RefreshCw size={16}/></div>Loading…</div>:filtered.length?<><div className="invoice-register-header"><span>INVOICE</span><span>CLIENT / PROJECT</span><span>ISSUED</span><span>DUE / BALANCE</span><span>TOTAL</span><span>STATUS</span></div><div className="invoice-list">{filtered.map(i=><InvoiceCard key={i.id} invoice={i} onOpen={()=>onOpen(i)} onStatus={onStatus}/>)}</div></>:<div className="empty-state"><FileText size={18}/><b>No invoices match.</b><span>Change the search, status or register filters.</span></div>}
     </section>
   </div>;
 }

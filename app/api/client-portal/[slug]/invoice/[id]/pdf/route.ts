@@ -48,7 +48,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   }
   if(invoice.source_total==null&&liveMeta?.source_total!=null)invoice.source_total=liveMeta.source_total;
 
-  const templateKey=getDocumentTemplate(organization.invoice_template_key,"invoice")?.key||"legacy_elle";
+  const templateKey=getDocumentTemplate(organization.invoice_template_key,"invoice")?.key||"clean";
   const bytes=await renderInvoicePdf({
     invoice,
     organization,

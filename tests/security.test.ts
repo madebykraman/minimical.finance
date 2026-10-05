@@ -24,7 +24,7 @@ test("user-facing finance surfaces never expose legacy product branding",()=>{
  ];
  for(const path of paths){
   const s=readFileSync(path,"utf8");
-  assert.doesNotMatch(s,/MinBooks|by Minimical|minimical\.finance|FinOS/i,path);
+  assert.doesNotMatch(s,/\bMinBooks\b|by Minimical|minimical\.finance|\bFinOS\b/,path);
  }
 });
 

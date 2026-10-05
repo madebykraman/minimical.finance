@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { analyzeImportSource, detectHeaderRow, inferImportMapping, normalizeAmount, normalizeDate, normalizeInvoiceNumber, fingerprint } from "../lib/finance/importer";
 
 test("import mapping recognises common invoice headers without reusing one source column",()=>{

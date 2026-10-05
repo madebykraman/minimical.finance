@@ -77,3 +77,9 @@ test("shared invoice renderer preserves authoritative source total when present"
  assert.match(s,/source_total/);
  assert.match(s,/templateKey==="clean"/);
 });
+
+
+test("shared invoice renderer contains no product attribution",()=>{
+ const s=readFileSync("lib/finance/invoice-pdf.ts","utf8");
+ assert.doesNotMatch(s,/MinBooks|show_minbooks_branding/i);
+});

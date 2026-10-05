@@ -1300,6 +1300,7 @@ export type Database = {
         }
         Returns: string
       }
+      rollback_import_batch: { Args: { p_batch_id: string }; Returns: Json }
       save_invoice: {
         Args: {
           p_adjustment_note?: string

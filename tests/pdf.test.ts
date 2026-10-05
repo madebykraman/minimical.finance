@@ -15,10 +15,18 @@ test("invoice PDF routes delegate to one shared renderer",()=>{
  assert.match(renderer,/62\.42/);
  assert.match(renderer,/419\.3/);
 });
-test("receipt PDF route embeds Geist",()=>{
- const s=readFileSync("app/api/client-portal/[slug]/receipt/[paymentId]/route.ts","utf8");
- assert.doesNotMatch(s,/DejaVu/i);
- assert.match(s,/Geist-Regular\.ttf/);
+test("receipt PDF routes delegate to one shared renderer",()=>{
+ const renderer=readFileSync("lib/finance/receipt-pdf.ts","utf8");
+ for(const path of ["app/api/payments/[id]/receipt/route.ts","app/api/client-portal/[slug]/receipt/[paymentId]/route.ts"]){
+  const route=readFileSync(path,"utf8");
+  assert.match(route,/renderReceiptPdf/);
+  assert.doesNotMatch(route,/PDFDocument/);
+ }
+ assert.match(renderer,/Geist-Regular\.ttf/);
+ assert.match(renderer,/Geist-SemiBold\.ttf/);
+ assert.match(renderer,/GeistMono-Regular\.ttf/);
+ assert.match(renderer,/clientLogo/);
+ assert.match(renderer,/orgLogo/);
 });
 test("statement PDF route delegates to the shared Geist renderer",()=>{
   const route=readFileSync("app/api/client-portal/[slug]/statement/route.ts","utf8");
@@ -48,8 +56,7 @@ test("PDF font preparation is deterministic",()=>{
 test("financial PDF renderers never hard-code account identity",()=>{
  const paths=[
   "lib/finance/invoice-pdf.ts",
-  "app/api/payments/[id]/receipt/route.ts",
-  "app/api/client-portal/[slug]/receipt/[paymentId]/route.ts",
+  "lib/finance/receipt-pdf.ts",
   "lib/finance/statement-pdf.ts",
  ];
  for(const path of paths){
@@ -82,4 +89,11 @@ test("shared invoice renderer preserves authoritative source total when present"
 test("shared invoice renderer contains no product attribution",()=>{
  const s=readFileSync("lib/finance/invoice-pdf.ts","utf8");
  assert.doesNotMatch(s,/\bMinBooks\b/);
+});
+
+
+test("statement renderer carries both organisation and client logos",()=>{
+ const s=readFileSync("lib/finance/statement-pdf.ts","utf8");
+ assert.match(s,/orgLogo/);
+ assert.match(s,/clientLogo/);
 });

@@ -269,7 +269,7 @@ export type ImportInvoiceRow = {
 };
 
 export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
-  if (!rows.length) return { ok: false, created: 0, error: "No rows to import." };
+  if (!rows.length) return { ok: false, created: 0, invoices: [] as Array<{id:string;invoiceNumber:string}>, error: "No rows to import." };
 
   const { data, error } = await supabase.rpc("import_invoice_batch", {
     p_rows: rows.map(row => ({
@@ -290,7 +290,8 @@ export async function importInvoiceRows(rows: ImportInvoiceRow[]) {
     })),
   });
 
-  if (error) return { ok: false, created: 0, error: error.message };
+  if (error) return { ok: false, created: 0, invoices: [] as Array<{id:string;invoiceNumber:string}>, error: error.message };
   const created = Number((data as any)?.created ?? rows.length);
-  return { ok: true, created };
+  const invoices = Array.isArray((data as any)?.invoices) ? (data as any).invoices as Array<{id:string;invoiceNumber:string}> : [];
+  return { ok: true, created, invoices };
 }

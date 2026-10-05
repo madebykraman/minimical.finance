@@ -1194,7 +1194,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     }
   }
   async function generatePending(){
-    const pending=documents.filter(d=>!d.file_path&&generationUrl(d));
+    const pending=currentDocuments.filter(d=>!d.file_path&&generationUrl(d));
     if(!pending.length){setGenerationMessage("No pending invoice or receipt PDFs in this scope.");return}
     setGenerationBusy(true);setGenerationMessage("");
     const failures:string[]=[];
@@ -1226,8 +1226,38 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   }
   async function openHistory(doc:any){
     setSelected(doc);
-    const {data}=await supabase.from("document_versions").select("*").eq("document_id",doc.id).order("version_number",{ascending:false});
-    setVersions(data||[]);
+    let seriesQuery=supabase.from("documents").select("id,version_number,file_path,file_name,storage_bucket,mime_type,size_bytes,checksum_sha256,generated_at,created_at,status,template_key,source_hash").eq("document_type",doc.document_type);
+    if(doc.invoice_id)seriesQuery=seriesQuery.eq("invoice_id",doc.invoice_id);
+    else if(doc.payment_id)seriesQuery=seriesQuery.eq("payment_id",doc.payment_id);
+    else if(doc.client_id)seriesQuery=seriesQuery.eq("client_id",doc.client_id);
+    else seriesQuery=seriesQuery.eq("id",doc.id);
+    const {data:seriesDocs}=await seriesQuery.order("version_number",{ascending:false});
+    const ids=(seriesDocs||[]).map((row:any)=>row.id);
+    const {data:registered}=ids.length
+      ? await supabase.from("document_versions").select("*").in("document_id",ids).order("version_number",{ascending:false})
+      : {data:[] as any[]};
+    const byVersion=new Map<number,any>();
+    for(const row of seriesDocs||[]){
+      byVersion.set(Number(row.version_number||1),{
+        id:"document-"+row.id,
+        document_id:row.id,
+        version_number:Number(row.version_number||1),
+        file_path:row.file_path,
+        file_name:row.file_name,
+        storage_bucket:row.storage_bucket||"finos-documents",
+        mime_type:row.mime_type,
+        size_bytes:row.size_bytes,
+        checksum_sha256:row.checksum_sha256,
+        generated_at:row.generated_at||row.created_at,
+        status:row.status,
+        template_key:row.template_key,
+        source_hash:row.source_hash,
+      });
+    }
+    for(const row of registered||[]){
+      byVersion.set(Number(row.version_number||1),{...byVersion.get(Number(row.version_number||1)),...row});
+    }
+    setVersions([...byVersion.values()].sort((a,b)=>Number(b.version_number)-Number(a.version_number)));
   }
   async function versionUrl(version:any){
     if(!version.file_path)throw new Error("This document version has no stored file.");
@@ -1235,16 +1265,18 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
     if(error||!data?.signedUrl)throw new Error(error?.message||"Could not prepare this document version.");
     return data.signedUrl;
   }
-  const clients=[...new Map(documents.filter(d=>d.client_id).map(d=>[d.client_id,d.clients?.name||"Client"])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
-  const statuses=[...new Set(documents.map(d=>String(d.status||"unknown")))].sort();
-  const docs=documents.filter(d=>{
+  const seriesKey=(d:any)=>d.invoice_id?"invoice:"+d.invoice_id:d.payment_id?"receipt:"+d.payment_id:d.document_type==="statement_pdf"&&d.client_id?"statement:"+d.client_id:d.document_type+":"+d.id;
+  const currentDocuments=[...documents].sort((a,b)=>Number(b.version_number||0)-Number(a.version_number||0)||String(b.created_at||"").localeCompare(String(a.created_at||""))).filter((doc,index,rows)=>rows.findIndex(other=>seriesKey(other)===seriesKey(doc))===index);
+  const clients=[...new Map(currentDocuments.filter(d=>d.client_id).map(d=>[d.client_id,d.clients?.name||"Client"])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  const statuses=[...new Set(currentDocuments.map(d=>String(d.status||"unknown")))].sort();
+  const docs=currentDocuments.filter(d=>{
     const typeMatch=kind==="all"||d.document_type===kind;
     const statusMatch=statusFilter==="all"||d.status===statusFilter;
     const clientMatch=clientFilter==="all"||d.client_id===clientFilter;
     const text=[d.file_name,d.description,d.clients?.name,d.invoices?.invoice_number,d.template_key,d.document_type].join(" ").toLowerCase();
     return typeMatch&&statusMatch&&clientMatch&&text.includes(query.toLowerCase());
   });
-  const pendingGeneratable=documents.filter(d=>!d.file_path&&generationUrl(d)).length;
+  const pendingGeneratable=currentDocuments.filter(d=>!d.file_path&&generationUrl(d)).length;
   const labels={all:"All documents",invoice_pdf:"Invoices",receipt_pdf:"Receipts",statement_pdf:"Statements"} as const;
   const label=(d:any)=>d.document_type==="invoice_pdf"?"#"+String(d.invoices?.invoice_number||"invoice"):d.document_type==="statement_pdf"?(d.file_name?.replace(/^Statement-/,"Statement ")||"Account statement"):(d.file_name?.replace(/^Receipt-/,"Receipt ")||"Receipt");
   return <div className="operations-page documents-page">
@@ -1256,7 +1288,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   items={(Object.keys(labels) as (keyof typeof labels)[]).map(k => ({ value: k, label: labels[k] }))}
  />
     <section className="data-panel">
-      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+documents.length+" registered"}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
+      <div className="data-panel-head"><div><h2>{labels[kind]}</h2><p>{loading?"Loading…":docs.length+" shown · "+currentDocuments.length+" current document"+(currentDocuments.length===1?"":"s")}</p></div><div className="search compact-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents"/></div></div>
       <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
       {shareMessage&&<div className="auth-message" role="alert">{shareMessage}</div>}
       {generationMessage&&<div className={generationMessage.includes("generated and stored")||generationMessage.startsWith("Generated and stored")?"auth-success":"auth-message"} role="status">{generationMessage}</div>}

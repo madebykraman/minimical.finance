@@ -97,3 +97,12 @@ test("statement renderer carries both organisation and client logos",()=>{
  assert.match(s,/orgLogo/);
  assert.match(s,/clientLogo/);
 });
+
+
+test("receipt renderer includes remaining balance and payee identity",()=>{
+ const s=readFileSync("lib/finance/receipt-pdf.ts","utf8");
+ assert.match(s,/REMAINING BALANCE/);
+ assert.match(s,/PAYEE/);
+ assert.match(s,/account_number/);
+ assert.match(s,/ifsc_code/);
+});

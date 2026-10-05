@@ -2268,3 +2268,12 @@ button{-webkit-tap-highlight-color:transparent}
   .report-toolbar{align-items:flex-start;gap:8px}
   .client-tabs,.project-tabs,.settings-tabs,.period-strip{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
 }
+
+.payment-queue-tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.payment-queue-tabs button{height:30px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:#111113;color:var(--text-tertiary);font-size:8.5px}
+.payment-queue-tabs button.active{color:#fff;border-color:color-mix(in srgb,var(--accent) 34%,#202023 66%);background:var(--accent-soft)}
+@media(max-width:720px){
+  .payment-queue-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .payment-queue-tabs::-webkit-scrollbar{display:none}
+  .payment-queue-tabs button{flex:0 0 auto;min-height:38px}
+}

@@ -26,13 +26,13 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
   {
     key: "receipt-v1",
     kind: "receipt",
-    name: "MinBooks Receipt v1",
+    name: "Receipt v1",
     description: "Dedicated payment receipt renderer. Never inherits invoice geometry.",
   },
   {
     key: "statement-v1",
     kind: "statement",
-    name: "MinBooks Statement v1",
+    name: "Statement v1",
     description: "Dedicated account statement renderer backed by the shared statement ledger.",
   },
 ];

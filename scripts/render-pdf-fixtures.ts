@@ -1,10 +1,10 @@
-async function main(){
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderInvoicePdf } from "../lib/finance/invoice-pdf";
 import { renderReceiptPdf } from "../lib/finance/receipt-pdf";
 import { renderStatementPdf } from "../lib/finance/statement-pdf";
 
+async function main(){
 const out=join(process.cwd(),"artifacts","pdf-fixtures");
 await mkdir(out,{recursive:true});
 

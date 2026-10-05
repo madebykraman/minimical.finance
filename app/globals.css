@@ -2197,3 +2197,14 @@ button{-webkit-tap-highlight-color:transparent}
 @media(max-width:390px){
   .client-mobile-actions{grid-template-columns:1fr 1fr}
 }
+
+.smart-mapping-chips button span{display:flex!important;align-items:center;gap:6px}
+.smart-mapping-chips button span em{margin-left:auto;font:600 8px var(--font-data);font-style:normal;color:#6f6b76}
+.smart-mapping-chips button.confidence-high span em{color:var(--success)}
+.smart-mapping-chips button.confidence-review span em{color:var(--warning)}
+.smart-mapping-chips button>small{display:block;margin-top:3px;color:#5f5b65;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:720px){
+  .smart-mapping-chips{display:none!important}
+  .smart-mapping-panel .data-panel-head{border-bottom:0}
+  .smart-mapping-panel:has(.smart-mapping-editor) .smart-mapping-chips{display:grid!important}
+}

@@ -33,3 +33,14 @@ test("aggregate organisation scope is handled before UUID filtering in shared vi
  assert.match(s,/isAllOrganizationsScope\(organizationId\)/);
  assert.match(s,/isAllOrganizationsScope\(activeOrganizationId\)/);
 });
+
+
+test("admin and statement period keys stay aligned",()=>{
+ const views=readFileSync("components/finance/FinanceViews.tsx","utf8");
+ const statement=readFileSync("app/api/clients/[id]/statement/route.ts","utf8");
+ for(const key of ["month","3months","6months","fy","all"]){
+  assert.ok(views.includes('"' + key + '"'), key + " missing from admin period controls");
+  if(key!=="all")assert.ok(statement.includes('"' + key + '"'), key + " missing from statement route");
+ }
+ assert.doesNotMatch(views,/"quarter"|"half"|"year"/);
+});

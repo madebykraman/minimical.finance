@@ -239,17 +239,18 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }
 
   async function markStatus(invoice: Invoice, next: Status) {
-    const error = await setInvoiceStatus(invoice, next);
-    if (error) return setActionError(error);
+    const result = await setInvoiceStatus(invoice, next);
+    if (result.error) return setActionError(result.error);
     await loadInvoices();
+    setActionError(result.warning || "");
   }
 
   async function recordPayment(invoice: Invoice, amount: number, date: string, method: string, reference: string) {
-    const error = await recordPaymentRecord(invoice, amount, date, method as PaymentMethod, reference);
-    if (error) return setActionError(error);
+    const result = await recordPaymentRecord(invoice, amount, date, method as PaymentMethod, reference);
+    if (result.error) return setActionError(result.error);
     setPaymentFor(null);
-    setActionError("");
     await loadInvoices();
+    setActionError(result.warning || "");
   }
 
   async function saveInvoice(next: Invoice) {

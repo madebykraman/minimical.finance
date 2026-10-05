@@ -1662,3 +1662,10 @@ button{-webkit-tap-highlight-color:transparent}
   .ui-spotlight-surface::before{display:none}
   .ui-inline-loader span{animation:none;opacity:.65}
 }
+
+.workspace-landing-screen{min-height:100dvh;padding:8vh 20px 40px;background:var(--background);color:var(--text)}
+.workspace-landing-screen .workspace-landing{width:min(520px,100%);margin:0 auto}
+.workspace-landing-head{padding:0 2px 16px}
+.workspace-landing-head h1{margin:4px 0 0;font-size:22px;line-height:1.1;letter-spacing:-.04em}
+.workspace-landing-list .workspace-minimal-row:last-child{border-bottom:0}
+@media(max-width:640px){.workspace-landing-screen{padding:32px 14px}.workspace-landing-head h1{font-size:20px}.workspace-minimal-row{min-height:66px}}

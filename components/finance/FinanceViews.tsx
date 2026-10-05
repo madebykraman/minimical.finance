@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, ShieldCheck, ChevronRight,
-  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Mail, Phone, Plus, Search, Settings2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
+  CircleAlert, FileText, FolderKanban, Upload, KeyRound, IndianRupee, Mail, Phone, Plus, Search, Settings2, Share2, WalletCards, Receipt, X, LogOut, ArrowLeftRight
 } from "lucide-react";
 import {
   contentAmount, daysOverdue, invoiceBalance, invoiceTotal, paidTotal, statusLabel,
@@ -32,6 +32,21 @@ async function downloadFile(url:string, fallbackName:string) {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+async function shareFile(url:string,fallbackName:string,title:string) {
+  const response=await fetch(url,{credentials:"same-origin"});
+  if(!response.ok) throw new Error("Share preparation failed.");
+  const blob=await response.blob();
+  const fileName=response.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/i)?.[1]||fallbackName;
+  const file=new File([blob],fileName,{type:blob.type||"application/pdf"});
+  if(typeof navigator.share==="function"&&(!navigator.canShare||navigator.canShare({files:[file]}))){
+    await navigator.share({title,files:[file]});
+    return;
+  }
+  const objectUrl=URL.createObjectURL(blob);
+  const anchor=document.createElement("a");
+  anchor.href=objectUrl;anchor.download=fileName;document.body.appendChild(anchor);anchor.click();anchor.remove();URL.revokeObjectURL(objectUrl);
 }
 
 type Period = "month" | "3months" | "6months" | "fy" | "all";
@@ -948,7 +963,7 @@ export function InvoiceDrawer({invoice,onClose,onSave,onPayment}:{invoice:Invoic
       <div className="block notes-block"><label>Invoice notes</label><textarea value={draft.notes ?? ""} onChange={e => setDraft(d => ({...d,notes:e.target.value}))} placeholder="Add context, payment terms, client notes..."/></div>
     </div>
     {validationError && <div className="auth-message invoice-validation-message" role="alert">{validationError}</div>}
-    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => downloadFile("/api/invoices/" + draft.id + "/pdf","invoice.pdf")}/><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
+    <div className="drawer-foot invoice-drawer-actions"><DownloadButton label="Download PDF" onClick={() => downloadFile("/api/invoices/" + draft.id + "/pdf","invoice.pdf")}/><button type="button" className="secondary invoice-share-action" onClick={()=>void shareFile("/api/invoices/"+draft.id+"/pdf","invoice.pdf","Invoice #"+draft.number)}><Share2 size={14}/>Share</button><button className="secondary invoice-payment-action" onClick={onPayment} disabled={saving || paidTotal(draft)>=invoiceTotal(draft)}><WalletCards size={14}/>Record payment</button><button className="secondary invoice-close-action" onClick={requestClose} disabled={saving}>Close</button><button className="primary invoice-save-action" disabled={!dirty || saving} onClick={() => void save()}><Check size={16}/>{saving ? <><InlineLoader label="Saving" />Saving…</> : "Save changes"}</button></div>
   </aside>{discardOpen&&<ManagedDialog open onClose={()=>setDiscardOpen(false)} title="Discard invoice changes?" description="Your unsaved edits to this invoice will be lost."><div className="composer-body"><div className="drawer-foot"><button type="button" className="secondary" onClick={()=>setDiscardOpen(false)}>Keep editing</button><button type="button" className="primary danger-button" onClick={onClose}>Discard changes</button></div></div></ManagedDialog>}</div>;
 }
 
@@ -1187,7 +1202,7 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
         <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button>{d.file_path?<DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/>:generationUrl(d)?<button type="button" className="secondary mini-action" onClick={()=>void generateOne(d)} disabled={generationBusy}><RefreshCw size={12}/>{generationBusy?"Working…":"Generate"}</button>:<DownloadButton label="Download" disabled/>}</div>
+        <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button>{d.file_path?<><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/><button type="button" className="secondary mini-action document-device-share" onClick={()=>void shareFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf",label(d))}><Share2 size={12}/>Share</button></>:generationUrl(d)?<button type="button" className="secondary mini-action" onClick={()=>void generateOne(d)} disabled={generationBusy}><RefreshCw size={12}/>{generationBusy?"Working…":"Generate"}</button>:<DownloadButton label="Download" disabled/>}</div>
       </div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No documents match.</b><span>Change the document type, client, status or search.</span></div>}
     </section>
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">

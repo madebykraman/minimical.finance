@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { renderStatementPdf } from "@/lib/finance/statement-pdf";
 
@@ -56,19 +57,70 @@ export async function GET(request:NextRequest,context:{params:Promise<{id:string
     return {...row,running_balance:running};
   });
 
+  const statementLabel=periodLabel(period,start,end);
+  const filename=String((client as any).name||"Client").replace(/[^a-z0-9]+/gi,"-")+"-Account-Statement-"+period+".pdf";
+  const identity={
+    organization:{name:org.name,legal_name:org.legal_name,email:org.email,phone:org.phone,address_lines:org.address_lines,pan:org.pan,gstin:org.gstin,logo_path:org.logo_path,invoice_footer_line_2:org.invoice_footer_line_2},
+    client:{name:(client as any).name,legal_name:(client as any).legal_name,email:(client as any).email,phone:(client as any).phone,address_lines:(client as any).address_lines,pan:(client as any).pan,gstin:(client as any).gstin,logo_path:(client as any).logo_path},
+  };
+  const sourceHash=createHash("sha256").update(JSON.stringify({identity,period,statementLabel,startIso,endIso,openingBalance,ledger})).digest("hex");
+  const {data:existing}=await supabase.from("documents").select("*").eq("client_id",id).eq("document_type","statement_pdf").maybeSingle();
+
+  if(existing?.source_hash===sourceHash&&existing.file_path&&existing.status==="stored"){
+    const {data:file,error:downloadError}=await supabase.storage.from(existing.storage_bucket||"finos-documents").download(existing.file_path);
+    if(!downloadError&&file){
+      const storedBytes=new Uint8Array(await file.arrayBuffer());
+      return new NextResponse(storedBytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=\""+(existing.file_name||filename)+"\"","Cache-Control":"private, no-store"}});
+    }
+  }
+
   const bytes=await renderStatementPdf({
     organization:org,
     client:client as any,
-    periodLabel:periodLabel(period,start,end),
+    periodLabel:statementLabel,
     periodStart:startIso,
     periodEnd:endIso,
     rows:ledger,
     openingBalance,
   });
-  const filename=`${String((client as any).name||"Client").replace(/[^a-z0-9]+/gi,"-")}-Account-Statement.pdf`;
+  const checksum=createHash("sha256").update(bytes).digest("hex");
+  const versionNumber=Number(existing?.version_number||0)+1;
+  const filePath="organizations/"+(client as any).organization_id+"/clients/"+id+"/statements/v"+versionNumber+".pdf";
+  const generatedAt=new Date().toISOString();
+  const upload=await supabase.storage.from("finos-documents").upload(filePath,bytes,{contentType:"application/pdf",upsert:false});
+  if(upload.error)return new NextResponse("Statement generated but could not be stored: "+upload.error.message,{status:500});
+
+  let documentId=existing?.id as string|undefined;
+  if(documentId){
+    const {error:updateError}=await supabase.from("documents").update({
+      organization_id:(client as any).organization_id,
+      file_path:filePath,file_name:filename,status:"stored",version_number:versionNumber,
+      generated_at:generatedAt,issued_at:generatedAt,size_bytes:bytes.length,
+      checksum_sha256:checksum,source_hash:sourceHash,mime_type:"application/pdf",
+      storage_bucket:"finos-documents",template_key:"statement-v1",
+    }).eq("id",documentId);
+    if(updateError)return new NextResponse("Statement stored but register update failed: "+updateError.message,{status:500});
+  }else{
+    const {data:created,error:createError}=await supabase.from("documents").insert({
+      client_id:id,organization_id:(client as any).organization_id,document_type:"statement_pdf",
+      file_path:filePath,file_name:filename,status:"stored",version_number:versionNumber,
+      visible_to_client:false,description:"Account statement",mime_type:"application/pdf",
+      generated_at:generatedAt,issued_at:generatedAt,size_bytes:bytes.length,
+      checksum_sha256:checksum,source_hash:sourceHash,storage_bucket:"finos-documents",template_key:"statement-v1",
+    }).select("id").single();
+    if(createError||!created)return new NextResponse("Statement stored but document registration failed",{status:500});
+    documentId=created.id;
+  }
+  await supabase.from("document_versions").upsert({
+    document_id:documentId!,version_number:versionNumber,file_path:filePath,file_name:filename,
+    storage_bucket:"finos-documents",mime_type:"application/pdf",size_bytes:bytes.length,
+    checksum_sha256:checksum,generated_at:generatedAt,generated_by:user.user.id,
+    metadata:{source_hash:sourceHash,period,period_label:statementLabel,period_start:startIso,period_end:endIso},
+  },{onConflict:"document_id,version_number"});
+
   return new NextResponse(bytes,{headers:{
     "Content-Type":"application/pdf",
-    "Content-Disposition":`attachment; filename="${filename}"`,
+    "Content-Disposition":"attachment; filename=\""+filename+"\"",
     "Cache-Control":"private, no-store",
   }});
 }

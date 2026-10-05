@@ -46,7 +46,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const page=pdf.addPage([W,H]);const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,client.logo_path);
   if(orgLogo){const d=orgLogo.scale(Math.min(40/orgLogo.width,22/orgLogo.height));page.drawImage(orgLogo,{x:L,y:788-d.height,width:d.width,height:d.height});}
   if(clientLogo){const d=clientLogo.scale(Math.min(34/clientLogo.width,20/clientLogo.height));page.drawImage(clientLogo,{x:R-d.width,y:788-d.height,width:d.width,height:d.height});}
-  text(page,"PAYMENT RECEIPT",L,788,bold,7.5,MUTED);text(page,safe(org.name||org.legal_name||"MinBooks"),L,766,bold,13);
+  text(page,"PAYMENT RECEIPT",L,788,bold,7.5,MUTED);text(page,safe(org.name||org.legal_name||"Organisation"),L,766,bold,13);
   right(page,`RECEIPT ${safe(payment.receipt_number||"")}`,R,788,mono,9);right(page,fmt(payment.payment_date),R,766,regular,9);
   page.drawLine({start:{x:L,y:749},end:{x:R,y:749},thickness:.65,color:LINE});
   text(page,"RECEIVED FROM",L,721,bold,7.5,MUTED);icon(page,L-12,720,"person");text(page,safe(client.legal_name||client.name||"Client"),L,700,bold,11);
@@ -56,7 +56,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   const facts=[["INVOICE",invoice?`#${safe(invoice.invoice_number)}`:"—"],["PAYMENT DATE",fmt(payment.payment_date)],["METHOD",String(payment.method||"").replaceAll("_"," ").toUpperCase()],["REFERENCE",payment.reference||"—"],["INVOICE TOTAL",invoice?money(Number(invoice.total||0)):"—"]];
   facts.forEach(([label,value],i)=>{const yy=532-i*27;text(page,label,L,yy,bold,7.2,MUTED);text(page,String(value),L+112,yy,regular,8.5);});
   page.drawRectangle({x:L,y:335,width:R-L,height:62,borderWidth:.55,borderColor:LINE});text(page,"RECORD",L+12,375,bold,7.2,MUTED);text(page,"This receipt records the payment captured against the invoice above.",L+12,355,regular,8.2);if(payment.notes)text(page,safe(payment.notes),L+12,340,regular,7.5,MUTED);
-  page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,"Thank you for your time.",L,39,bold,8.5);icon(page,L,19,"mail");text(page,safe(org.email||"framedbyaman@gmail.com"),L+14,19,regular,7.5,MUTED);icon(page,L+185,19,"phone");text(page,safe(org.phone||"+91 87095 39814"),L+199,19,regular,7.5,MUTED);
+  page.drawLine({start:{x:L,y:53},end:{x:R,y:53},thickness:.55,color:LINE});text(page,safe(org.invoice_footer_line_2)||"Thank you for your time.",L,39,regular,8.5);const email=safe(org.email),phone=safe(org.phone);if(email){icon(page,L,19,"mail");text(page,email,L+14,19,regular,7.5,MUTED);}if(phone){const phoneX=email?L+185:L;icon(page,phoneX,19,"phone");text(page,phone,phoneX+14,19,regular,7.5,MUTED);}
   const bytes=await pdf.save();const receiptNo=payment.receipt_number||`RCP-${payment.id.slice(0,8)}`;
   return new NextResponse(bytes,{headers:{"Content-Type":"application/pdf","Content-Disposition":`attachment; filename="${receiptNo}.pdf"`,"Cache-Control":"private, no-store"}});
 }

@@ -40,3 +40,13 @@ test("financial PDF renderers never hard-code account identity",()=>{
   assert.doesNotMatch(s,/Kumar Aman/i,path);
  }
 });
+
+
+test("portal invoice renderer prefers issued snapshots",()=>{
+ const s=readFileSync("app/api/client-portal/[slug]/invoice/[id]/pdf/route.ts","utf8");
+ assert.match(s,/invoice_versions/);
+ assert.match(s,/issued_version/);
+ assert.match(s,/snapshot\.organization/);
+ assert.match(s,/snapshot\.client/);
+ assert.match(s,/snapshot\.contents/);
+});

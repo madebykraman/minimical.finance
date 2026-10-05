@@ -1,3 +1,4 @@
+async function main(){
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderInvoicePdf } from "../lib/finance/invoice-pdf";
@@ -91,3 +92,7 @@ const statement=await renderStatementPdf({
 await writeFile(join(out,"statement.pdf"),statement);
 
 console.log(`Rendered PDF fixtures to ${out}`);
+
+}
+
+main().catch(error=>{console.error(error);process.exitCode=1;});

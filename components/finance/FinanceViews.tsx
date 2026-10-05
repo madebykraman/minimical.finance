@@ -1085,13 +1085,24 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
   const [query,setQuery]=useState("");
   const [statusFilter,setStatusFilter]=useState("all");
   const [clientFilter,setClientFilter]=useState("all");
+  const [sharingId,setSharingId]=useState<string|null>(null);
   async function load(){
     setLoading(true);
-    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
+    let query=supabase.from("documents").select("id,document_type,file_name,file_path,description,status,version_number,created_at,generated_at,size_bytes,invoice_id,payment_id,client_id,visible_to_client,template_key,source_hash,checksum_sha256,clients(name),invoices(invoice_number)").order("created_at",{ascending:false});
     if(organizationId&&!isAllOrganizationsScope(organizationId))query=query.eq("organization_id",organizationId);
     const {data}=await query;setDocuments(data||[]);setLoading(false);
   }
   useEffect(()=>{void load()},[organizationId]);
+  async function shareDocument(doc:any){
+    if(!doc.client_id)return;
+    setSharingId(doc.id);
+    const next=!doc.visible_to_client;
+    const {error}=await supabase.from("documents").update({visible_to_client:next}).eq("id",doc.id);
+    setSharingId(null);
+    if(error)return;
+    setDocuments(rows=>rows.map(row=>row.id===doc.id?{...row,visible_to_client:next}:row));
+    if(selected?.id===doc.id)setSelected((row:any)=>row?{...row,visible_to_client:next}:row);
+  }
   async function openHistory(doc:any){
     setSelected(doc);
     const {data}=await supabase.from("document_versions").select("*").eq("document_id",doc.id).order("version_number",{ascending:false});
@@ -1127,14 +1138,14 @@ export function DocumentsView({organizationId}:{organizationId?:string|null}) {
       <div className="document-filter-row"><select value={clientFilter} onChange={e=>setClientFilter(e.target.value)} aria-label="Document client"><option value="all">All clients</option>{clients.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} aria-label="Document status"><option value="all">All statuses</option>{statuses.map(value=><option key={value} value={value}>{value}</option>)}</select>{(query||clientFilter!=="all"||statusFilter!=="all")&&<button type="button" className="text-action" onClick={()=>{setQuery("");setClientFilter("all");setStatusFilter("all")}}>Reset</button>}</div>
       {docs.length?<div className="document-register">{docs.map(d=><div className="document-row" key={d.id}>
         <div className="document-type-mark">{d.document_type==="invoice_pdf"?<Receipt size={15}/>:d.document_type==="statement_pdf"?<FileText size={15}/>:<WalletCards size={15}/>}</div>
-        <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}</span></button>
+        <button type="button" className="document-row-main" onClick={()=>void openHistory(d)}><b>{label(d)}</b><span>{d.clients?.name||"Client"} · v{d.version_number} · {d.status}{d.client_id?" · "+(d.visible_to_client?"shared":"private"):""}</span></button>
         <strong>{d.generated_at?dateLabel(d.generated_at.slice(0,10)):"Not generated"}</strong>
-        <div className="document-row-actions"><button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>
+        <div className="document-row-actions">{d.client_id&&<button type="button" className={"secondary mini-action "+(d.visible_to_client?"document-shared-action":"")} onClick={()=>void shareDocument(d)} disabled={sharingId===d.id}>{sharingId===d.id?"Saving…":d.visible_to_client?"Unshare":"Share"}</button>}<button type="button" className="secondary mini-action" onClick={()=>void openHistory(d)}>History</button><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!d.file_path} onClick={()=>downloadFile("/api/documents/"+d.id+"/download",d.file_name||"document.pdf")}/></div>
       </div>)}</div>:<div className="empty-state"><FileText size={18}/><b>No documents match.</b><span>Change the document type, client, status or search.</span></div>}
     </section>
     {selected&&<ManagedDialog open onClose={()=>setSelected(null)} title={label(selected)} description={(selected.template_key||"Template unspecified")+" · "+selected.status} className="document-history-panel" overlayClassName="document-history-overlay">
       <div className="document-history-body">
-        <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
+        <div className="document-history-summary"><div><span>Current</span><strong>v{selected.version_number}</strong></div><div><span>Portal</span><strong>{selected.client_id?(selected.visible_to_client?"Shared":"Private"):"Not linked"}</strong></div><div><span>Template</span><strong>{selected.template_key||"—"}</strong></div><div><span>Source</span><strong>{selected.source_hash?selected.source_hash.slice(0,10)+"…":"—"}</strong></div><div><span>Checksum</span><strong>{selected.checksum_sha256?selected.checksum_sha256.slice(0,10)+"…":"—"}</strong></div></div>
         <div className="version-list">{versions.length?versions.map(v=><div className="version-row" key={v.id}><div><b>Version {v.version_number}</b><span>{v.generated_at?new Date(v.generated_at).toLocaleString("en-IN"):"Generated version"}</span><small>{v.file_name||"PDF"} · {v.size_bytes?Math.round(v.size_bytes/1024)+" KB":"size unavailable"}</small></div><strong>{v.checksum_sha256?v.checksum_sha256.slice(0,12):"—"}</strong><DownloadButton label="Download" loadingLabel="Preparing" doneLabel="Ready" disabled={!v.file_path} onClick={async()=>{const url=await versionUrl(v);await downloadFile(url,v.file_name||"document.pdf")}}/></div>):<div className="empty-state">No generated versions are registered yet.</div>}</div>
       </div>
     </ManagedDialog>}

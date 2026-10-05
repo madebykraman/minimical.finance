@@ -12,7 +12,10 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
   if(!user.user) return NextResponse.json({error:"Unauthorized"},{status:401});
   const {data:member}=await supabase.from("workspace_members").select("user_id").eq("user_id",user.user.id).maybeSingle();
   if(!member) return NextResponse.json({error:"Unauthorized"},{status:403});
-  const {error}=await supabase.from("clients").update({portal_password_hash:hashPortalPassword(password),portal_password_set_at:new Date().toISOString(),portal_enabled:true}).eq("id",id);
-  if(error)return NextResponse.json({error:error.message},{status:400});
-  return NextResponse.json({ok:true});
+  const {data:rotated,error}=await supabase.rpc("rotate_client_portal_password",{
+    p_client_id:id,
+    p_password_hash:hashPortalPassword(password),
+  });
+  if(error||rotated!==true)return NextResponse.json({error:error?.message||"Could not rotate portal access."},{status:400});
+  return NextResponse.json({ok:true,sessions_revoked:true,tokens_revoked:true});
 }

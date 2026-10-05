@@ -23,6 +23,9 @@ export type Payment = {
   amount: number;
   payment_date: string;
   method: PaymentMethod;
+  reference?: string | null;
+  notes?: string | null;
+  receipt_number?: string | null;
 };
 
 export type Activity = {
@@ -111,6 +114,9 @@ export function mapInvoice(row: any): Invoice {
       amount: Number(p.amount),
       payment_date: p.payment_date,
       method: p.method,
+      reference: p.reference ?? null,
+      notes: p.notes ?? null,
+      receipt_number: p.receipt_number ?? null,
     })),
     activities: (row.activity_log ?? [])
       .sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))

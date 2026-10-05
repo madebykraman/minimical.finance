@@ -25,9 +25,23 @@ export async function GET(request:NextRequest,context:{params:Promise<{slug:stri
   ]);
   if(error||!data)return new NextResponse("Portal unavailable",{status:401});
   await supabase.rpc("log_client_portal_activity",{p_slug:slug,p_session:hashPortalSession(session),p_action:"invoice_pdf_downloaded",p_resource_type:"invoice",p_resource_id:id});
-  const org:any=orgRaw||{}; const templateKey=org.invoice_template_key||"legacy_elle"; const invoice=(data as any).invoices.find((i:any)=>i.id===id);if(!invoice)return new NextResponse("Invoice not found",{status:404});
-  const client=(data as any).client;const contents=[...(invoice.contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
-  const total=contents.reduce((s:number,i:any)=>s+(i.priced?Number(i.amount??Number(i.quantity||1)*Number(i.rate||0)):0),0);const hasUnpriced=contents.some((i:any)=>!i.priced);
+  const portalInvoice=(data as any).invoices.find((i:any)=>i.id===id);if(!portalInvoice)return new NextResponse("Invoice not found",{status:404});
+  let org:any=orgRaw||{};let client:any=(data as any).client||{};let invoice:any=portalInvoice;
+  const {data:liveMeta}=await supabase.from("invoices").select("issued_version,source_total").eq("id",id).maybeSingle();
+  if(liveMeta?.issued_version){
+    const {data:issued}=await supabase.from("invoice_versions").select("snapshot").eq("invoice_id",id).eq("version_number",liveMeta.issued_version).maybeSingle();
+    const snapshot:any=issued?.snapshot;
+    if(snapshot?.invoice){
+      invoice={...portalInvoice,...snapshot.invoice,contents:snapshot.contents??portalInvoice.contents,project_name:snapshot.project?.name??portalInvoice.project_name};
+      client=snapshot.client??client;
+      org=snapshot.organization??org;
+    }
+  }
+  if(invoice.source_total==null&&liveMeta?.source_total!=null)invoice.source_total=liveMeta.source_total;
+  const templateKey=org.invoice_template_key||"legacy_elle";
+  const contents=[...(invoice.contents||[])].sort((a:any,b:any)=>Number(a.position)-Number(b.position));
+  const calculatedTotal=contents.reduce((s:number,i:any)=>s+(i.priced?Number(i.amount??Number(i.quantity||1)*Number(i.rate||0)):0),0);
+  const sourceTotal=Number(invoice.source_total??0);const total=Number.isFinite(sourceTotal)&&sourceTotal>0?sourceTotal:calculatedTotal;const hasUnpriced=contents.some((i:any)=>!i.priced);
   const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);const regular=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-Regular.ttf")),{subset:true});const bold=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","Geist-SemiBold.ttf")),{subset:true});
   const mono=await pdf.embedFont(await readFile(join(process.cwd(),"public","fonts","GeistMono-Regular.ttf")),{subset:true});const orgLogo=await embedLogo(pdf,org.logo_path);const clientLogo=await embedLogo(pdf,client.logo_path);const page=pdf.addPage([PAGE.width,PAGE.height]);if(orgLogo){const d=orgLogo.scale(Math.min(48/orgLogo.width,24/orgLogo.height));page.drawImage(orgLogo,{x:X.left,y:794-d.height,width:d.width,height:d.height});}if(clientLogo){const d=clientLogo.scale(Math.min(48/clientLogo.width,24/clientLogo.height));page.drawImage(clientLogo,{x:X.right-d.width,y:794-d.height,width:d.width,height:d.height});}
   const draw=(s:string,x:number,y:number,font:any=regular,size=FONT_SIZE)=>page.drawText(safe(s),{x,y,size,font,color:BLACK});const drawDocIcon=(x:number,y:number,s=8)=>{page.drawRectangle({x,y,width:s,height:s,borderColor:BLACK,borderWidth:.5});page.drawLine({start:{x:x+2,y:y+5.5},end:{x:x+6,y:y+5.5},thickness:.45,color:BLACK});page.drawLine({start:{x:x+2,y:y+3},end:{x:x+5.5,y:y+3},thickness:.45,color:BLACK});};

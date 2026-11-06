@@ -27,19 +27,31 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
   const [slug,setSlug]=useState(""); const [token,setToken]=useState(""); const [data,setData]=useState<PortalData|null>(null);
   const [period,setPeriod]=useState<Period>("all"); const [status,setStatus]=useState<StatusFilter>("all"); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
   const [password,setPassword]=useState(""); const [loginBusy,setLoginBusy]=useState(false); const [expandedPayment,setExpandedPayment]=useState<string|null>(null); const [expandedProject,setExpandedProject]=useState<string|null>(null); const [profileOpen,setProfileOpen]=useState(false); const [profile,setProfile]=useState<any>({}); const [profileSaving,setProfileSaving]=useState(false); const [profileMessage,setProfileMessage]=useState("");
-  useEffect(()=>{params.then(p=>{setSlug(p.slug);setToken(new URLSearchParams(window.location.search).get("token")||"")})},[params]);
+  useEffect(()=>{let active=true;params.then(p=>{if(active){setSlug(p.slug);setToken(new URLSearchParams(window.location.search).get("token")||"")}});return()=>{active=false}},[params]);
   useEffect(()=>{if(slug)load()},[slug]);
   async function load(){
-    setLoading(true);const res=await fetch("/api/client-portal/data?slug="+encodeURIComponent(slug),{cache:"no-store"});
-    if(res.ok){const next=await res.json();setData(next);setProfile(next.client||{});setLoading(false);return;}
-    setLoading(false);
+    setLoading(true);
+    try {
+      const res=await fetch("/api/client-portal/data?slug="+encodeURIComponent(slug),{cache:"no-store"});
+      if(res.ok){
+        const next=await res.json();setData(next);setProfile(next.client||{});setError("");
+      }else if(res.status!==401){
+        setError("The account could not be loaded right now. Please try again.");
+      }
+    }catch{
+      setError("Connection unavailable. Check your internet connection and retry.");
+    }finally{setLoading(false);}
   }
   async function login(e:React.FormEvent){
     e.preventDefault();setLoginBusy(true);setError("");
-    const res=await fetch("/api/client-portal/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,token,password})});
-    const json=await res.json();setLoginBusy(false);
-    if(!res.ok){setError(json.error||"Could not sign in.");return;}
-    window.history.replaceState({}, "", "/portal/"+encodeURIComponent(slug));setToken("");await load();
+    try{
+      const res=await fetch("/api/client-portal/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,token,password})});
+      const json=await res.json().catch(()=>({}));
+      if(!res.ok){setError(json.error||"Could not sign in.");return;}
+      window.history.replaceState({}, "", "/portal/"+encodeURIComponent(slug));
+      setToken("");setPassword("");await load();
+    }catch{setError("Sign-in is temporarily unavailable. Check your connection and retry.");}
+    finally{setLoginBusy(false);}
   }
   const invoices=useMemo(()=>data?.invoices||[],[data]); const payments=useMemo(()=>data?.payments||[],[data]);
   const scoped=invoices.filter(i=>inPeriod(i.issue_date,period)&&statusMatch(i,status));
@@ -49,7 +61,7 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
   const fullStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period=all&status=all";
 
   if(loading&& !data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><Building2 size={16}/></div><p>Opening secure client account…</p></div></main>;
-  if(!data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><LockKeyhole size={16}/></div><div className="portal-kicker">SECURE CLIENT ACCOUNT</div><h1>Enter your portal password.</h1><p>This link identifies your account. Your password protects the financial records inside it.</p><form onSubmit={login} className="portal-login"><label>Password<input autoFocus type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Portal password" required/></label>{error&&<div className="portal-login-error">{error}</div>}<button className="portal-button dark" disabled={loginBusy}>{loginBusy?"Signing in…":"Open account"}</button></form></div></main>;
+  if(!data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><LockKeyhole size={16}/></div><div className="portal-kicker">SECURE CLIENT ACCOUNT</div><h1>Enter your portal password.</h1><p>This link identifies your account. Your password protects the financial records inside it.</p><form onSubmit={login} className="portal-login"><label>Password<input autoFocus type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Portal password" required/></label>{error&&<div className="portal-login-error" role="alert">{error}</div>}<button className="portal-button dark" disabled={loginBusy}>{loginBusy?"Signing in…":"Open account"}</button></form></div></main>;
 
   return <main className="portal-screen" style={{"--org-accent":data.organization?.accent_hex||"#7046dd"} as CSSProperties}><div className="portal-shell">
     <header className="portal-header">
@@ -68,6 +80,7 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
       <div className="portal-list">{scoped.length?scoped.map(i=><a className="portal-row" href={"/portal/"+slug+"/invoice/"+i.id} key={i.id}><div><b>#{i.invoice_number}</b><span>{date(i.issue_date)}{i.due_date?" · Due "+date(i.due_date):""}{i.project_name?" · "+i.project_name:""}</span></div><div><strong>{money(i.total)}</strong><small>{i.balance>0?money(i.balance)+" outstanding": "Paid"}</small></div><ArrowRight size={15}/></a>):<div className="portal-empty">No invoices match these filters.</div>}</div>
     </section>
 
+    <details className="portal-extras"><summary className="portal-extras-toggle"><span>Payments, projects, documents and account details</span><ChevronDown size={16}/></summary><div className="portal-extras-body">
     <section className="portal-panel portal-payments"><div className="portal-panel-head"><div><h2>Payments</h2><span>{payments.length} recorded</span></div><WalletCards size={16}/></div>
       <div className="portal-list">{payments.length?payments.map(p=><div className="portal-payment" key={p.id}>
         <button className="portal-payment-main" onClick={()=>setExpandedPayment(expandedPayment===p.id?null:p.id)}><div><b>{money(p.amount)}</b><span>{date(p.payment_date)} · Invoice #{p.invoice_number}</span></div><div><strong>{String(p.method||"").replaceAll("_"," ")}</strong><small>{p.reference||"No reference recorded"}</small></div><ChevronDown size={15} className={expandedPayment===p.id?"rotated":""}/></button>
@@ -83,6 +96,7 @@ export default function ClientPortalPage({params}:{params:Promise<{slug:string}>
 
     {data.client.allow_profile_edit&&<section className="portal-panel portal-profile portal-secondary"><button className="portal-profile-toggle" onClick={()=>setProfileOpen(v=>!v)}><div><h2>Account details</h2><p>Update your billing contact information.</p></div><span>{profileOpen?"Hide":"Edit"}</span></button>{profileOpen&&<div className="portal-profile-body"><div className="portal-profile-grid"><label>Name<input value={profile.name||""} onChange={e=>setProfile((p:any)=>({...p,name:e.target.value}))}/></label><label>Legal name<input value={profile.legal_name||""} onChange={e=>setProfile((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={profile.email||""} onChange={e=>setProfile((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={profile.phone||""} onChange={e=>setProfile((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={profile.pan||""} onChange={e=>setProfile((p:any)=>({...p,pan:e.target.value}))}/></label><label>GSTIN<input value={profile.gstin||""} onChange={e=>setProfile((p:any)=>({...p,gstin:e.target.value}))}/></label><label className="portal-profile-full">Address<textarea value={Array.isArray(profile.address_lines)?profile.address_lines.join("\n"):""} onChange={e=>setProfile((p:any)=>({...p,address_lines:e.target.value.split("\n").map((x:string)=>x.trim()).filter(Boolean)}))}/></label></div>{profileMessage&&<div className="portal-login-error">{profileMessage}</div>}<button className="portal-button dark" disabled={profileSaving} onClick={async()=>{setProfileSaving(true);setProfileMessage("");const res=await fetch("/api/client-portal/"+encodeURIComponent(slug)+"/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(profile)});const j=await res.json();setProfileSaving(false);setProfileMessage(res.ok?"Profile updated.":j.error||"Could not update profile.");if(res.ok){setData((d:any)=>({...d,client:j}));}}}>{profileSaving?"Saving…":"Save account details"}</button></div>}</section>}
 
+    </div></details>
     <footer className="portal-footer">Secure client account · {data.client.email||"Contact your studio for account questions"}</footer>
   </div></main>;
 }

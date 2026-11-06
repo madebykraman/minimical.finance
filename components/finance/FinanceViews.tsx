@@ -145,22 +145,22 @@ export function AuthScreen() {
       return;
     }
 
-    const origin = window.location.origin;
-    const result = mode === "signin"
-      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { emailRedirectTo: origin + "/auth/confirm" },
-        });
-
-    setBusy(false);
-    if (result.error) {
-      setMessage(result.error.message);
-    } else if (result.data.session) {
-      window.location.assign("/admin");
-    } else if (mode === "signup" && !result.data.session) {
-      setMessage("Account created. Check your email and confirm the address before signing in.");
+    try {
+      const origin = window.location.origin;
+      const result = mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+        : await supabase.auth.signUp({
+            email: email.trim(), password,
+            options: { emailRedirectTo: origin + "/auth/confirm" },
+          });
+      if (result.error) setMessage(result.error.message);
+      else if (result.data.session) window.location.assign("/admin");
+      else if (mode === "signup") setMessage("Account created. Check your email and confirm the address before signing in.");
+      else setMessage("Sign-in could not be completed. Please retry.");
+    } catch {
+      setMessage("Unable to contact the sign-in service. Check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
   }
 

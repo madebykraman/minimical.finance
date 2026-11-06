@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -84,6 +84,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const [paymentFor, setPaymentFor] = useState<Invoice | null>(null);
   const [activeView, setActiveView] = useState<FinanceView>(initialView);
   const [actionError, setActionError] = useState("");
+  const loadSequence = useRef(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<OrganizationRecord[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   const router = useRouter();
 
   useEffect(() => {
-    document.documentElement.dataset.theme = "dark";
+    document.documentElement.dataset.theme = "ledger";
     document.documentElement.style.colorScheme = "dark";
   }, []);
 
@@ -115,9 +116,14 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
+      if (error) setActionError("Unable to verify your session. Check your connection and retry.");
       setSession(data.session as SessionState | null);
+      setAuthReady(true);
+    }).catch(() => {
+      if (!active) return;
+      setActionError("Unable to reach authentication. Check your connection and retry.");
       setAuthReady(true);
     });
 
@@ -145,6 +151,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       return;
     }
 
+    let active = true;
     setOrganizationsReady(false);
     setWorkspaceReady(false);
 
@@ -153,7 +160,9 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       .select("*")
       .order("status")
       .order("name")
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) setActionError("Unable to load organisations: " + error.message);
         const rows = (data || []) as OrganizationRecord[];
         const activeRows = rows.filter(o => !["dissolved", "discontinued"].includes(String(o.status)));
 
@@ -187,12 +196,13 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
           if (workspaceStorageKey !== WORKSPACE_KEY) window.localStorage.removeItem(WORKSPACE_KEY);
         }
 
+      }).catch(() => {
+        if (!active) return;
+        setActionError("Could not reach the database. Check your connection and retry.");
+        setOrganizationsReady(true);
+        setWorkspaceReady(true);
       });
-
-    return () => {
-      // The Supabase request is intentionally allowed to settle; state writes are guarded by the
-      // current workspace/session lifecycle in the next effect pass.
-    };
+    return () => { active = false; };
   }, [session?.user?.id, authReady, workspaceStorageKey]);
 
   useEffect(() => {
@@ -222,20 +232,27 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
   }, [organizationId, workspaceStorageKey]);
 
   async function loadInvoices(activeOrganizationId = organizationId) {
+    const requestId = ++loadSequence.current;
     setLoading(true);
-    const result = await listInvoices(activeOrganizationId);
-
-    if (result.error) {
-      setActionError(result.error);
-      setLoading(false);
+    try {
+      const result = await listInvoices(activeOrganizationId);
+      if (requestId !== loadSequence.current) return [] as Invoice[];
+      if (result.error) {
+        setActionError(result.error);
+        return [] as Invoice[];
+      }
+      setActionError("");
+      setInvoices(result.data);
+      setSelected(current => current ? (result.data.find(i => i.id === current.id) ?? current) : current);
+      return result.data;
+    } catch (error) {
+      if (requestId === loadSequence.current) {
+        setActionError(error instanceof Error ? error.message : "Unable to load invoices. Please retry.");
+      }
       return [] as Invoice[];
+    } finally {
+      if (requestId === loadSequence.current) setLoading(false);
     }
-
-    setActionError("");
-    setInvoices(result.data);
-    setSelected(current => current ? (result.data.find(i => i.id === current.id) ?? current) : current);
-    setLoading(false);
-    return result.data;
   }
 
   async function markStatus(invoice: Invoice, next: Status) {
@@ -379,6 +396,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     const workspace = id;
     setOrganizationId(id);
     setWorkspaceReady(true);
+    loadSequence.current += 1;
     setInvoices([]);
     setLoading(true);
     setMobileMoreOpen(false);
@@ -409,7 +427,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     );
   }
 
-  if (!session) return <AuthScreen />;
+  if (!session) return <><AuthScreen />{actionError && <div className="auth-connectivity-alert" role="alert">{actionError} <button type="button" onClick={() => window.location.reload()}>Retry</button></div>}</>;
 
   if (!organizationsReady) {
     return (
@@ -428,6 +446,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
             <span className="eyebrow">WORKSPACE</span>
             <h1 id="workspace-landing-title">Choose an organisation</h1>
           </header>
+          {actionError && <div className="global-error" role="alert">{actionError} <button type="button" onClick={() => window.location.reload()}>Retry</button></div>}
           <div className="workspace-landing-list">
             {activeRows.map(org => (
               <button type="button" className="workspace-minimal-row" key={org.id} onClick={() => selectOrganization(org.id)}>
@@ -459,6 +478,7 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
       onSelectWorkspace={selectOrganization}
       organizations={organizations}
       onSignOut={() => { void supabase.auth.signOut(); }}
+      onOpenCommand={() => setCommandOpen(true)}
       mobileMoreOpen={mobileMoreOpen}
       setMobileMoreOpen={setMobileMoreOpen}
       overlays={

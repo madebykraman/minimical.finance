@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BarChart3, Check, ChevronDown, CircleAlert, FileInput, FileText, FolderKanban,
   LayoutDashboard, LogOut, MoreHorizontal, Receipt, Search,
-  Settings2, WalletCards, X, ArrowLeftRight
+  Settings2, WalletCards, X, ArrowLeftRight, ShieldCheck
 } from "lucide-react";
 import type { FinanceView } from "@/lib/finance/types";
 import { MobileSheet } from "./FinancePrimitives";
@@ -38,7 +38,7 @@ const secondary:Array<[FinanceView,typeof LayoutDashboard]> = [
 
 export function FinanceShell({
   activeView,onNavigate,activeOrganization,invoiceCount,session,actionError,clearError,
-  onSelectWorkspace,organizations,onSignOut,
+  onSelectWorkspace,organizations,onSignOut,onOpenCommand,
   mobileMoreOpen,setMobileMoreOpen,children,overlays
 }:{
   activeView:FinanceView;
@@ -51,6 +51,7 @@ export function FinanceShell({
   onSelectWorkspace:(id:string)=>void;
   organizations:WorkspaceOrganization[];
   onSignOut:()=>void;
+  onOpenCommand:()=>void;
   mobileMoreOpen:boolean;
   setMobileMoreOpen:(v:boolean)=>void;
   children:ReactNode;
@@ -121,7 +122,8 @@ export function FinanceShell({
   };
 
   return <main className="shell" style={{"--org-accent":activeOrganization?.accent_hex||"#7046dd"} as CSSProperties}>
-    <aside className="sidebar">
+    <aside className="sidebar" aria-label="Finance navigation">
+      <div className="rail-brand"><span className="rail-brand-mark" aria-hidden="true">m.</span><span className="rail-brand-name"><strong>minbooks</strong><small>FINANCE STUDIO</small></span></div>
       <div className="rail-workspace workspace-switcher-wrap">
         <button type="button" ref={desktopWorkspaceTriggerRef} className="rail-workspace-trigger" onClick={()=>workspaceMenuOpen?closeWorkspaceMenu():setWorkspaceMenuOpen(true)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
           <span className="rail-workspace-mark">{mark(activeOrganization)}</span>
@@ -139,7 +141,7 @@ export function FinanceShell({
         </div>}
       </div>
 
-      <nav className="finance-nav">
+      <nav className="finance-nav" aria-label="Workspace sections">
         <div className="nav-group"><span className="nav-group-label">Workspace</span>
           {primary.map(([key,Icon])=><button type="button" key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
             <Icon size={16}/><span>{financeViewLabel[key]}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}
@@ -175,6 +177,7 @@ export function FinanceShell({
           </div>}
         </div>
 
+        <div className="topbar-actions"><span className="workspace-private"><ShieldCheck size={14}/>Private workspace</span><button type="button" className="command-trigger" onClick={onOpenCommand} aria-label="Open command search" aria-keyshortcuts="Meta+K Control+K"><Search size={15}/><span>Search anything</span><kbd>⌘ K</kbd></button></div>
       </header>
       <div className="page-frame" key={activeView}>{children}</div>
     </section>

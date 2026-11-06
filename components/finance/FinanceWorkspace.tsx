@@ -155,11 +155,11 @@ export default function FinanceWorkspace({ initialView = "overview" }: { initial
     setOrganizationsReady(false);
     setWorkspaceReady(false);
 
-    supabase
+    Promise.resolve(supabase
       .from("organizations")
       .select("*")
       .order("status")
-      .order("name")
+      .order("name"))
       .then(({ data, error }) => {
         if (!active) return;
         if (error) setActionError("Unable to load organisations: " + error.message);

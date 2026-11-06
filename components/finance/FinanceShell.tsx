@@ -123,7 +123,7 @@ export function FinanceShell({
 
   return <main className="shell" style={{"--org-accent":activeOrganization?.accent_hex||"#7046dd"} as CSSProperties}>
     <aside className="sidebar" aria-label="Finance navigation">
-      <div className="rail-brand"><span className="rail-brand-mark" aria-hidden="true">m.</span><span className="rail-brand-name"><strong>minbooks</strong><small>FINANCE STUDIO</small></span></div>
+      <div className="rail-brand"><span className="rail-brand-mark" aria-hidden="true">ƒ</span><span className="rail-brand-name"><strong>Finance studio</strong><small>WORKSPACE</small></span></div>
       <div className="rail-workspace workspace-switcher-wrap">
         <button type="button" ref={desktopWorkspaceTriggerRef} className="rail-workspace-trigger" onClick={()=>workspaceMenuOpen?closeWorkspaceMenu():setWorkspaceMenuOpen(true)} aria-label="Switch organisation" aria-haspopup="dialog" aria-expanded={workspaceMenuOpen}>
           <span className="rail-workspace-mark">{mark(activeOrganization)}</span>
@@ -143,7 +143,7 @@ export function FinanceShell({
 
       <nav className="finance-nav" aria-label="Workspace sections">
         <div className="nav-group"><span className="nav-group-label">Workspace</span>
-          {primary.map(([key,Icon])=><button type="button" key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)}>
+          {primary.map(([key,Icon])=><button type="button" key={key} className={"nav-item "+(activeView===key?"active":"")} aria-current={activeView===key?"page":undefined} onClick={()=>onNavigate(key)} aria-label={financeViewLabel[key]}>
             <Icon size={16}/><span>{financeViewLabel[key]}</span>{key==="invoices"&&invoiceCount>0&&<em>{invoiceCount}</em>}
           </button>)}
         </div>
@@ -155,7 +155,7 @@ export function FinanceShell({
       </nav>
 
       <div className="sidebar-bottom">
-        <button type="button" className="nav-item" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button>
+        <button type="button" className="nav-item" onClick={onSignOut} aria-label="Sign out"><LogOut size={16}/><span>Sign out</span></button>
         <div className="profile"><div className="avatar">{String(session.user?.email||"A").slice(0,1).toUpperCase()}</div><div><b>Account</b><small>{session.user?.email||"Authenticated"}</small></div></div>
       </div>
     </aside>

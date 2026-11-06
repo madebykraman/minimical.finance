@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MinBooks — Finance studio",
+  title: "Finance studio — Billing and projects",
   description: "An organised space for invoices, clients, projects and payments.",
 };
 

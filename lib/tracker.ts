@@ -8,6 +8,9 @@ export type TrackerRow = {
   from_source_pdf: boolean; client_id: string|null; updated_at: string;
   organization_id?: string|null; source_paid?: boolean; source_paid_on?: string|null;
   source_kind?: string|null; import_key?: string|null;
+  quantity?: number; unit_price?: number|null; invoice_due_date?: string|null;
+  invoice_tax_rate?: number|null; invoice_tax_amount?: number|null;
+  invoice_public_notes?: string|null; invoice_created_in_app?: boolean;
 };
 export type TrackerPayment = {
   id: string; invoice_number: string; amount: number; paid_on: string;
@@ -29,6 +32,7 @@ export type InvoiceGroup = {
   paid:number; balance:number; date:string|null; sourceStatus:string;
   paymentState:string; document:string|null; discrepancy:number;
   sourceSettled:boolean; sourcePaidOn:string|null; recordedPayments:number;
+  taxRate:number; taxAmount:number; dueDate:string|null; publicNotes:string|null;
 };
 export const money = (n:number|null|undefined) => n==null?"—":new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(n));
 export const dateLabel = (s:string|null|undefined) => s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"Not supplied";
@@ -40,18 +44,22 @@ export function invoiceGroups(rows:TrackerRow[],payments:TrackerPayment[]):Invoi
     const meta=items.find(x=>x.invoice_printed_total!==null)||items[0];
     const total=Number(meta.invoice_printed_total??items.reduce((s,x)=>s+Number(x.amount||0),0));
     const lineTotal=items.reduce((s,x)=>s+Number(x.amount||0),0);
+    const taxRate=Number(items.find(x=>x.invoice_tax_rate!=null)?.invoice_tax_rate??0);
+    const taxAmount=Number(items.find(x=>x.invoice_tax_amount!=null)?.invoice_tax_amount??0);
+    const dueDate=items.find(x=>x.invoice_due_date)?.invoice_due_date??null;
+    const publicNotes=items.find(x=>x.invoice_public_notes)?.invoice_public_notes??null;
     const recordedPayments=payments.filter(x=>x.invoice_number===number).reduce((s,x)=>s+Number(x.amount),0);
     // The imported workbook marks five invoices paid but supplies payment dates for only two.
     // Preserve that settlement status without fabricating dated payment transactions.
     const sourceSettled=items.some(x=>x.source_paid===true);
     const sourcePaidOn=items.find(x=>x.source_paid_on)?.source_paid_on??null;
     const paid=sourceSettled?total:recordedPayments;
-    return {number,rows:items.sort((a,b)=>a.row_order-b.row_order),total,lineTotal,paid,sourceSettled,sourcePaidOn,recordedPayments,
+    return {number,rows:items.sort((a,b)=>a.row_order-b.row_order),total,lineTotal,paid,sourceSettled,sourcePaidOn,recordedPayments,taxRate,taxAmount,dueDate,publicNotes,
       balance:Math.max(0,Math.round((total-paid)*100)/100),date:items.find(x=>x.invoice_date)?.invoice_date??null,
       sourceStatus:items.find(x=>x.invoice_state)?.invoice_state??"Not specified",
       paymentState:items.find(x=>x.payment_state)?.payment_state??"Not specified",
       document:items.find(x=>x.invoice_pdf_name)?.invoice_pdf_name??null,
-      discrepancy:Math.round((lineTotal-total)*100)/100};
+      discrepancy:Math.round((lineTotal+taxAmount-total)*100)/100};
   }).sort((a,b)=>Number(a.number)-Number(b.number)||a.number.localeCompare(b.number));
 }
 /** Share an invoice only when every included work item belongs to the source client. */

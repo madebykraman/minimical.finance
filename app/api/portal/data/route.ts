@@ -21,7 +21,7 @@ export async function GET(){
     // Never expose an entire invoice group if it also contains another client's work.
     const clientRows=allRows.filter(x=>x.client_id===cl.data?.id &&
       invoiceBelongsToClient(allRows,x.invoice_number??"",cl.data?.id));
-    const invoices=invoiceGroups(clientRows,(p.data??[]) as unknown as TrackerPayment[]).map(g=>({
+    const invoices=invoiceGroups(clientRows,(p.data??[]) as unknown as TrackerPayment[]).filter(g=>g.sourceStatus!=="Draft").map(g=>({
       number:g.number,total:g.total,paid:g.paid,balance:g.balance,date:g.date,status:g.balance<=0?"Paid":g.paid>0?"Partially paid":"Unpaid",
       projects:g.rows.map(x=>({name:x.project_name,amount:x.amount}))
     }));

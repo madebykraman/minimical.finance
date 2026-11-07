@@ -46,6 +46,7 @@ export async function GET(request:Request,{params}:{params:Promise<{number:strin
   if(!invoice)return NextResponse.json({error:"Invoice not found."},{status:404});
   const ids=[...new Set(allRows.map(x=>x.client_id).filter(Boolean))];
   if(ids.length>1)return NextResponse.json({error:"Invoice has more than one client; review before generating."},{status:409});
+  if(!admin&&invoice.sourceStatus==="Draft")return NextResponse.json({error:"Draft invoices are private until issued."},{status:403});
   if(!admin){
    const sourceClient=(cs.data??[]).find(c=>c.name==="Elle India");
    if(!sourceClient||!invoiceBelongsToClient(allRows,number,sourceClient.id))
@@ -81,11 +82,12 @@ export async function GET(request:Request,{params}:{params:Promise<{number:strin
   draw("BILL TO",margin,y,9,true,muted);
   draw("INVOICE DETAILS",335,y,9,true,muted);y-=20;
   draw(client?.name||"Client not specified",margin,y,13,true);
-  draw("Issued: "+(invoice.date||"Date not supplied"),335,y,9,false,ink);y-=18;
+  draw("Issued: "+(invoice.date||"Date not supplied"),335,y,9,false,ink);y-=15;
+  if(invoice.dueDate){draw("Due: "+invoice.dueDate,335,y,9,false,muted);y-=15;}
   if(client?.address){for(const segment of wrap(client.address,normal,9,255).slice(0,3)){draw(segment,margin,y,9,false,muted);y-=14;}}
   if(client?.email){draw(client.email,margin,y,9,false,muted);y-=13;}
   if(client?.gstin){draw("Client GSTIN: "+client.gstin,margin,y,9,false,muted);y-=14;}
-  const status=invoice.balance<=0?"Paid":invoice.paid>0?"Part paid":"Unpaid";
+  const status=invoice.sourceStatus==="Draft"?"DRAFT":invoice.balance<=0?"Paid":invoice.paid>0?"Part paid":"Unpaid";
   draw("Status: "+status,335,y+14,9,true,invoice.balance<=0?rgb(.14,.48,.38):ink);
   y=Math.min(y,617);y-=26;
   page.drawRectangle({x:margin,y:y-19,width:width,height:29,color:rgb(.958,.973,.991)});
@@ -103,6 +105,7 @@ export async function GET(request:Request,{params}:{params:Promise<{number:strin
   if(y<210)nextPage();
   y-=11;
   draw("WORK ITEM TOTAL",margin+10,y,9,false,muted);right(rupees(invoice.lineTotal),margin+width-10,y,10,true);y-=24;
+  if(invoice.taxAmount>0){draw("TAX ("+invoice.taxRate+"%)",margin+10,y,9,false,muted);right(rupees(invoice.taxAmount),margin+width-10,y,10,true);y-=24;}
   draw("INVOICE TOTAL",margin+10,y,11,true);right(rupees(invoice.total),margin+width-10,y,15,true,blue);y-=26;
   draw("PAID / SETTLED",margin+10,y,9,false,muted);right(rupees(invoice.paid),margin+width-10,y,10,true);y-=24;
   hr(y+8);
@@ -119,6 +122,14 @@ export async function GET(request:Request,{params}:{params:Promise<{number:strin
    if(organization.bank_name){draw("Bank: "+organization.bank_name,margin,y,9);y-=13;}
    if(organization.bank_account){draw("Account: "+organization.bank_account,margin,y,9);y-=13;}
    if(organization.bank_ifsc){draw("IFSC: "+organization.bank_ifsc,margin,y,9);y-=13;}
+  }
+  if(invoice.publicNotes){
+   if(y<170)nextPage();
+   draw("INVOICE NOTES",margin,y,9,true,muted);y-=17;
+   for(const segment of wrap(invoice.publicNotes,normal,9,width).slice(0,8)){
+    if(y<105)nextPage();
+    draw(segment,margin,y,9,false,ink);y-=13;
+   }
   }
   if(organization.invoice_footer&&y>110){
    y-=12;for(const segment of wrap(organization.invoice_footer,normal,8.5,width).slice(0,3)){draw(segment,margin,y,8.5,false,muted);y-=12;}

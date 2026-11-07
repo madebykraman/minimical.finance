@@ -63,7 +63,7 @@ function Empty({title,description,action}:{title:string;description:string;actio
 function Card({title,description,action,children}:{title:string;description?:string;action?:ReactNode;children:ReactNode}){
  return <section className="fs-card"><div className="fs-card-head"><div><h2>{title}</h2>{description&&<p>{description}</p>}</div>{action}</div>{children}</section>;
 }
-function Dialog({title,subtitle,close,children}:{title:string;subtitle?:string;close:()=>void;children:ReactNode}){
+function Dialog({title,subtitle,close,children,wide=false}:{title:string;subtitle?:string;close:()=>void;children:ReactNode;wide?:boolean}){
  const ref=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   const before=document.activeElement as HTMLElement|null;
@@ -81,7 +81,7 @@ function Dialog({title,subtitle,close,children}:{title:string;subtitle?:string;c
   return()=>{document.removeEventListener("keydown",key);before?.focus()};
  },[close]);
  return <div className="fs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
-  <section className="fs-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={title}>
+  <section className={"fs-dialog"+(wide?" fs-dialog-wide":"")} ref={ref} role="dialog" aria-modal="true" aria-label={title}>
    <div className="fs-dialog-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="fs-icon" type="button" onClick={close} aria-label="Close"><X size={20}/></button></div>
    <div className="fs-dialog-content">{children}</div>
   </section>
@@ -641,7 +641,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setPaymentDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">Record payment</button></div>
    </form>
   </Dialog>}
-  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Create a client-ready invoice with custom or existing work." close={()=>setInvoiceDraft(null)}>
+  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Add items and review a live billing summary." close={()=>setInvoiceDraft(null)} wide>
     <form className="fs-form" onSubmit={createInvoice}>
      {!clients.length&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Add a client first. <button type="button" className="fs-link" onClick={()=>{setInvoiceDraft(null);addClient()}}>Create client</button></div>}
      <label>Bill to<select required value={invoiceDraft.clientId} onChange={e=>setInvoiceDraft({...invoiceDraft,clientId:e.target.value,rowIds:[]})}>
@@ -674,24 +674,50 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
       <button disabled={working||!invoiceDraft.clientId||(!invoiceDraft.rowIds.length&&!invoiceDraft.lineItems.some(x=>x.description.trim()))} className="fs-button fs-button-primary">{working?"Creating…":"Create invoice"}</button></div>
     </form>
    </Dialog>}
-{selected&&<Dialog title={"Invoice "+selected.number} subtitle={invoiceClient(selected)+" · "+dateLabel(selected.date)} close={()=>setSelectedInvoice(null)}>
-   <div className="fs-invoice-detail">
-    <div className="fs-invoice-detail-stats"><div><span>INVOICE TOTAL</span><strong>{money(selected.total)}</strong></div><div><span>REMAINING</span><strong>{money(selected.balance)}</strong></div></div>
-    <div className="fs-invoice-facts"><div><span>Status</span><Status tone={selected.sourceStatus==="Draft"?"neutral":selected.balance===0?"success":"warn"}>{selected.sourceStatus==="Draft"?"Draft":selected.balance===0?"Paid":selected.paid>0?"Part paid":"Unpaid"}</Status></div><div><span>Issue date</span><strong>{dateLabel(selected.date)}</strong></div>
-     {selected.dueDate&&<div><span>Due date</span><strong>{dateLabel(selected.dueDate)}</strong></div>}
-     {selected.taxRate>0&&<div><span>Tax ({selected.taxRate}%)</span><strong>{money(selected.taxAmount)}</strong></div>}
-     <div><span>Paid / settled</span><strong>{money(selected.paid)}</strong></div>{selected.sourceSettled&&<div><span>Opening status</span><strong>Marked paid {selected.sourcePaidOn?"on "+dateLabel(selected.sourcePaidOn):"— date not provided"}</strong></div>}</div>
-    <h3>Line items</h3>{selected.rows.map(r=><div className="fs-invoice-item" key={r.id}><div><strong>{titleFromSource(r.project_name)}</strong><small>{r.assigned_by||"No POC provided"}</small></div><strong>{money(r.amount)}</strong></div>)}
-    {Math.abs(selected.discrepancy)>.001&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Work items add to {money(selected.lineTotal)}, but invoice total is {money(selected.total)}. Review before issuing a document.</div>}
-    {selected.document&&<div className="fs-alert fs-alert-note"><FileText size={17}/>Opening records mention {selected.document}. A generated PDF is not the original uploaded invoice.</div>}
-    {selected.publicNotes&&<div className="fs-alert fs-alert-note"><FileText size={17}/>{selected.publicNotes}</div>}
-    {selected.sourceStatus==="Draft"&&<div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>This is a draft. Review the PDF, then change the invoice status to Sent before recording payment.</div>}
-    <div className="fs-form-actions">
-     {selected.rows.some(r=>r.invoice_created_in_app)&&selected.balance>0&&<button className="fs-button" onClick={()=>{
-      setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",status:selected.sourceStatus==="Sent"?"Sent":"Draft"});
-      setSelectedInvoice(null);
-     }}><PenLine size={15}/>Edit</button>}
-     <a className="fs-button" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={16}/>Generate PDF</a><span className="fs-flex"/>{selected.sourceStatus!=="Draft"&&selected.balance>0&&<button className="fs-button fs-button-primary" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Plus size={16}/>Record payment</button>}</div>
+{selected&&<Dialog title={"Invoice #"+selected.number} subtitle={invoiceClient(selected)+" · "+(selected.sourceStatus==="Draft"?"Draft":dateLabel(selected.date))} close={()=>setSelectedInvoice(null)} wide>
+   <div className="fs-detail-grid">
+    <div className="fs-detail-document">
+     <div className="fs-detail-blue">
+      <div className="fs-detail-blue-top"><span className="fs-detail-overline">INVOICE <span> / {selected.number}</span></span><Status tone={invoiceTone(selected)}>{invoiceStatus(selected)}</Status></div>
+      <div className="fs-detail-brand">{activeOrg?.legal_name||orgName}</div>
+      <div className="fs-detail-blue-total"><span>TOTAL INVOICED</span><strong>{money(selected.total)}</strong></div>
+     </div>
+     <div className="fs-detail-paper">
+      <div className="fs-detail-paper-head"><div><span>BILL TO</span><strong>{invoiceClient(selected)}</strong><small>{clients.find(c=>c.id===selected.rows[0]?.client_id)?.email||""}</small></div>
+       <div><span>INVOICE DATES</span><strong>{dateLabel(selected.date)}</strong><small>{selected.dueDate?"Due "+dateLabel(selected.dueDate):"No due date specified"}</small></div></div>
+      <div className="fs-detail-table-head"><span>DESCRIPTION</span><span>AMOUNT</span></div>
+      {selected.rows.map(row=><div className="fs-detail-line" key={row.id}><div><strong>{titleFromSource(row.project_name)}</strong>
+       <small>{row.quantity&&row.unit_price!=null?Number(row.quantity)+" × "+money(row.unit_price):row.assigned_by?"POC: "+row.assigned_by:"Service / work item"}</small></div>
+       <b>{money(row.amount)}</b></div>)}
+      <div className="fs-detail-calculations"><div><span>Work subtotal</span><strong>{money(selected.lineTotal)}</strong></div>
+       {selected.taxAmount>0&&<div><span>Tax ({selected.taxRate}%)</span><strong>{money(selected.taxAmount)}</strong></div>}
+       <div className="fs-detail-total-row"><span>Invoice total</span><strong>{money(selected.total)}</strong></div></div>
+      {selected.publicNotes&&<div className="fs-detail-notes"><span>NOTES</span><p>{selected.publicNotes}</p></div>}
+     </div>
+    </div>
+    <aside className="fs-detail-side">
+     <div className="fs-detail-progress-card"><div className="fs-detail-side-label">PAYMENT STATUS</div>
+      <div className="fs-detail-progress-head"><div><strong>{selected.total>0?Math.min(100,Math.round(selected.paid/selected.total*100)):0}%</strong><small>settled</small></div><span><strong>{money(selected.paid)}</strong><small>of {money(selected.total)}</small></span></div>
+      <div className="fs-detail-progress-track"><span style={{width:(selected.total>0?Math.min(100,selected.paid/selected.total*100):0)+"%"}}/></div>
+      <div className="fs-detail-remaining"><span>{selected.sourceStatus==="Draft"?"Not yet issued":"Balance due"}</span><strong>{money(selected.balance)}</strong></div>
+     </div>
+     <div className="fs-detail-activity"><h3>Payment history</h3>
+      {payments.filter(p=>p.invoice_number===selected.number).length?
+       payments.filter(p=>p.invoice_number===selected.number).map(p=><div className="fs-detail-activity-row" key={p.id}><span className="fs-detail-activity-icon"><Check size={15}/></span><div><strong>{money(p.amount)} received</strong><small>{dateLabel(p.paid_on)} · {p.method.replaceAll("_"," ")}</small></div></div>):
+       selected.sourceSettled?<div className="fs-detail-activity-row"><span className="fs-detail-activity-icon"><Check size={15}/></span><div><strong>Marked paid in opening records</strong><small>{selected.sourcePaidOn?dateLabel(selected.sourcePaidOn):"Payment date not provided"}</small></div></div>:
+       <p className="fs-detail-activity-empty">No individual payments have been recorded.</p>}
+     </div>
+     {Math.abs(selected.discrepancy)>.001&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Line items and invoice total differ by {money(Math.abs(selected.discrepancy))}. Both figures are preserved.</div>}
+     {selected.document&&<div className="fs-alert fs-alert-note"><FileText size={17}/>Original file reference: {selected.document}. The generated PDF is not the original.</div>}
+     {selected.sourceStatus==="Draft"&&<div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>Draft only. It is not part of issued receivables.</div>}
+     <div className="fs-detail-actions">
+      <a className="fs-button fs-button-primary" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/>Generate invoice PDF</a>
+      {selected.rows.some(r=>r.invoice_created_in_app)&&selected.balance>0&&<button className="fs-button" onClick={()=>{
+       setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",status:selected.sourceStatus==="Sent"?"Sent":"Draft"});setSelectedInvoice(null);
+      }}><PenLine size={16}/>Edit invoice</button>}
+      {selected.sourceStatus!=="Draft"&&selected.balance>0&&<button className="fs-button" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Wallet size={16}/>Record payment</button>}
+     </div>
+    </aside>
    </div>
   </Dialog>}
   {invoiceEdit&&<Dialog title={"Edit invoice "+invoiceEdit.number} subtitle="Update dates, notes and delivery status" close={()=>setInvoiceEdit(null)}>

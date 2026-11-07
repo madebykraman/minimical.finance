@@ -613,27 +613,69 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setPaymentDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">Record payment</button></div>
    </form>
   </Dialog>}
-  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Select work, choose a client and confirm the total" close={()=>setInvoiceDraft(null)}>
-   <form className="fs-form" onSubmit={createInvoice}>
-    <div className="fs-form-two"><label>Invoice number<input autoFocus required value={invoiceDraft.number} onChange={e=>setInvoiceDraft({...invoiceDraft,number:e.target.value})}/></label><label>Issue date<input required type="date" value={invoiceDraft.date} onChange={e=>setInvoiceDraft({...invoiceDraft,date:e.target.value})}/></label></div>
-    <div className="fs-checklist-title">Choose uninvoiced work <small>{invoiceDraft.rowIds.length} selected</small></div>
-    <div className="fs-checklist">{unbilled.length?unbilled.map(r=><label key={r.id}><input type="checkbox" checked={invoiceDraft.rowIds.includes(r.id)} onChange={e=>setInvoiceDraft({...invoiceDraft,rowIds:e.target.checked?[...invoiceDraft.rowIds,r.id]:invoiceDraft.rowIds.filter(x=>x!==r.id)})}/><span><strong>{titleFromSource(r.project_name)}</strong><small>{clientLabel(r.client_id)}</small></span><b>{money(r.amount)}</b></label>):<p>No work is available. Add uninvoiced work first.</p>}</div>
-    <label>Invoice total (INR)<input type="number" min="0" step=".01" value={invoiceDraft.total} onChange={e=>setInvoiceDraft({...invoiceDraft,total:e.target.value})} placeholder="Automatic from selected work"/></label>
-    <div className="fs-inline-help">Selected priced items: {money(sum(rows.filter(r=>invoiceDraft.rowIds.includes(r.id)).map(r=>Number(r.amount??0))))}. Missing prices require an explicit total.</div>
-    <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceDraft(null)}>Cancel</button><button disabled={working||!invoiceDraft.rowIds.length} className="fs-button fs-button-primary">Create invoice</button></div>
-   </form>
-  </Dialog>}
-  {selected&&<Dialog title={"Invoice "+selected.number} subtitle={invoiceClient(selected)+" · "+dateLabel(selected.date)} close={()=>setSelectedInvoice(null)}>
+  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Create a client-ready invoice with custom or existing work." close={()=>setInvoiceDraft(null)}>
+    <form className="fs-form" onSubmit={createInvoice}>
+     {!clients.length&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Add a client first. <button type="button" className="fs-link" onClick={()=>{setInvoiceDraft(null);addClient()}}>Create client</button></div>}
+     <label>Bill to<select required value={invoiceDraft.clientId} onChange={e=>setInvoiceDraft({...invoiceDraft,clientId:e.target.value,rowIds:[]})}>
+      <option value="">Choose a client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+     </select></label>
+     <div className="fs-form-two"><label>Invoice number<input required autoFocus maxLength={48} pattern="[a-zA-Z0-9-]+" value={invoiceDraft.number} onChange={e=>setInvoiceDraft({...invoiceDraft,number:e.target.value})}/></label>
+      <label>Issue date<input required type="date" value={invoiceDraft.date} onChange={e=>setInvoiceDraft({...invoiceDraft,date:e.target.value})}/></label></div>
+     <label>Payment due<input type="date" value={invoiceDraft.dueDate} onChange={e=>setInvoiceDraft({...invoiceDraft,dueDate:e.target.value})}/></label>
+     <div className="fs-checklist-title">Invoice line items <small>{invoiceDraft.lineItems.length} rows</small></div>
+     <div className="fs-line-editor">{invoiceDraft.lineItems.map((line,i)=><div className="fs-line-editor-row" key={i}>
+      <label>Item description<input maxLength={500} value={line.description} placeholder="Video editing, design service…" onChange={e=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.map((x,k)=>k===i?{...x,description:e.target.value}:x)})}/></label>
+      <label>Quantity<input type="number" min=".001" step=".001" value={line.quantity} onChange={e=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.map((x,k)=>k===i?{...x,quantity:e.target.value}:x)})}/></label>
+      <label>Rate (₹)<input type="number" min="0" step=".01" placeholder="0" value={line.rate} onChange={e=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.map((x,k)=>k===i?{...x,rate:e.target.value}:x)})}/></label>
+      <button type="button" className="fs-icon fs-danger-hover" aria-label={"Remove line "+(i+1)} onClick={()=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.filter((_,k)=>k!==i)})}><Trash2 size={17}/></button>
+     </div>)}
+     <button type="button" className="fs-button fs-button-small" onClick={()=>setInvoiceDraft({...invoiceDraft,lineItems:[...invoiceDraft.lineItems,{description:"",quantity:"1",rate:""}]})}><Plus size={15}/>Add line item</button></div>
+     <div className="fs-checklist-title">Include existing unbilled work <small>{invoiceDraft.rowIds.length} selected</small></div>
+     <div className="fs-checklist">{unbilled.filter(r=>!r.client_id||r.client_id===invoiceDraft.clientId).length?
+      unbilled.filter(r=>!r.client_id||r.client_id===invoiceDraft.clientId).map(r=><label key={r.id}>
+       <input type="checkbox" disabled={!invoiceDraft.clientId||r.amount===null} checked={invoiceDraft.rowIds.includes(r.id)}
+        onChange={e=>setInvoiceDraft({...invoiceDraft,rowIds:e.target.checked?[...invoiceDraft.rowIds,r.id]:invoiceDraft.rowIds.filter(x=>x!==r.id)})}/>
+       <span><strong>{titleFromSource(r.project_name)}</strong><small>{r.amount===null?"Set a price first":clientLabel(r.client_id)}</small></span>
+       <b>{money(r.amount)}</b></label>):
+      <p>No unbilled work for this client. Create an invoice from the new line items above.</p>}</div>
+     <div className="fs-form-two"><label>Tax rate (%)<input type="number" min="0" max="100" step=".01" value={invoiceDraft.taxRate} onChange={e=>setInvoiceDraft({...invoiceDraft,taxRate:e.target.value})}/></label>
+      <div className="fs-invoice-total"><small>GRAND TOTAL</small><strong>{money(draftTotal)}</strong><span>{money(draftSubtotal)} + {money(draftTax)} tax</span></div></div>
+     <label>Invoice notes<textarea rows={3} value={invoiceDraft.notes} onChange={e=>setInvoiceDraft({...invoiceDraft,notes:e.target.value})} placeholder="Payment terms, purchase order or delivery notes"/></label>
+     <div className="fs-inline-help">Created invoices begin as drafts. Legal, address and bank fields are taken from organisation settings.</div>
+     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceDraft(null)}>Cancel</button>
+      <button disabled={working||!invoiceDraft.clientId||(!invoiceDraft.rowIds.length&&!invoiceDraft.lineItems.some(x=>x.description.trim()))} className="fs-button fs-button-primary">{working?"Creating…":"Create invoice"}</button></div>
+    </form>
+   </Dialog>}
+{selected&&<Dialog title={"Invoice "+selected.number} subtitle={invoiceClient(selected)+" · "+dateLabel(selected.date)} close={()=>setSelectedInvoice(null)}>
    <div className="fs-invoice-detail">
     <div className="fs-invoice-detail-stats"><div><span>INVOICE TOTAL</span><strong>{money(selected.total)}</strong></div><div><span>REMAINING</span><strong>{money(selected.balance)}</strong></div></div>
-    <div className="fs-invoice-facts"><div><span>Status</span><Status tone={selected.balance===0?"success":"warn"}>{selected.balance===0?"Paid":selected.paid>0?"Part paid":"Unpaid"}</Status></div><div><span>Issue date</span><strong>{dateLabel(selected.date)}</strong></div><div><span>Paid / settled</span><strong>{money(selected.paid)}</strong></div>{selected.sourceSettled&&<div><span>Opening status</span><strong>Marked paid {selected.sourcePaidOn?"on "+dateLabel(selected.sourcePaidOn):"— date not provided"}</strong></div>}</div>
+    <div className="fs-invoice-facts"><div><span>Status</span><Status tone={selected.balance===0?"success":"warn"}>{selected.balance===0?"Paid":selected.paid>0?"Part paid":"Unpaid"}</Status></div><div><span>Issue date</span><strong>{dateLabel(selected.date)}</strong></div>
+     {selected.dueDate&&<div><span>Due date</span><strong>{dateLabel(selected.dueDate)}</strong></div>}
+     {selected.taxRate>0&&<div><span>Tax ({selected.taxRate}%)</span><strong>{money(selected.taxAmount)}</strong></div>}
+     <div><span>Paid / settled</span><strong>{money(selected.paid)}</strong></div>{selected.sourceSettled&&<div><span>Opening status</span><strong>Marked paid {selected.sourcePaidOn?"on "+dateLabel(selected.sourcePaidOn):"— date not provided"}</strong></div>}</div>
     <h3>Line items</h3>{selected.rows.map(r=><div className="fs-invoice-item" key={r.id}><div><strong>{titleFromSource(r.project_name)}</strong><small>{r.assigned_by||"No POC provided"}</small></div><strong>{money(r.amount)}</strong></div>)}
     {Math.abs(selected.discrepancy)>.001&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Work items add to {money(selected.lineTotal)}, but invoice total is {money(selected.total)}. Review before issuing a document.</div>}
     {selected.document&&<div className="fs-alert fs-alert-note"><FileText size={17}/>Opening records mention {selected.document}. A generated PDF is not the original uploaded invoice.</div>}
-    <div className="fs-form-actions"><a className="fs-button" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={16}/>Generate PDF</a><span className="fs-flex"/>{selected.balance>0&&<button className="fs-button fs-button-primary" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Plus size={16}/>Record payment</button>}</div>
+    {selected.publicNotes&&<div className="fs-alert fs-alert-note"><FileText size={17}/>{selected.publicNotes}</div>}
+    <div className="fs-form-actions">
+     {selected.rows.some(r=>r.invoice_created_in_app)&&selected.balance>0&&<button className="fs-button" onClick={()=>{
+      setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",status:selected.sourceStatus==="Sent"?"Sent":"Draft"});
+      setSelectedInvoice(null);
+     }}><PenLine size={15}/>Edit</button>}
+     <a className="fs-button" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={16}/>Generate PDF</a><span className="fs-flex"/>{selected.balance>0&&<button className="fs-button fs-button-primary" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Plus size={16}/>Record payment</button>}</div>
    </div>
   </Dialog>}
-  {organisationDraft&&<Dialog title="Organisation details" subtitle="Used in your generated financial documents" close={()=>setOrganisationDraft(null)}>
+  {invoiceEdit&&<Dialog title={"Edit invoice "+invoiceEdit.number} subtitle="Update dates, notes and delivery status" close={()=>setInvoiceEdit(null)}>
+    <form className="fs-form" onSubmit={editInvoice}>
+     <div className="fs-form-two"><label>Issue date<input type="date" required value={invoiceEdit.date} onChange={e=>setInvoiceEdit({...invoiceEdit,date:e.target.value})}/></label>
+      <label>Due date<input type="date" value={invoiceEdit.dueDate} onChange={e=>setInvoiceEdit({...invoiceEdit,dueDate:e.target.value})}/></label></div>
+     <label>Invoice status<select value={invoiceEdit.status} onChange={e=>setInvoiceEdit({...invoiceEdit,status:e.target.value as "Draft"|"Sent"})}><option value="Draft">Draft</option><option value="Sent">Sent (delivered separately)</option></select></label>
+     <label>Public invoice notes<textarea rows={3} value={invoiceEdit.notes} onChange={e=>setInvoiceEdit({...invoiceEdit,notes:e.target.value})}/></label>
+     <div className="fs-inline-help">Setting the status to Sent records the change. It does not send an email.</div>
+     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceEdit(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{working?"Saving…":"Save invoice"}</button></div>
+    </form>
+   </Dialog>}
+{organisationDraft&&<Dialog title="Organisation details" subtitle="Used in your generated financial documents" close={()=>setOrganisationDraft(null)}>
    <form className="fs-form" onSubmit={saveOrganisation}><div className="fs-locked-name"><label>Organisation<input value={organisationDraft.name} disabled/></label><Status tone={organisationDraft.status==="dissolved"?"warn":"success"}>{organisationDraft.status}</Status></div>
     <label>Legal / invoice name<input value={organisationDraft.legal_name??""} onChange={e=>setOrganisationDraft({...organisationDraft,legal_name:e.target.value})}/></label>
     <div className="fs-form-two"><label>Email<input type="email" value={organisationDraft.email??""} onChange={e=>setOrganisationDraft({...organisationDraft,email:e.target.value})}/></label><label>Phone<input type="tel" value={organisationDraft.phone??""} onChange={e=>setOrganisationDraft({...organisationDraft,phone:e.target.value})}/></label></div>

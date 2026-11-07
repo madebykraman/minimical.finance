@@ -518,7 +518,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      <div className="fs-filterbar"><label className="fs-search"><Search size={17}/><input aria-label="Find client" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients…"/></label></div>
      <Card title="Client directory" description={clients.length+" clients in this organisation"}>
       {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).length?
-      <div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>CLIENT</th><th>CONTACT</th><th>WORK</th><th>INVOICES</th><th/></tr></thead><tbody>
+      <><div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>CLIENT</th><th>CONTACT</th><th>WORK</th><th>INVOICES</th><th/></tr></thead><tbody>
        {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><tr key={c.id}>
         <td><button className="fs-table-main" onClick={()=>addClient(c)}>{c.name}</button></td>
         <td><span>{c.email||"—"}</span><small className="fs-table-sub">{c.phone||""}</small></td>
@@ -531,7 +531,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
         <div className="fs-mobile-record-head"><span className="fs-mobile-record-icon fs-client-icon"><UsersRound size={19}/></span>
          <div><strong>{c.name}</strong><small>{c.email||c.phone||"No contact added"}</small></div><ChevronRight size={17}/></div>
         <div className="fs-mobile-record-bottom"><span>{rows.filter(r=>r.client_id===c.id).length} work items</span><span>{invoices.filter(i=>i.rows.some(r=>r.client_id===c.id)).length} invoices</span></div>
-       </button>)}</div>:
+       </button>)}</div></>:
       <Empty title="No clients" description="Import your existing client list in one upload, or add a client manually." action={<button className="fs-button" onClick={startImport}><UploadCloud size={16}/>Import clients</button>}/>}
      </Card>
     </>}

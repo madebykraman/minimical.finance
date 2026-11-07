@@ -657,3 +657,29 @@ button.fs-list-row:hover,a.fs-list-row:hover{background:#f8faff}
  .fs-composer-preview-banner{min-height:145px}
 }
 @media(prefers-reduced-motion:reduce){.fs-detail-progress-track span{transition:none}}
+
+
+/* Touch-first registers. Desktop tables remain unchanged for dense financial work. */
+.fs-mobile-register{display:none}
+@media(max-width:780px){
+ .fs-desktop-register{display:none}
+ .fs-mobile-register{display:grid;gap:0;padding:2px 12px 10px}
+ .fs-mobile-record{background:#fff;min-height:114px;border:0;border-bottom:1px solid #edf0f4;display:grid;gap:14px;text-align:left;padding:16px 5px;color:#2a384d;width:100%}
+ .fs-mobile-record:last-child{border-bottom:0}
+ .fs-mobile-record:active{background:#f7faff}
+ .fs-mobile-record-head{display:flex;align-items:center;gap:12px;min-width:0}
+ .fs-mobile-record-head>div{flex:1;min-width:0;display:grid;gap:5px}
+ .fs-mobile-record-head>div strong{font-size:13px;font-weight:750;line-height:1.35;color:#27364b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .fs-mobile-record-head>div small{font-size:11px;color:#96a2b1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .fs-mobile-record-head>svg:last-child{color:#9facbd;flex-shrink:0}
+ .fs-mobile-record-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;color:#2c64db;background:#edf3ff;flex-shrink:0}
+ .fs-mobile-record-icon.fs-client-icon{background:#e5f8ef;color:#188a68}
+ .fs-mobile-record-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px}
+ .fs-mobile-record-bottom>strong{font-size:13px;font-weight:770;color:#2d3c52;font-variant-numeric:tabular-nums}
+ .fs-mobile-record-bottom>span{font-size:11px;color:#8290a3}
+ .fs-mobile-record-bottom .fs-status{margin-left:auto}
+}
+@media(max-width:580px){
+ .fs-mobile-register{padding:0 11px 8px}
+ .fs-mobile-record{padding:14px 4px;gap:12px}
+}

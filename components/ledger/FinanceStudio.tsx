@@ -170,10 +170,12 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   const ids=[...new Set(i.rows.map(r=>r.client_id).filter(Boolean))];
   return ids.length===1?clientLabel(ids[0]):ids.length>1?"Multiple clients":"No client";
  };
- const invoiced=sum(invoices.map(i=>i.total));
- const collected=sum(invoices.map(i=>i.paid));
- const outstanding=sum(invoices.map(i=>i.balance));
- const openInvoices=invoices.filter(i=>i.balance>0);
+ const issuedInvoices=invoices.filter(i=>i.sourceStatus!=="Draft");
+ const draftCount=invoices.length-issuedInvoices.length;
+ const invoiced=sum(issuedInvoices.map(i=>i.total));
+ const collected=sum(issuedInvoices.map(i=>i.paid));
+ const outstanding=sum(issuedInvoices.map(i=>i.balance));
+ const openInvoices=issuedInvoices.filter(i=>i.balance>0);
  const unbilled=rows.filter(x=>!x.invoice_number&&x.work_status!=="archived");
  const q=search.toLowerCase().trim();
  const selected=selectedInvoice?invoices.find(i=>i.number===selectedInvoice):null;
@@ -416,7 +418,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      <div className="fs-page-heading"><div><p className="fs-eyebrow">YOUR FINANCES</p><h1>{orgName}</h1><p>Invoices, work and payments—clearly organised.</p></div><div className="fs-heading-actions"><button type="button" className="fs-button" onClick={()=>addWork()}><Plus size={16}/>New work</button><button type="button" className="fs-button fs-button-primary" onClick={openInvoiceForm}><ReceiptText size={16}/>New invoice</button></div></div>
      <div className="fs-metrics">
       <Metric label="Outstanding" value={money(outstanding)} detail={openInvoices.length+" open invoices"} icon={Wallet} emphasis/>
-      <Metric label="Total invoiced" value={money(invoiced)} detail={invoices.length+" invoices"} icon={ReceiptText}/>
+      <Metric label="Total invoiced" value={money(invoiced)} detail={issuedInvoices.length+" issued · "+draftCount+" drafts"} icon={ReceiptText}/>
       <Metric label="Marked paid / collected" value={money(collected)} detail="Includes historical paid status" icon={CheckCircle2}/>
       <Metric label="Work items" value={String(rows.length)} detail={unbilled.length+" not yet invoiced"} icon={BriefcaseBusiness}/>
      </div>
@@ -461,7 +463,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
       <div className="fs-table-scroll"><table className="fs-table"><thead><tr><th>INVOICE</th><th>CLIENT</th><th>ISSUED</th><th>STATUS</th><th className="fs-right">TOTAL</th><th className="fs-right">OUTSTANDING</th><th/></tr></thead><tbody>
        {invoiceVisible.map(i=><tr key={i.number}><td><button className="fs-table-main" onClick={()=>setSelectedInvoice(i.number)}>#{i.number}</button><small className="fs-table-sub">{i.rows.length} items</small></td>
         <td>{invoiceClient(i)}</td><td className="fs-nowrap">{dateLabel(i.date)}</td>
-        <td><Status tone={i.balance===0?"success":i.paid>0?"info":"warn"}>{i.balance===0?"Paid":i.paid>0?"Part paid":"Unpaid"}</Status></td>
+        <td><Status tone={i.sourceStatus==="Draft"?"neutral":i.balance===0?"success":i.paid>0?"info":"warn"}>{i.sourceStatus==="Draft"?"Draft":i.balance===0?"Paid":i.paid>0?"Part paid":"Unpaid"}</Status></td>
         <td className="fs-right fs-strong">{money(i.total)}</td><td className="fs-right fs-strong">{money(i.balance)}</td>
         <td><button className="fs-icon" aria-label={"View invoice "+i.number} onClick={()=>setSelectedInvoice(i.number)}><ChevronRight size={18}/></button></td></tr>)}
       </tbody></table></div>
@@ -649,7 +651,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
 {selected&&<Dialog title={"Invoice "+selected.number} subtitle={invoiceClient(selected)+" · "+dateLabel(selected.date)} close={()=>setSelectedInvoice(null)}>
    <div className="fs-invoice-detail">
     <div className="fs-invoice-detail-stats"><div><span>INVOICE TOTAL</span><strong>{money(selected.total)}</strong></div><div><span>REMAINING</span><strong>{money(selected.balance)}</strong></div></div>
-    <div className="fs-invoice-facts"><div><span>Status</span><Status tone={selected.balance===0?"success":"warn"}>{selected.balance===0?"Paid":selected.paid>0?"Part paid":"Unpaid"}</Status></div><div><span>Issue date</span><strong>{dateLabel(selected.date)}</strong></div>
+    <div className="fs-invoice-facts"><div><span>Status</span><Status tone={selected.sourceStatus==="Draft"?"neutral":selected.balance===0?"success":"warn"}>{selected.sourceStatus==="Draft"?"Draft":selected.balance===0?"Paid":selected.paid>0?"Part paid":"Unpaid"}</Status></div><div><span>Issue date</span><strong>{dateLabel(selected.date)}</strong></div>
      {selected.dueDate&&<div><span>Due date</span><strong>{dateLabel(selected.dueDate)}</strong></div>}
      {selected.taxRate>0&&<div><span>Tax ({selected.taxRate}%)</span><strong>{money(selected.taxAmount)}</strong></div>}
      <div><span>Paid / settled</span><strong>{money(selected.paid)}</strong></div>{selected.sourceSettled&&<div><span>Opening status</span><strong>Marked paid {selected.sourcePaidOn?"on "+dateLabel(selected.sourcePaidOn):"— date not provided"}</strong></div>}</div>
@@ -657,12 +659,13 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     {Math.abs(selected.discrepancy)>.001&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Work items add to {money(selected.lineTotal)}, but invoice total is {money(selected.total)}. Review before issuing a document.</div>}
     {selected.document&&<div className="fs-alert fs-alert-note"><FileText size={17}/>Opening records mention {selected.document}. A generated PDF is not the original uploaded invoice.</div>}
     {selected.publicNotes&&<div className="fs-alert fs-alert-note"><FileText size={17}/>{selected.publicNotes}</div>}
+    {selected.sourceStatus==="Draft"&&<div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>This is a draft. Review the PDF, then change the invoice status to Sent before recording payment.</div>}
     <div className="fs-form-actions">
      {selected.rows.some(r=>r.invoice_created_in_app)&&selected.balance>0&&<button className="fs-button" onClick={()=>{
       setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",status:selected.sourceStatus==="Sent"?"Sent":"Draft"});
       setSelectedInvoice(null);
      }}><PenLine size={15}/>Edit</button>}
-     <a className="fs-button" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={16}/>Generate PDF</a><span className="fs-flex"/>{selected.balance>0&&<button className="fs-button fs-button-primary" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Plus size={16}/>Record payment</button>}</div>
+     <a className="fs-button" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={16}/>Generate PDF</a><span className="fs-flex"/>{selected.sourceStatus!=="Draft"&&selected.balance>0&&<button className="fs-button fs-button-primary" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Plus size={16}/>Record payment</button>}</div>
    </div>
   </Dialog>}
   {invoiceEdit&&<Dialog title={"Edit invoice "+invoiceEdit.number} subtitle="Update dates, notes and delivery status" close={()=>setInvoiceEdit(null)}>

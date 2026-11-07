@@ -415,7 +415,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
         <td className="fs-right fs-nowrap fs-strong">{money(r.amount)}</td><td><Status tone={r.work_status==="complete"?"success":"neutral"}>{r.work_status}</Status></td>
         <td><button className="fs-icon" aria-label={"Edit "+r.project_name} onClick={()=>addWork(r)}><PenLine size={16}/></button></td></tr>)}
       </tbody></table></div>
-      {!workVisible.length&&<Empty title="No work found" description="Try clearing the filters, importing a file or adding work."/ >}
+      {!workVisible.length&&<Empty title="No work found" description="Try clearing the filters, importing a file or adding work."/>}
      </Card>
     </>}
     {view==="invoices"&&<>

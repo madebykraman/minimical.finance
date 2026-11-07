@@ -466,13 +466,19 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
       <div className="fs-segments">{[["all","All"],["unbilled","Unbilled"],["invoiced","Invoiced"],["complete","Complete"]].map(([id,label])=><button key={id} className={filter===id?"active":""} onClick={()=>setFilter(id)}>{label}</button>)}</div>
      </div>
      <Card title="Projects and deliverables" description={workVisible.length+" items"}>
-      <div className="fs-table-scroll"><table className="fs-table"><thead><tr><th>WORK</th><th>CLIENT</th><th>POC</th><th>INVOICE</th><th className="fs-right">AMOUNT</th><th>STATUS</th><th/></tr></thead><tbody>
+      <div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>WORK</th><th>CLIENT</th><th>POC</th><th>INVOICE</th><th className="fs-right">AMOUNT</th><th>STATUS</th><th/></tr></thead><tbody>
        {workVisible.map(r=><tr key={r.id}><td><button className="fs-table-main" onClick={()=>addWork(r)}>{titleFromSource(r.project_name)}</button>{r.notes&&<small className="fs-table-sub">Has notes</small>}</td>
         <td>{clientLabel(r.client_id)}</td><td>{r.assigned_by||<span className="fs-dim">Not set</span>}</td>
         <td>{r.invoice_number?<button className="fs-link" onClick={()=>{navigate("invoices");setSelectedInvoice(r.invoice_number)}}>{r.invoice_number}</button>:<span className="fs-dim">—</span>}</td>
         <td className="fs-right fs-nowrap fs-strong">{money(r.amount)}</td><td><Status tone={r.work_status==="complete"?"success":"neutral"}>{r.work_status}</Status></td>
         <td><button className="fs-icon" aria-label={"Edit "+r.project_name} onClick={()=>addWork(r)}><PenLine size={16}/></button></td></tr>)}
       </tbody></table></div>
+      <div className="fs-mobile-register" aria-label="Work items">{workVisible.map(r=><button className="fs-mobile-record" type="button" key={r.id} onClick={()=>addWork(r)}>
+       <div className="fs-mobile-record-head"><span className="fs-mobile-record-icon"><BriefcaseBusiness size={19}/></span>
+        <div><strong>{titleFromSource(r.project_name)}</strong><small>{clientLabel(r.client_id)}</small></div><ChevronRight size={17}/></div>
+       <div className="fs-mobile-record-bottom"><strong>{money(r.amount)}</strong><span>{r.invoice_number?"Invoice #"+r.invoice_number:"Not invoiced"}</span>
+        <Status tone={r.work_status==="complete"?"success":"neutral"}>{r.work_status}</Status></div>
+      </button>)}</div>
       {!workVisible.length&&<Empty title="No work found" description="Try clearing the filters, importing a file or adding work."/>}
      </Card>
     </>}
@@ -512,7 +518,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      <div className="fs-filterbar"><label className="fs-search"><Search size={17}/><input aria-label="Find client" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients…"/></label></div>
      <Card title="Client directory" description={clients.length+" clients in this organisation"}>
       {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).length?
-      <div className="fs-table-scroll"><table className="fs-table"><thead><tr><th>CLIENT</th><th>CONTACT</th><th>WORK</th><th>INVOICES</th><th/></tr></thead><tbody>
+      <div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>CLIENT</th><th>CONTACT</th><th>WORK</th><th>INVOICES</th><th/></tr></thead><tbody>
        {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><tr key={c.id}>
         <td><button className="fs-table-main" onClick={()=>addClient(c)}>{c.name}</button></td>
         <td><span>{c.email||"—"}</span><small className="fs-table-sub">{c.phone||""}</small></td>
@@ -520,7 +526,12 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
         <td>{invoices.filter(i=>i.rows.some(r=>r.client_id===c.id)).length}</td>
         <td><button className="fs-icon" aria-label={"Edit "+c.name} onClick={()=>addClient(c)}><PenLine size={16}/></button></td>
        </tr>)}
-      </tbody></table></div>:
+      </tbody></table></div>
+       <div className="fs-mobile-register" aria-label="Client directory">{clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><button className="fs-mobile-record" type="button" key={c.id} onClick={()=>addClient(c)}>
+        <div className="fs-mobile-record-head"><span className="fs-mobile-record-icon fs-client-icon"><UsersRound size={19}/></span>
+         <div><strong>{c.name}</strong><small>{c.email||c.phone||"No contact added"}</small></div><ChevronRight size={17}/></div>
+        <div className="fs-mobile-record-bottom"><span>{rows.filter(r=>r.client_id===c.id).length} work items</span><span>{invoices.filter(i=>i.rows.some(r=>r.client_id===c.id)).length} invoices</span></div>
+       </button>)}</div>:
       <Empty title="No clients" description="Import your existing client list in one upload, or add a client manually." action={<button className="fs-button" onClick={startImport}><UploadCloud size={16}/>Import clients</button>}/>}
      </Card>
     </>}

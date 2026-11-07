@@ -322,3 +322,223 @@ button.fs-list-row:hover,a.fs-list-row:hover{background:#f8faff}
  .fs-line-editor-row label:nth-child(3){grid-column:2}
  .fs-line-editor-row .fs-icon{grid-column:3}
 }
+
+
+/* ───────────────────────────────────────────────────────────
+   FINANCE / COBALT — unified design language
+   Inspired by the supplied invoice and finance UI references.
+   Bright ledger canvas, cobalt hero, deep-ink navigation.
+   ─────────────────────────────────────────────────────────── */
+.fs-root{
+ --fs-ink:#181e2d;--fs-muted:#778397;--fs-border:#e5e9f0;
+ --fs-panel:#fff;--fs-blue:#2b61e9;--fs-blue-dark:#164ac8;
+ --fs-soft:#f5f7fa;--fs-green:#21846a;--fs-amber:#9d6526;
+ color:var(--fs-ink);background:#f4f6f9;
+ font-family:var(--font-geist),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.fs-sidebar{background:#141923;border-right:1px solid #242d3b;color:#fff}
+.fs-brand{height:94px;padding-inline:23px}
+.fs-brand-mark{background:linear-gradient(135deg,#3b82ff,#2857e3);color:#fff;border-radius:13px;box-shadow:0 7px 24px #2c63ed33}
+.fs-brand-mark span{color:#bed4ff}
+.fs-brand strong{color:#fafbff;font-size:20px;font-weight:780}
+.fs-brand small{color:#7f90ab;font-size:9px}
+.fs-organisation{background:#1b2331;border:1px solid #2c3446;border-radius:13px;padding:14px 11px}
+.fs-organisation label,.fs-sidebar-kicker{color:#8190a8;letter-spacing:.12em}
+.fs-organisation-input{background:#252f42;border:1px solid #344059}
+.fs-organisation-input select{color:#f1f5ff;background:transparent}
+.fs-organisation-input select option{background:#202a3c;color:#f8faff}
+.fs-organisation-input>svg{color:#a8b8d1}
+.fs-nav{gap:5px}
+.fs-nav-link{color:#a2aec1;font-weight:580;border-radius:11px;min-height:44px}
+.fs-nav-link svg{color:#7c8ca6}
+.fs-nav-link:hover{background:#232f43;color:#fff}
+.fs-nav-link:hover svg{color:#c4d5fa}
+.fs-nav-link.active{background:#2d61e7;color:#fff;font-weight:730;box-shadow:0 7px 16px #10265430}
+.fs-nav-link.active svg{color:#fff}
+.fs-side-foot{border-color:#293447}
+.fs-secure{color:#7d90a9}
+.fs-secure svg{color:#8acbb5}
+.fs-account:hover{background:#263044}
+.fs-account strong{color:#f1f5fd}
+.fs-account small{color:#97a6bf}
+.fs-account>svg{color:#697c97}
+.fs-avatar{background:#2b61e9;color:#fff;border-color:#3b6df3}
+.fs-topbar{background:#ffffffed;backdrop-filter:blur(12px);border-color:#e6eaf0}
+.fs-topbar-left .fs-crumb{color:#717e93}
+.fs-topbar-left>strong{color:#202a3c;font-weight:740}
+.fs-content{max-width:1490px}
+.fs-page-heading{margin-bottom:24px}
+.fs-page-heading h1{font-weight:800;letter-spacing:-.065em;color:#151c2c;font-size:32px}
+.fs-eyebrow{color:#2b65df;letter-spacing:.115em}
+.fs-page-heading p:last-child{color:#808b9b}
+.fs-button{border-radius:11px;font-weight:690;min-height:42px}
+.fs-button-primary{background:#2b61eb;border-color:#2b61eb;box-shadow:0 5px 13px #275de222}
+.fs-button-primary:hover{background:#164ecf;border-color:#164ecf}
+.fs-card{border-color:#e4e8ef;border-radius:17px;box-shadow:0 4px 18px #1d2a3b04}
+.fs-card-head{min-height:84px;padding:22px 23px 18px}
+.fs-card-head h2{font-size:15px;font-weight:770;letter-spacing:-.035em}
+.fs-card-head p{color:#95a0ad}
+.fs-list-row:hover,.fs-overview-invoice:hover{background:#f7faff}
+.fs-status{border-radius:9px;font-size:10px}
+.fs-status-success{background:#e5faee;border-color:#c7efd8;color:#197953}
+.fs-status-warn{background:#fff3da;border-color:#f6e3b9;color:#98601b}
+.fs-status-danger{background:#fff0ee;border-color:#ffd3d0;color:#bc3b32}
+.fs-status-info{background:#eaf1ff;border-color:#d9e5fc;color:#285bd0}
+.fs-link{color:#245bdd}
+.fs-root input,.fs-root select,.fs-root textarea{accent-color:#2b61e9}
+.fs-footer{border-color:#e1e5eb;color:#929dab}
+.fs-mobile-org{display:none}
+
+/* Balance card: prominent and genuinely connected to ledger data. */
+.fs-hero-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:17px;margin-bottom:29px;align-items:stretch}
+.fs-balance-hero{position:relative;overflow:hidden;isolation:isolate;min-height:389px;padding:27px 31px 25px;border-radius:22px;background:linear-gradient(133deg,#397eff 0%,#2d68f2 42%,#1e4bd1 100%);color:#fff;box-shadow:0 16px 34px #2f65dc1c;display:flex;flex-direction:column}
+.fs-balance-hero::before{content:"";pointer-events:none;position:absolute;z-index:-1;width:310px;height:560px;right:-36px;top:-190px;transform:rotate(41deg);border-radius:100px;background:linear-gradient(90deg,#fff0,#ffffff1a,#ffffff04);box-shadow:-130px 80px 0 #ffffff08}
+.fs-balance-hero::after{content:"";pointer-events:none;position:absolute;z-index:-1;width:230px;height:230px;right:-70px;bottom:-145px;border:1px solid #ffffff23;border-radius:50%;box-shadow:0 0 0 43px #ffffff05,0 0 0 91px #ffffff05}
+.fs-balance-hero-top{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.fs-balance-hero-top>span{display:flex;align-items:center;gap:9px;color:#dce8ff;font-size:11px;font-weight:750;letter-spacing:.09em}
+.fs-hero-pulse{width:7px;height:7px;border-radius:50%;background:#a4ffcb;box-shadow:0 0 0 4px #a4ffcb21}
+.fs-balance-eye{border:1px solid #ffffff44;width:39px;height:39px;color:#e4eeff;background:#ffffff18;border-radius:50%;display:grid;place-items:center}
+.fs-balance-eye:hover{background:#ffffff36}
+.fs-balance-amount{display:block;margin:28px 0 6px;font-weight:820;font-variant-numeric:tabular-nums;letter-spacing:-.076em;line-height:1.05;font-size:clamp(34px,3.5vw,50px);white-space:nowrap}
+.fs-balance-hero>p{font-size:12px;color:#d8e5ff;margin:0 0 auto}
+.fs-hero-buttons{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:24px 0 24px}
+.fs-hero-action{min-height:46px;border:0;border-radius:100px;background:#111827;color:white;display:inline-flex;align-items:center;gap:10px;padding:6px 17px 6px 7px;font-size:12px;font-weight:730}
+.fs-hero-action>span{display:grid;place-items:center;width:32px;height:32px;background:#fff;color:#1a3b86;border-radius:50%}
+.fs-hero-action>svg:last-child{opacity:.8}
+.fs-hero-action:hover{background:#0a172f}
+.fs-hero-action.fs-hero-secondary{background:#ffffff29;color:#fff;padding:8px 17px;border:1px solid #ffffff38}
+.fs-hero-action.fs-hero-secondary:hover{background:#ffffff42}
+.fs-hero-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #ffffff3d;padding-top:17px;color:#c7daff;font-weight:680;font-size:10px;letter-spacing:.035em}
+.fs-hero-foot>span:first-child{display:flex;align-items:center;gap:7px}
+.fs-hero-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:1fr 1fr;gap:14px}
+.fs-hero-fact{background:#fff;border:1px solid #e5e9f0;border-radius:17px;padding:21px 23px 18px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-width:0;box-shadow:0 3px 10px #18283b05}
+.fs-hero-fact:first-child{grid-column:span 2;min-height:162px;background:#fdfefe}
+.fs-hero-fact-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a5;font-weight:700}
+.fs-fact-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:#ecf1fc;color:#3269d7}
+.fs-fact-icon.fs-fact-green{background:#e0f7eb;color:#188963}
+.fs-hero-fact>strong{font-size:clamp(20px,2.15vw,30px);font-weight:780;letter-spacing:-.066em;line-height:1.05;color:#1a2537;white-space:nowrap}
+.fs-hero-fact>strong small{font-size:12px;color:#90a0b3;font-weight:650;letter-spacing:0}
+.fs-hero-fact:first-child>strong{font-size:33px}
+.fs-fact-bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:11px;color:#9ba6b5}
+.fs-fact-bottom>svg{color:#a8b4c5;flex-shrink:0}
+.fs-fact-progress{height:7px;background:#e7f5ee;flex:1;max-width:105px;border-radius:20px;overflow:hidden}
+.fs-fact-progress>span{height:100%;display:block;background:#38bc87;border-radius:20px;transition:width .2s ease}
+
+/* Invoice and work follow-up cards on overview. */
+.fs-overview-sections{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:17px;align-items:start}
+.fs-overview-sections .fs-card{margin-bottom:0}
+.fs-overview-invoice{border:0;border-bottom:1px solid #edf0f5;background:#fff;width:100%;display:flex;align-items:center;gap:13px;padding:15px 21px;min-height:80px;text-align:left;transition:background .15s}
+.fs-overview-invoice:last-child{border-bottom:0}
+.fs-overview-invoice-icon{min-width:41px;width:41px;height:41px;display:grid;place-items:center;background:#eaf0ff;color:#2b60db;border-radius:13px}
+.fs-overview-work-icon{background:#f2f4f8;color:#65758f}
+.fs-overview-invoice-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.fs-overview-invoice-copy strong{font-size:12px;color:#253247;font-weight:740;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-overview-invoice-copy small{font-size:11px;color:#96a2b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-overview-invoice-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;white-space:nowrap}
+.fs-overview-invoice-right strong{color:#27354a;font-size:12px;font-variant-numeric:tabular-nums}
+.fs-overview-invoice-right>small{font-size:10px;color:#a0aabb}
+.fs-overview-invoice-arrow{color:#aab5c5;flex-shrink:0}
+
+/* Invoice register: tappable cards, grouped without horizontal scrolling. */
+.fs-invoice-summary{display:flex;align-items:stretch;background:linear-gradient(112deg,#316df4,#214dcc);border-radius:20px;color:#fff;overflow:hidden;position:relative;margin-bottom:21px;box-shadow:0 14px 26px #2458dc1a}
+.fs-invoice-summary::after{content:"";pointer-events:none;position:absolute;right:-140px;top:-140px;width:360px;height:360px;border:1px solid #ffffff22;border-radius:50%;box-shadow:0 0 0 70px #ffffff06}
+.fs-invoice-summary-main{display:grid;gap:7px;padding:27px 30px;min-width:0;flex:1;z-index:1}
+.fs-invoice-summary-main>span,.fs-invoice-summary-side span{color:#c5d7ff;font-size:11px;font-weight:670}
+.fs-invoice-summary-main>strong{font-size:clamp(26px,3vw,41px);letter-spacing:-.06em;font-weight:790;font-variant-numeric:tabular-nums}
+.fs-invoice-summary-main>small{font-size:11px;color:#dbe6ff}
+.fs-invoice-summary-side{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:22px;padding:22px 28px;border-left:1px solid #ffffff35;z-index:1}
+.fs-invoice-summary-side>div{display:grid;gap:9px}
+.fs-invoice-summary-side strong{font-size:18px;letter-spacing:-.055em;font-weight:780;white-space:nowrap}
+.fs-invoice-summary-side strong small{font-size:10px;letter-spacing:0;font-weight:620;color:#d8e3ff}
+.fs-invoices-toolbar{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:19px;flex-wrap:wrap}
+.fs-invoices-toolbar .fs-search{min-width:270px}
+.fs-invoice-filters{background:#e9edf4;border-color:#e4e8f0;padding:4px}
+.fs-invoice-filters button{display:flex;align-items:center;gap:9px;font-weight:700;font-size:12px;padding:9px 13px}
+.fs-invoice-filters button>span{font-size:10px;color:#8d9aaf;background:#e1e6ee;padding:2px 6px;border-radius:7px;line-height:1.35}
+.fs-invoice-filters button.active>span{background:#e6efff;color:#2b5ecb}
+.fs-invoice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:16px}
+.fs-invoice-tile{background:#fff;border:1px solid #e4e8f0;border-radius:17px;text-align:left;color:#1b283a;padding:21px 22px 18px;min-height:238px;display:flex;flex-direction:column;box-shadow:0 2px 9px #16294204;transition:transform .16s,box-shadow .16s,border-color .16s}
+.fs-invoice-tile:hover{transform:translateY(-3px);box-shadow:0 13px 35px #182d4a10;border-color:#cad7ee}
+.fs-invoice-tile:active{transform:translateY(-1px)}
+.fs-invoice-tile-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.fs-invoice-tile-icon{width:40px;height:40px;display:grid;place-items:center;background:#eaf0ff;color:#2e64e7;border-radius:12px}
+.fs-invoice-tile-client{font-size:15px;font-weight:780;line-height:1.3;letter-spacing:-.03em;color:#1d2b40;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-invoice-tile-id{color:#9aa5b5;font-weight:650;font-size:11px;margin-top:4px}
+.fs-invoice-tile-amount{font-size:29px;font-weight:780;line-height:1.12;letter-spacing:-.07em;margin:21px 0 15px;color:#182538;font-variant-numeric:tabular-nums}
+.fs-invoice-tile-track{width:100%;height:6px;background:#e9eef5;border-radius:10px;overflow:hidden;margin-top:auto}
+.fs-invoice-tile-track>span{height:100%;display:block;background:#3bbe91;border-radius:10px}
+.fs-invoice-tile-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.fs-invoice-tile-foot>span{font-size:10px;color:#93a0ae}
+.fs-invoice-tile-foot>strong{font-size:10px;color:#536780;font-weight:760;white-space:nowrap}
+.fs-dialog{border-radius:19px}
+.fs-dialog-head{padding:24px 28px}
+.fs-dialog-head h2{font-size:21px;font-weight:800}
+.fs-dialog-content{padding:27px 28px 28px}
+.fs-dialog-wide{width:min(925px,100%)}
+.fs-form input:not([type="checkbox"]),.fs-form textarea,.fs-form select{border-radius:10px}
+.fs-mobile-create{display:none}
+@media(max-width:1220px){
+ .fs-invoice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .fs-hero-fact{padding:18px}
+ .fs-hero-fact>strong{font-size:22px}
+}
+@media(max-width:1100px){
+ .fs-hero-layout{grid-template-columns:1fr}
+ .fs-balance-hero{min-height:326px}
+ .fs-hero-facts{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto}
+ .fs-hero-fact:first-child{grid-column:span 1;min-height:0}
+ .fs-hero-fact:first-child>strong{font-size:24px}
+ .fs-overview-sections{grid-template-columns:1fr}
+}
+@media(max-width:780px){
+ .fs-mobile-org{display:flex;align-items:center;gap:7px;min-width:0;background:#f2f5fb;border:1px solid #e8ecf3;border-radius:10px;padding:0 9px;color:#6e7e96;max-width:220px}
+ .fs-mobile-org select{width:100%;max-width:190px;min-width:0;border:0;background:transparent;height:36px;min-height:36px;padding:0;box-shadow:none;font-size:12px;font-weight:720;color:#35445a;appearance:none;text-overflow:ellipsis}
+ .fs-topbar-left .fs-crumb,.fs-desktop-chevron{display:none}
+ .fs-mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr));height:70px;align-items:end}
+ .fs-mobile-create{display:flex!important;align-items:center!important;justify-content:center!important;width:52px;height:52px;justify-self:center;align-self:start;transform:translateY(-22px);border:4px solid #f4f6f9!important;border-radius:50%!important;background:#2b61e9!important;color:#fff!important;box-shadow:0 8px 22px #245fdd42}
+ .fs-mobile-create:hover{background:#164ac8!important}
+ .fs-invoice-summary-side{grid-template-columns:1fr;gap:12px}
+}
+@media(max-width:580px){
+ .fs-page-heading h1{font-size:29px}
+ .fs-content{padding:22px 15px 104px}
+ .fs-hero-layout{gap:12px}
+ .fs-balance-hero{min-height:308px;padding:23px 22px 20px;border-radius:19px}
+ .fs-balance-hero-top>span{font-size:10px}
+ .fs-balance-amount{font-size:clamp(30px,9vw,44px);margin-top:32px}
+ .fs-hero-buttons{margin:20px 0 16px;gap:8px}
+ .fs-hero-action{min-height:44px;padding-right:12px;font-size:11px}
+ .fs-hero-action.fs-hero-secondary{padding:7px 11px}
+ .fs-hero-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .fs-hero-fact{min-height:124px;padding:14px 13px;border-radius:13px;gap:7px}
+ .fs-hero-fact:first-child{grid-column:span 2;min-height:123px}
+ .fs-hero-fact>strong,.fs-hero-fact:first-child>strong{font-size:clamp(19px,5.2vw,25px)}
+ .fs-fact-bottom{font-size:10px}
+ .fs-overview-invoice{padding:13px 12px;gap:9px}
+ .fs-overview-invoice-icon{height:34px;width:34px;min-width:34px;border-radius:11px}
+ .fs-overview-invoice-copy strong{font-size:11px}
+ .fs-overview-invoice-right strong{font-size:11px}
+ .fs-overview-invoice-arrow{display:none}
+ .fs-invoice-grid{grid-template-columns:1fr;gap:11px}
+ .fs-invoice-tile{min-height:216px;padding:19px 20px}
+ .fs-invoice-summary{display:grid;border-radius:18px}
+ .fs-invoice-summary-main{padding:23px 22px 17px}
+ .fs-invoice-summary-main>strong{font-size:30px}
+ .fs-invoice-summary-side{grid-template-columns:1fr 1fr;border-left:0;border-top:1px solid #ffffff38;padding:17px 22px 19px}
+ .fs-invoice-summary-side strong{font-size:15px}
+ .fs-invoices-toolbar{display:grid;gap:13px}
+ .fs-invoices-toolbar .fs-search{min-width:0;width:100%}
+ .fs-invoice-filters{width:100%;justify-content:space-between}
+ .fs-invoice-filters button{padding:8px 7px;flex:1;justify-content:center;font-size:11px;gap:5px}
+ .fs-invoice-filters button>span{font-size:9px;padding:2px 4px}
+ .fs-topbar{padding-inline:13px}
+ .fs-topbar-left{gap:7px}
+ .fs-mobile-org{max-width:148px;padding:0 7px}
+ .fs-mobile-org select{max-width:101px;font-size:11px}
+ .fs-topbar-left>strong{font-size:11px}
+ .fs-dialog-wide{width:100%}
+ .fs-dialog-head{padding:19px 20px}
+ .fs-dialog-content{padding:20px}
+ .fs-mobile-nav{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){.fs-invoice-tile:hover{transform:none}.fs-fact-progress>span{transition:none}}

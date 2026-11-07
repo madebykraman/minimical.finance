@@ -28,7 +28,9 @@ type ImportOutcome={created:number;updated:number;skipped:number;flagged:number;
 type WorkDraft={id?:string;project_name:string;amount:string;assigned_by:string;client_id:string;notes:string;work_status:TrackerRow["work_status"]};
 type ClientDraft={id?:string;name:string;email:string;phone:string;address:string;gstin:string;notes:string};
 type PaymentDraft={invoice_number:string;amount:string;paid_on:string;method:TrackerPayment["method"];reference:string;notes:string};
-type InvoiceDraft={number:string;date:string;total:string;rowIds:string[]};
+type InvoiceLine={description:string;quantity:string;rate:string};
+type InvoiceDraft={number:string;date:string;dueDate:string;clientId:string;taxRate:string;notes:string;rowIds:string[];lineItems:InvoiceLine[]};
+type InvoiceEdit={number:string;date:string;dueDate:string;notes:string;status:"Draft"|"Sent"};
 const NAV:{id:View;label:string;icon:typeof LayoutDashboard}[]=[
  {id:"overview",label:"Overview",icon:LayoutDashboard},
  {id:"work",label:"Work",icon:BriefcaseBusiness},
@@ -107,6 +109,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  const [workDraft,setWorkDraft]=useState<WorkDraft|null>(null),[clientDraft,setClientDraft]=useState<ClientDraft|null>(null);
  const [paymentDraft,setPaymentDraft]=useState<PaymentDraft|null>(null),[invoiceDraft,setInvoiceDraft]=useState<InvoiceDraft|null>(null);
  const [selectedInvoice,setSelectedInvoice]=useState<string|null>(null);
+ const [invoiceEdit,setInvoiceEdit]=useState<InvoiceEdit|null>(null);
  const [organisationDraft,setOrganisationDraft]=useState<Organisation|null>(null);
  const [uploadOutcome,setUploadOutcome]=useState<ImportOutcome|null>(null);
  const [documentInvoice,setDocumentInvoice]=useState(""),[documentClient,setDocumentClient]=useState("");
@@ -174,6 +177,12 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  const unbilled=rows.filter(x=>!x.invoice_number&&x.work_status!=="archived");
  const q=search.toLowerCase().trim();
  const selected=selectedInvoice?invoices.find(i=>i.number===selectedInvoice):null;
+ const draftSubtotal=invoiceDraft?sum([
+  ...rows.filter(r=>invoiceDraft.rowIds.includes(r.id)).map(r=>Number(r.amount??0)),
+  ...invoiceDraft.lineItems.filter(x=>x.description.trim()).map(x=>Number(x.quantity||0)*Number(x.rate||0))
+ ]):0;
+ const draftTax=invoiceDraft?Math.round(draftSubtotal*Number(invoiceDraft.taxRate||0))/100:0;
+ const draftTotal=draftSubtotal+draftTax;
  const setOrganisation=(id:string)=>{
   if(id===organizationId)return;
   window.localStorage.setItem("finance.org",id);
@@ -202,7 +211,9 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  const openInvoiceForm=()=>{
   const numbered=invoices.map(i=>Number(i.number)).filter(Number.isInteger);
   const next=String(Math.max(0,...numbered)+1);
-  setInvoiceDraft({number:activeOrg?.invoice_prefix?activeOrg.invoice_prefix+next:next,date:localDate(),total:"",rowIds:[]});
+  const date=localDate(),due=new Date(date+"T00:00:00Z");due.setUTCDate(due.getUTCDate()+14);
+   setInvoiceDraft({number:activeOrg?.invoice_prefix?activeOrg.invoice_prefix+next:next,date,dueDate:due.toISOString().slice(0,10),
+    clientId:clients.length===1?clients[0].id:"",taxRate:"0",notes:"",rowIds:[],lineItems:[{description:"",quantity:"1",rate:""}]});
  };
  const startImport=()=>importInput.current?.click();
  async function importFile(file:File){
@@ -272,17 +283,41 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  }
  async function createInvoice(e:FormEvent){
   e.preventDefault();if(!invoiceDraft)return;
-  const d=invoiceDraft,selectedRows=rows.filter(r=>d.rowIds.includes(r.id));
-  const total=d.total.trim()===""?sum(selectedRows.map(x=>Number(x.amount??0))):Number(d.total);
-  const clientIds=[...new Set(selectedRows.map(x=>x.client_id).filter(Boolean))];
-  if(!d.number.trim()||!selectedRows.length||!Number.isFinite(total)||total<0){setError("Choose work, a valid number and a non-negative invoice total.");return}
-  if(clientIds.length>1){setError("One invoice cannot contain work from different clients. Select one client.");return}
-  if(selectedRows.some(x=>x.amount==null)&&d.total.trim()===""){setError("Some work has no amount. Enter the invoice total explicitly.");return}
+  const d=invoiceDraft,chosenWork=rows.filter(r=>d.rowIds.includes(r.id));
+  const lines=d.lineItems.filter(x=>x.description.trim()||x.rate.trim());
+  if(!d.clientId){setError("Choose a client before creating an invoice.");return}
+  if(!/^[a-zA-Z0-9-]{1,48}$/.test(d.number.trim())){setError("Use letters, numbers or hyphens in the invoice number.");return}
+  if(!chosenWork.length&&!lines.length){setError("Add at least one line item or select unbilled work.");return}
+  if(chosenWork.some(r=>r.amount==null||r.client_id&&r.client_id!==d.clientId)){
+   setError("Selected work must have a price and belong to the selected client.");return
+  }
+  if(lines.some(x=>x.description.trim().length<2||!amountValid(x.quantity)||Number(x.quantity)===0||!amountValid(x.rate))){
+   setError("All invoice items require a description, positive quantity and rate.");return
+  }
+  const tax=Number(d.taxRate);
+  if(!Number.isFinite(tax)||tax<0||tax>100||!Number.isFinite(draftTotal)){
+   setError("The tax rate must be between 0 and 100%.");return
+  }
+  if(d.dueDate&&d.dueDate<d.date){setError("Due date cannot precede issue date.");return}
   await mutation(async()=>{
-   const {error}=await supabase.rpc("tracker_create_organisation_invoice",{
-    p_organization_id:organizationId,p_number:d.number.trim(),p_date:d.date,p_total:total,p_row_ids:d.rowIds
+   const {error}=await supabase.rpc("tracker_compose_and_mark_invoice",{
+    p_organization_id:organizationId,p_client_id:d.clientId,p_number:d.number.trim(),
+    p_date:d.date,p_due_date:d.dueDate||null,p_tax_rate:tax,p_notes:d.notes.trim(),
+    p_items:lines.map(x=>({description:x.description.trim(),quantity:Number(x.quantity),rate:Number(x.rate)})),
+    p_work_ids:d.rowIds
    });ensure(error);
-  },"Invoice created. Open it to generate its PDF.",()=>setInvoiceDraft(null));
+  },"Invoice created. Review or generate its PDF.",()=>setInvoiceDraft(null));
+ }
+ async function editInvoice(e:FormEvent){
+  e.preventDefault();if(!invoiceEdit)return;
+  const d=invoiceEdit;
+  if(d.dueDate&&d.dueDate<d.date){setError("Due date must follow issue date.");return}
+  await mutation(async()=>{
+   const {error}=await supabase.rpc("tracker_edit_invoice",{
+    p_organization_id:organizationId,p_number:d.number,p_issue_date:d.date,
+    p_due_date:d.dueDate||null,p_notes:d.notes.trim(),p_status:d.status
+   });ensure(error);
+  },"Invoice details saved.",()=>setInvoiceEdit(null));
  }
  async function saveOrganisation(e:FormEvent){
   e.preventDefault();if(!organisationDraft)return;

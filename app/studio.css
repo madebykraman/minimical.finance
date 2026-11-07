@@ -683,3 +683,56 @@ button.fs-list-row:hover,a.fs-list-row:hover{background:#f8faff}
  .fs-mobile-register{padding:0 11px 8px}
  .fs-mobile-record{padding:14px 4px;gap:12px}
 }
+
+
+/* Login experience: cobalt invitation + secure, minimal form. */
+.fs-login-layout{display:grid;grid-template-columns:minmax(0,.98fr) minmax(0,1fr);gap:0;align-items:stretch;justify-content:stretch;padding:0;min-height:100dvh;background:#fff;font-family:var(--font-geist),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.fs-login-story{position:relative;overflow:hidden;isolation:isolate;min-height:100dvh;padding:40px clamp(32px,5vw,77px) 55px;background:linear-gradient(145deg,#3377fe 0%,#2e64e9 57%,#1740af);color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:40px}
+.fs-login-story::before{content:"";position:absolute;z-index:-1;right:-250px;top:-240px;width:630px;height:900px;border-radius:90px;transform:rotate(40deg);background:#ffffff0c;box-shadow:-190px 250px 0 #ffffff08;pointer-events:none}
+.fs-login-story::after{content:"";position:absolute;z-index:-1;left:-140px;bottom:-240px;width:450px;height:450px;border:1px solid #ffffff27;border-radius:50%;box-shadow:0 0 0 90px #ffffff06;pointer-events:none}
+.fs-story-brand{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:.12em;font-weight:790;color:#d7e4ff}
+.fs-story-symbol{display:grid;place-items:center;width:42px;height:42px;background:#fff;color:#2c61dd;border-radius:13px;letter-spacing:-.075em;font-size:23px;font-weight:820;padding-right:3px}
+.fs-story-body{max-width:530px}
+.fs-story-pill{font-size:10px;letter-spacing:.12em;color:#d5e5ff;font-weight:780;display:flex;gap:11px;align-items:center}
+.fs-story-pill span{width:8px;height:8px;background:#a1ffd1;border-radius:100%;box-shadow:0 0 0 4px #a1ffd11e}
+.fs-story-body h2{font-size:clamp(42px,4.6vw,69px);font-weight:830;line-height:1.07;letter-spacing:-.07em;margin:20px 0}
+.fs-story-body p{font-size:15px;line-height:1.8;color:#d9e6ff;max-width:400px;margin:0}
+.fs-story-preview{background:#fff;border:1px solid #ffffffa0;border-radius:22px;box-shadow:0 25px 60px #0f349950;max-width:415px;padding:22px 22px 13px;transform:rotate(-2deg);color:#19263a}
+.fs-story-preview-top{display:flex;align-items:center;justify-content:space-between;gap:14px;color:#8896a8;font-size:10px;font-weight:770;letter-spacing:.085em}
+.fs-story-preview-top>span:first-child{display:flex;align-items:center;gap:8px}
+.fs-story-preview-top svg{color:#2b65e9}
+.fs-story-signal{display:grid;place-items:center;width:29px;height:29px;background:#e4f9ed;border-radius:10px}
+.fs-story-signal svg{color:#188868}
+.fs-story-preview>strong{display:block;font-size:26px;font-weight:800;letter-spacing:-.06em;margin:19px 0}
+.fs-story-preview-list{display:grid;gap:0}
+.fs-story-preview-list>div{min-height:48px;display:flex;align-items:center;gap:13px;border-top:1px solid #eef0f5;color:#40516a;font-size:11px;font-weight:730}
+.fs-story-preview-list>div>span:first-child{width:30px;height:30px;border-radius:9px;background:#eef3ff;color:#2b61e9;display:grid;place-items:center}
+.fs-story-preview-list>div>span:nth-child(2){flex:1}
+.fs-story-preview-list>div>svg:last-child{color:#38a781}
+.fs-login-entry{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:38px 25px;background:#fff}
+.fs-login-entry .login-brand{display:none}
+.fs-login-entry .login-panel{width:min(420px,100%);padding:28px 15px 16px;border:0;box-shadow:none;border-radius:0}
+.fs-login-entry .login-icon{background:#edf3ff;color:#2b61e9;width:48px;height:48px;border-radius:14px;margin-bottom:24px}
+.fs-login-entry .login-panel h1{font-weight:830;font-size:34px;letter-spacing:-.07em;margin-bottom:10px;color:#192236}
+.fs-login-entry .login-panel>p.subtle{font-size:13px;color:#8592a5}
+.fs-login-entry .login-foot{margin-top:14px}
+.fs-login-entry .button-primary{background:#2b61ea;color:#fff;border-color:#2b61ea;border-radius:11px;min-height:46px}
+.fs-login-entry .button-primary:hover{background:#164bd2;border-color:#164bd2}
+@media(max-width:800px){
+ .fs-login-layout{grid-template-columns:1fr}
+ .fs-login-story{min-height:0;padding:24px 26px 28px;gap:26px}
+ .fs-story-body h2{font-size:36px;margin:14px 0 8px}
+ .fs-story-body p{font-size:12px;line-height:1.6}
+ .fs-story-preview{display:none}
+ .fs-login-entry{padding:20px 22px 38px;justify-content:flex-start}
+ .fs-login-entry .login-panel{padding:15px 0}
+ .fs-login-entry .login-icon{display:none}
+}
+@media(max-width:480px){
+ .fs-login-story{padding:22px 21px 25px}
+ .fs-story-brand{font-size:9px}
+ .fs-story-symbol{height:35px;width:35px;font-size:20px;border-radius:10px}
+ .fs-story-body h2{font-size:32px}
+ .fs-login-entry .login-panel h1{font-size:29px}
+ .fs-login-entry .login-panel>p.subtle{margin-bottom:23px}
+}

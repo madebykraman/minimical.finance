@@ -1,6 +1,6 @@
 "use client";
 import {useState,type FormEvent} from "react";
-import {ArrowRight,Eye,EyeOff,LockKeyhole,Mail} from "lucide-react";
+import {ArrowRight,Eye,EyeOff,LockKeyhole,Mail,ReceiptText,Wallet,UploadCloud,Check} from "lucide-react";
 import {browserClient} from "@/lib/supabase/browser";
 export default function SignIn(){
   const [email,setEmail]=useState(""),[password,setPassword]=useState("");
@@ -19,7 +19,24 @@ export default function SignIn(){
     }catch(e){setMessage(e instanceof Error?e.message:"Could not connect. Try again.");}
     finally{setBusy(false);}
   }
-  return <main className="login-layout">
+  return <main className="login-layout fs-login-layout">
+    <section className="fs-login-story" aria-label="Finance workspace introduction">
+     <div className="fs-story-brand"><span className="fs-story-symbol">f.</span><span>FINANCE / WORKSPACE</span></div>
+     <div className="fs-story-body"><div className="fs-story-pill"><span/>A CLEARER WAY TO BILL</div>
+      <h2>Every invoice.<br/>One clear view.</h2>
+      <p>Keep your clients, projects, invoices and payments organised in one private workspace.</p>
+     </div>
+     <div className="fs-story-preview" aria-hidden="true">
+      <div className="fs-story-preview-top"><span><ReceiptText size={19}/>YOUR WORKSPACE</span><span className="fs-story-signal"><Check size={14}/></span></div>
+      <strong>From work to paid.</strong>
+      <div className="fs-story-preview-list">
+       <div><span><UploadCloud size={17}/></span><span>Import existing records</span><Check size={14}/></div>
+       <div><span><ReceiptText size={17}/></span><span>Create an invoice</span><Check size={14}/></div>
+       <div><span><Wallet size={17}/></span><span>Track payments</span><Check size={14}/></div>
+      </div>
+     </div>
+    </section>
+    <div className="fs-login-entry">
     <div className="login-brand"><div className="brand-symbol">f.</div><span>FINANCE / WORKSPACE</span></div>
     <section className="login-panel" aria-labelledby="login-title">
       <div className="login-icon"><LockKeyhole size={20}/></div>
@@ -35,5 +52,6 @@ export default function SignIn(){
       <button type="button" className="link-button" onClick={()=>{setRecover(x=>!x);setMessage("");}}>{recover?"Back to sign in":"Forgot password?"}</button>
     </section>
     <p className="login-foot">Access is restricted to authorised workspace members.</p>
+    </div>
   </main>;
 }

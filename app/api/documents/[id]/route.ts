@@ -8,7 +8,8 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   const db=serviceClient();const {data,error}=await db.from("tracker_documents").select("storage_path,visible_to_client,client_id").eq("id",id).maybeSingle();
   if(error||!data)return NextResponse.json({error:"Not found"},{status:404});
   if(!admin){
-    const {data:sourceClient}=await db.from("tracker_clients").select("id").eq("from_source_pdf",true).limit(1).maybeSingle();
+    const {data:org}=await db.from("tracker_organizations").select("id").eq("name","Kumar Aman").maybeSingle();
+    const {data:sourceClient}=await db.from("tracker_clients").select("id").eq("name","Elle India").eq("organization_id",org?.id??"00000000-0000-0000-0000-000000000000").maybeSingle();
     if(!data.visible_to_client||!sourceClient||data.client_id!==sourceClient.id)return NextResponse.json({error:"Not authorised"},{status:403});
   }
   const {data:link,error:linkError}=await db.storage.from("finos-documents").createSignedUrl(data.storage_path,60);

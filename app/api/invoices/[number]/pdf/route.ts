@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {PDFDocument,StandardFonts,rgb} from "pdf-lib";
 import {workspaceUser,serviceClient} from "@/lib/ledger/server";
 import {portalSession} from "@/lib/ledger/portal";
-import {invoiceGroups,type TrackerRow,type TrackerPayment} from "@/lib/tracker";
+import {invoiceGroups,invoiceBelongsToClient,type TrackerRow,type TrackerPayment} from "@/lib/tracker";
 const clean=(s:unknown)=>String(s??"").replace(/[\u2018\u2019]/g,"'").replace(/[\u2013\u2014]/g,"-").replace(/\u00d7/g,"x").replace(/[^\x20-\x7e]/g," ").replace(/\s+/g," ").trim();
 const amt=(v:number)=>"INR "+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2,minimumFractionDigits:0});
 const cut=(s:string,max:number)=>s.length<=max?s:s.slice(0,max-3)+"...";
@@ -21,7 +21,8 @@ export async function GET(_req:Request,{params}:{params:Promise<{number:string}>
   if([r.error,p.error,s.error,c.error].some(Boolean))throw new Error("Data unavailable.");
   const invoice=invoiceGroups((r.data??[]) as TrackerRow[],(p.data??[]) as TrackerPayment[])[0];
   if(!invoice)return NextResponse.json({error:"Invoice not found."},{status:404});
-  if(!admin&&!(r.data||[]).some(x=>x.client_id===c.data?.id))return NextResponse.json({error:"Invoice is not shared."},{status:403});
+  if(!admin&&!invoiceBelongsToClient((r.data??[]) as TrackerRow[],number,c.data?.id))
+    return NextResponse.json({error:"Invoice is not shared."},{status:403});
   const pdf=await PDFDocument.create();
   pdf.setTitle("Invoice "+number+" - Tracker summary");
   const normal=await pdf.embedFont(StandardFonts.Helvetica);

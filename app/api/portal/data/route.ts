@@ -1,7 +1,7 @@
 import {NextResponse} from "next/server";
 import {portalSession} from "@/lib/ledger/portal";
 import {serviceClient} from "@/lib/ledger/server";
-import {invoiceGroups} from "@/lib/tracker";
+import {invoiceGroups,invoiceBelongsToClient} from "@/lib/tracker";
 import type {TrackerRow,TrackerPayment} from "@/lib/tracker";
 export async function GET(){
   try{
@@ -15,7 +15,11 @@ export async function GET(){
       db.from("tracker_clients").select("id,name").eq("from_source_pdf",true).limit(1).maybeSingle()
     ]);
     if([sn.error,r.error,p.error,docs.error,cl.error].some(Boolean))throw new Error("Unable to read portal");
-    const invoices=invoiceGroups((r.data??[]).filter(x=>x.client_id===cl.data?.id) as unknown as TrackerRow[],(p.data??[]) as unknown as TrackerPayment[]).map(g=>({
+    const allRows=(r.data??[]) as unknown as TrackerRow[];
+    // Never expose an entire invoice group if it also contains another client's work.
+    const clientRows=allRows.filter(x=>x.client_id===cl.data?.id &&
+      invoiceBelongsToClient(allRows,x.invoice_number??"",cl.data?.id));
+    const invoices=invoiceGroups(clientRows,(p.data??[]) as unknown as TrackerPayment[]).map(g=>({
       number:g.number,total:g.total,paid:g.paid,balance:g.balance,date:g.date,status:g.balance<=0?"Paid":g.paid>0?"Partially paid":"Unpaid",
       projects:g.rows.map(x=>({name:x.project_name,amount:x.amount}))
     }));

@@ -44,6 +44,16 @@ export function invoiceGroups(rows:TrackerRow[],payments:TrackerPayment[]):Invoi
       discrepancy:Math.round((lineTotal-total)*100)/100};
   }).sort((a,b)=>Number(a.number)-Number(b.number));
 }
+/** Share an invoice only when every included work item belongs to the source client. */
+export function invoiceBelongsToClient(
+  rows: Pick<TrackerRow,"invoice_number"|"client_id">[],
+  number: string,
+  clientId: string|null|undefined,
+): boolean {
+  if (!clientId) return false;
+  const group = rows.filter(row=>row.invoice_number===number);
+  return group.length>0 && group.every(row=>row.client_id===clientId);
+}
 export const sum = (nums:number[]) => nums.reduce((a,b)=>a+Number(b||0),0);
 export function csv(rows:(string|number|null|undefined)[][]){
   return rows.map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\r\n");

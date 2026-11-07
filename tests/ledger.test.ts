@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {invoiceGroups,sum,titleFromSource,csv} from "../lib/tracker";
+import {invoiceGroups,invoiceBelongsToClient,sum,titleFromSource,csv} from "../lib/tracker";
 import type {TrackerRow,TrackerPayment} from "../lib/tracker";
 
 const row=(n:number,invoice:string,amount:number|null,printed:number|null=null):TrackerRow=>({
@@ -35,4 +35,22 @@ test("document access validates membership and session",()=>{
 test("no privileged key in browser client",()=>{
  const code=readFileSync("lib/supabase/browser.ts","utf8");
  assert.doesNotMatch(code,/SERVICE_ROLE/);
+});
+
+test("portal never shares mixed-client invoice groups",()=>{
+  const rows=[{invoice_number:"300",client_id:"client-a"},{invoice_number:"300",client_id:"client-b"}];
+  assert.equal(invoiceBelongsToClient(rows,"300","client-a"),false);
+  assert.equal(invoiceBelongsToClient(rows,"300","client-b"),false);
+  assert.equal(invoiceBelongsToClient(rows,"300",null),false);
+  assert.equal(invoiceBelongsToClient(rows,"missing","client-a"),false);
+  assert.equal(invoiceBelongsToClient([{invoice_number:"301",client_id:"client-a"}],"301","client-a"),true);
+});
+test("invoice preview protects every row in a shared invoice",()=>{
+  const route=readFileSync("app/api/invoices/[number]/pdf/route.ts","utf8");
+  assert.match(route,/invoiceBelongsToClient/);
+});
+test("overview invoice opens a usable detail instead of navigating away",()=>{
+  const workspace=readFileSync("components/ledger/Workspace.tsx","utf8");
+  assert.match(workspace,/onClick=\{\(\)=>setSelectedInvoice\(i\.number\)\}/);
+  assert.doesNotMatch(workspace,/nav\("invoices"\);setSelectedInvoice/);
 });

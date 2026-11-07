@@ -50,7 +50,25 @@ test("invoice preview protects every row in a shared invoice",()=>{
   assert.match(route,/invoiceBelongsToClient/);
 });
 test("overview invoice opens a usable detail instead of navigating away",()=>{
-  const workspace=readFileSync("components/ledger/Workspace.tsx","utf8");
+  const workspace=readFileSync("components/ledger/FinanceStudio.tsx","utf8");
   assert.match(workspace,/onClick=\{\(\)=>setSelectedInvoice\(i\.number\)\}/);
-  assert.doesNotMatch(workspace,/nav\("invoices"\);setSelectedInvoice/);
+  assert.match(workspace,/const issuedInvoices=/);
+});
+
+test("workbook-paid invoices retain settlement without invented dated payments",()=>{
+ const source=row(1,"21",4000,4000);
+ source.source_paid=true;source.source_paid_on=null;
+ const g=invoiceGroups([source],[])[0];
+ assert.equal(g.paid,4000);
+ assert.equal(g.balance,0);
+ assert.equal(g.recordedPayments,0);
+ assert.equal(g.sourcePaidOn,null);
+});
+test("taxed invoice subtotal reconciles the grand total",()=>{
+ const item=row(1,"INV-001",1000,1180);
+ item.invoice_tax_rate=18;item.invoice_tax_amount=180;item.invoice_state="Draft";
+ const g=invoiceGroups([item],[])[0];
+ assert.equal(g.taxAmount,180);
+ assert.equal(g.taxRate,18);
+ assert.equal(g.discrepancy,0);
 });

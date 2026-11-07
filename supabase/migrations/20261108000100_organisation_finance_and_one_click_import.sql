@@ -92,15 +92,16 @@ CREATE OR REPLACE FUNCTION public.tracker_validate_payment()
  LANGUAGE plpgsql
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-declare v_total numeric;v_paid numeric;v_source_paid boolean;
+declare v_total numeric;v_paid numeric;v_source_paid boolean;v_is_draft boolean;
 begin
  if new.organization_id is null or new.invoice_number is null or new.amount is null or new.amount<=0 then raise exception 'Invalid organisation, invoice or payment'; end if;
  perform pg_advisory_xact_lock(hashtextextended('tracker:payment:'||new.organization_id::text||':'||new.invoice_number,0));
- select max(invoice_printed_total),coalesce(bool_or(source_paid),false)
- into v_total,v_source_paid from public.tracker_rows
+ select max(invoice_printed_total),coalesce(bool_or(source_paid),false),coalesce(bool_or(invoice_state='Draft'),false)
+ into v_total,v_source_paid,v_is_draft from public.tracker_rows
  where organization_id=new.organization_id and invoice_number=new.invoice_number;
  if v_total is null then raise exception 'Invoice group missing or has no total'; end if;
  if v_source_paid then raise exception 'Invoice is already marked settled in opening records'; end if;
+ if v_is_draft then raise exception 'Issue this draft invoice before recording payment';end if;
  select coalesce(sum(amount),0) into v_paid from public.tracker_payments
  where organization_id=new.organization_id and invoice_number=new.invoice_number and id is distinct from new.id;
  if v_paid+new.amount>v_total then raise exception 'Payment exceeds outstanding invoice balance'; end if;

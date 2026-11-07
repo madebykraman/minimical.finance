@@ -7,6 +7,7 @@ export type ImportRecord={
  project_name?:string;amount?:number;assigned_by?:string;invoice?:string;
  invoice_total?:number;invoice_date?:string;invoice_status?:string;
  payment_state?:string;paid_date?:string;source_paid?:boolean;
+ payment_amount?:number;payment_method?:string;payment_reference?:string;kind?:"payment";
  invoice_document?:string;notes?:string;
 };
 const MAX=10000;
@@ -111,7 +112,9 @@ function column(name:string):keyof ImportRecord|null{
  if(!n)return null;
  if(/assignedby|^poc$|pointofcontact/.test(n))return "assigned_by";
  if(/invoicetotal|totalinvoice|invoicedamount|billtotal/.test(n))return "invoice_total";
- if(/paymentamount|amountreceived|paidamount/.test(n))return null; // Never manufacture payment transactions
+ if(/paymentamount|amountreceived|paidamount|receivedamount|receiptamount/.test(n))return "payment_amount";
+ if(/paymentmode|paymentmethod|modeofpayment|paidvia|paymenttype/.test(n))return "payment_method";
+ if(/paymentreference|paymentref|transactionid|transactionref|^utr$|^utrnumber$|bankreference/.test(n))return "payment_reference";
  if(/paymentdate|paidon|receiveddate|datepaid/.test(n))return "paid_date";
  if(/invoicedate|issuedate|^date$|billdate/.test(n))return "invoice_date";
  if(/invoiceno|invoicenumber|^invoice$|billnumber|invoiceid/.test(n))return "invoice";
@@ -134,7 +137,8 @@ function header(rows:(string|null)[][]){
  for(let i=0;i<Math.min(15,rows.length);i++){
   const map:Partial<Record<keyof ImportRecord,number>>={};let count=0;
   (rows[i]??[]).forEach((cell,j)=>{const c=column(cell??"");if(c&&map[c]===undefined){map[c]=j;count++}});
-  const good=map.project_name!==undefined||map.client!==undefined;
+  const good=map.project_name!==undefined||map.client!==undefined||
+   (map.invoice!==undefined&&map.payment_amount!==undefined&&map.paid_date!==undefined);
   const score=count*2+(map.amount!==undefined?2:0)+(map.invoice!==undefined?2:0);
   if(good&&count>=2&&(!chosen||score>chosen.score))chosen={i,map,score};
  }
@@ -181,12 +185,27 @@ export function normalizeUpload(sheets:Sheet[],organisation:string){
    if(/^notes?$/i.test(sheet.name)&&h.map.notes!==undefined&&name){
     const n=get(raw,"notes");if(n)noteRows.set(norm(name),String(n));continue;
    }
-   if(!name&&!client)continue;
+   const paymentValue=parseMoney(get(raw,"payment_amount"));
+   const paymentDate=parseDate(get(raw,"paid_date"));
+   if(!name&&!client&&paymentValue===null)continue;
    if(!client&&name.includes("_")&&name.indexOf("_")<80)client=name.split("_")[0].trim();
    const rawInvoice=get(raw,"invoice");
    if(rawInvoice&&invoice(rawInvoice)){current=invoice(rawInvoice);target=parseMoney(get(raw,"invoice_total"));spent=0}
    else if(rawInvoice&&/^(?:n\/?a|none)$/i.test(rawInvoice)){current="";target=null;spent=0}
    else if(current&&target!==null&&spent>=target){current="";target=null;spent=0}
+   if(paymentValue!==null){
+    const paymentInvoice=invoice(rawInvoice);
+    if(paymentValue<=0||!paymentInvoice||!paymentDate){
+     warnings.push(sheet.name+" row "+(i+1)+": payment needs positive amount, an explicit invoice and payment date; no transaction was added.");
+    }else{
+     const method=String(get(raw,"payment_method")??"").trim();
+     const reference=String(get(raw,"payment_reference")??"").trim();
+     found.push({r:{kind:"payment",invoice:paymentInvoice,client:client||undefined,
+      payment_amount:paymentValue,paid_date:paymentDate,payment_method:method||"other",
+      payment_reference:reference||undefined},score:priority(sheet.name),row:i});
+    }
+   }
+   if(!name&&!client)continue;
    const record:ImportRecord={};
    if(client)record.client=client.slice(0,200);
    if(name)record.project_name=name.slice(0,500);
@@ -201,7 +220,7 @@ export function normalizeUpload(sheets:Sheet[],organisation:string){
     const date=parseDate(get(raw,"invoice_date"));if(date)record.invoice_date=date;
     const paidOn=parseDate(get(raw,"paid_date"));if(paidOn)record.paid_date=paidOn;
     const payment=get(raw,"payment_state"),status=get(raw,"invoice_status"),doc=get(raw,"invoice_document");
-    if(payment){record.payment_state=payment;record.source_paid=/^(paid|yes|true)$/i.test(payment)}
+    if(payment){record.payment_state=payment;record.source_paid=paymentValue!==null&&paymentDate?false:/^(paid|yes|true)$/i.test(payment)}
     if(status)record.invoice_status=status;
     if(doc)record.invoice_document=doc;
    }
@@ -215,7 +234,8 @@ export function normalizeUpload(sheets:Sheet[],organisation:string){
  const records=new Map<string,ImportRecord>();
  for(const item of found){
   const r=item.r;
-  const k=r.project_name?"w:"+norm(r.client)+":"+norm(r.project_name):"c:"+norm(r.client);
+  const k=r.kind==="payment"?"p:"+norm(r.invoice)+":"+norm(r.paid_date)+":"+String(r.payment_amount)+":"+norm(r.payment_reference):
+    r.project_name?"w:"+norm(r.client)+":"+norm(r.project_name):"c:"+norm(r.client);
   const existing=records.get(k);
   if(!existing)records.set(k,r);
   else for(const [name,value] of Object.entries(r)){

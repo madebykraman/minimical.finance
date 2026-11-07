@@ -643,6 +643,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   </Dialog>}
   {invoiceDraft&&<Dialog title="Create invoice" subtitle="Add items and review a live billing summary." close={()=>setInvoiceDraft(null)} wide>
     <form className="fs-form" onSubmit={createInvoice}>
+     <div className="fs-composer-layout"><div className="fs-composer-fields">
      {!clients.length&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Add a client first. <button type="button" className="fs-link" onClick={()=>{setInvoiceDraft(null);addClient()}}>Create client</button></div>}
      <label>Bill to<select required value={invoiceDraft.clientId} onChange={e=>setInvoiceDraft({...invoiceDraft,clientId:e.target.value,rowIds:[]})}>
       <option value="">Choose a client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
@@ -672,6 +673,31 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      <div className="fs-inline-help">Created invoices begin as drafts. Legal, address and bank fields are taken from organisation settings.</div>
      <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceDraft(null)}>Cancel</button>
       <button disabled={working||!invoiceDraft.clientId||(!invoiceDraft.rowIds.length&&!invoiceDraft.lineItems.some(x=>x.description.trim()))} className="fs-button fs-button-primary">{working?"Creating…":"Create invoice"}</button></div>
+    
+      </div>
+      <aside className="fs-composer-preview" aria-label="Live invoice summary">
+       <div className="fs-composer-preview-banner"><span className="fs-composer-preview-eyebrow">INVOICE DRAFT</span>
+        <strong>{activeOrg?.legal_name||orgName}</strong><small>Invoice #{invoiceDraft.number||"—"}</small>
+        <div className="fs-composer-preview-value">{money(draftTotal)}</div>
+       </div>
+       <div className="fs-composer-preview-paper">
+        <div className="fs-composer-preview-row"><span>BILL TO</span><strong>{clients.find(c=>c.id===invoiceDraft.clientId)?.name||"Choose a client"}</strong></div>
+        <div className="fs-composer-preview-row"><span>ISSUED / DUE</span><strong>{dateLabel(invoiceDraft.date)}{invoiceDraft.dueDate?" / "+dateLabel(invoiceDraft.dueDate):""}</strong></div>
+        <div className="fs-composer-preview-line"><span>DESCRIPTION</span><span>AMOUNT</span></div>
+        {invoiceDraft.lineItems.filter(x=>x.description.trim()).map((item,k)=><div className="fs-composer-preview-item" key={k}>
+         <span>{item.description}<small>{item.quantity||"—"} × {money(Number(item.rate)||0)}</small></span>
+         <strong>{money((Number(item.quantity)||0)*(Number(item.rate)||0))}</strong></div>)}
+        {rows.filter(r=>invoiceDraft.rowIds.includes(r.id)).map(r=><div className="fs-composer-preview-item" key={r.id}>
+         <span>{titleFromSource(r.project_name)}</span><strong>{money(r.amount)}</strong></div>)}
+        {invoiceDraft.rowIds.length===0&&!invoiceDraft.lineItems.some(x=>x.description.trim())&&<p className="fs-composer-preview-empty">Invoice items appear here as you add them.</p>}
+        <div className="fs-composer-preview-totals"><div><span>Subtotal</span><strong>{money(draftSubtotal)}</strong></div>
+         <div><span>Tax ({invoiceDraft.taxRate||"0"}%)</span><strong>{money(draftTax)}</strong></div>
+         <div className="fs-composer-preview-grand"><span>Invoice total</span><strong>{money(draftTotal)}</strong></div>
+        </div>
+        <div className="fs-composer-preview-footer"><LockKeyhole size={13}/>Preview only · Not sent</div>
+       </div>
+      </aside>
+     </div>
     </form>
    </Dialog>}
 {selected&&<Dialog title={"Invoice #"+selected.number} subtitle={invoiceClient(selected)+" · "+(selected.sourceStatus==="Draft"?"Draft":dateLabel(selected.date))} close={()=>setSelectedInvoice(null)} wide>

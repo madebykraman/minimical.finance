@@ -99,3 +99,22 @@ test("reads actual XLSX archive structure with inline text and value cells",()=>
  assert.equal(result.records[0].amount,3500);
  assert.equal(result.records[0].client,"Sample client");
 });
+
+test("one-column client lists are valid imports",()=>{
+ const list=readCsv("Client Name\nClient A\nClient B\n");
+ const result=normalizeUpload(list,"Enchated Vows");
+ assert.equal(result.records.length,2);
+ assert.equal(result.records[1].client,"Client B");
+});
+test("an explicit organisation column prevents cross-organisation imports",()=>{
+ const list=readCsv("Organisation,Client Name,Email\nThe Minimical Co.,Brand Client,hello@example.com\n");
+ assert.throws(()=>normalizeUpload(list,"Kumar Aman"),/No rows were imported/);
+ assert.equal(normalizeUpload(list,"The Minimical Co.").records.length,1);
+});
+test("ambiguous blank invoice cells are not silently inherited",()=>{
+ const list=readCsv("Client,Project,Amount,Invoice No.\nClient A,Service 1,500,33\nClient A,Service 2,300,\n");
+ const result=normalizeUpload(list,"Kumar Aman");
+ assert.equal(result.records[0].invoice,"33");
+ assert.equal(result.records[1].invoice,undefined);
+ assert.ok(result.warnings.some(x=>x.includes("left unbilled")));
+});

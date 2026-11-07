@@ -3,7 +3,7 @@ import {posix} from "node:path";
 
 export type Sheet={name:string;rows:(string|null)[][]};
 export type ImportRecord={
- client?:string;email?:string;phone?:string;address?:string;gstin?:string;
+ client?:string;organization?:string;email?:string;phone?:string;address?:string;gstin?:string;
  project_name?:string;amount?:number;assigned_by?:string;invoice?:string;
  invoice_total?:number;invoice_date?:string;invoice_status?:string;
  payment_state?:string;paid_date?:string;source_paid?:boolean;
@@ -110,6 +110,7 @@ const key=(s:string|null|undefined)=>norm(s).replace(/[^a-z0-9]/g,"");
 function column(name:string):keyof ImportRecord|null{
  const n=key(name);
  if(!n)return null;
+ if(/^organisation$|^organization$|^businessunit$|^entity$/.test(n))return "organization";
  if(/assignedby|^poc$|pointofcontact/.test(n))return "assigned_by";
  if(/invoicetotal|totalinvoice|invoicedamount|billtotal/.test(n))return "invoice_total";
  if(/paymentamount|amountreceived|paidamount|receivedamount|receiptamount/.test(n))return "payment_amount";
@@ -140,7 +141,7 @@ function header(rows:(string|null)[][]){
   const good=map.project_name!==undefined||map.client!==undefined||
    (map.invoice!==undefined&&map.payment_amount!==undefined&&map.paid_date!==undefined);
   const score=count*2+(map.amount!==undefined?2:0)+(map.invoice!==undefined?2:0);
-  if(good&&count>=2&&(!chosen||score>chosen.score))chosen={i,map,score};
+  if(good&&(count>=2||(count===1&&map.client!==undefined))&&(!chosen||score>chosen.score))chosen={i,map,score};
  }
  return chosen;
 }
@@ -180,6 +181,9 @@ export function normalizeUpload(sheets:Sheet[],organisation:string){
   let current="",target:number|null=null,spent=0;
   for(let i=h.i+1;i<sheet.rows.length;i++){
    const raw=sheet.rows[i]??[];if(!raw.some(Boolean))continue;
+   const specifiedOrg=String(get(raw,"organization")??"").trim();
+   if(specifiedOrg&&norm(specifiedOrg)!==norm(organisation))
+    throw new Error('Row '+(i+1)+' is labelled for "'+specifiedOrg+'", not "'+organisation+'". No rows were imported.');
    const name=String(get(raw,"project_name")??"").trim();
    let client=String(get(raw,"client")??"").trim();
    if(/^notes?$/i.test(sheet.name)&&h.map.notes!==undefined&&name){
@@ -193,6 +197,10 @@ export function normalizeUpload(sheets:Sheet[],organisation:string){
    if(rawInvoice&&invoice(rawInvoice)){current=invoice(rawInvoice);target=parseMoney(get(raw,"invoice_total"));spent=0}
    else if(rawInvoice&&/^(?:n\/?a|none)$/i.test(rawInvoice)){current="";target=null;spent=0}
    else if(current&&target!==null&&spent>=target){current="";target=null;spent=0}
+   else if(current&&target===null&&!rawInvoice){
+    warnings.push(sheet.name+" row "+(i+1)+": invoice number was blank without an earlier invoice total; left unbilled to avoid guessing.");
+    current="";
+   }
    if(paymentValue!==null){
     const paymentInvoice=invoice(rawInvoice);
     if(paymentValue<=0||!paymentInvoice||!paymentDate){

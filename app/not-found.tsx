@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound(){return <main className="login-layout"><section className="login-panel"><p className="overline">404</p><h1>Page not found.</h1><p className="subtle">There's nothing at this address.</p><Link href="/admin" className="button button-primary">Back to workspace</Link></section></main>}

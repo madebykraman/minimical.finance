@@ -1,8 +1,2 @@
 "use client";
-export default function AppError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  return <main className="auth-screen"><section className="auth-card" role="alert">
-    <span className="eyebrow">FINANCE WORKSPACE</span><h1>Something went wrong.</h1>
-    <p>The page couldn't be loaded. Your saved records are unaffected.</p>
-    <button type="button" className="primary auth-submit" onClick={reset}>Reload view</button>
-  </section></main>;
-}
+export default function ErrorBoundary({reset}:{error:Error;reset:()=>void}){return <main className="login-layout"><section className="login-panel" role="alert"><p className="overline">UNEXPECTED ERROR</p><h1>Couldn't open this page.</h1><p className="subtle">Your saved data has not been changed.</p><button className="button button-primary" onClick={reset}>Try again</button></section></main>}

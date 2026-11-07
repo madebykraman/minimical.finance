@@ -1,102 +1,54 @@
 "use client";
-
-import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
-import { ArrowDownToLine, ArrowRight, Building2, CheckCircle2, ChevronDown, FileText, LockKeyhole, LogOut, Receipt, WalletCards } from "lucide-react";
-
-type Period="month"|"3months"|"6months"|"fy"|"all";
-type StatusFilter="all"|"paid"|"open"|"overdue"|"partial";
-type PortalData={organization:any;client:any;invoices:any[];payments:any[];projects:any[];documents:any[];activity:any[]};
-
-const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n||0);
-const date=(s:string)=>s?new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"";
-function fyLabel(now=new Date()){const y=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;return `FY ${y}-${String(y+1).slice(-2)}`;}
-function periodLabel(p:Period){return p==="month"?"This month":p==="3months"?"Last 3 months":p==="6months"?"Last 6 months":p==="fy"?fyLabel():"All time";}
-function inPeriod(s:string,p:Period,now=new Date()){
-  if(p==="all")return true;
-  const d=new Date(s+"T00:00:00"); const end=new Date(now.getFullYear(),now.getMonth()+1,0);
-  if(p==="month")return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
-  if(p==="3months"){const start=new Date(now.getFullYear(),now.getMonth()-2,1);return d>=start&&d<=end;}
-  if(p==="6months"){const start=new Date(now.getFullYear(),now.getMonth()-5,1);return d>=start&&d<=end;}
-  const fyStart=new Date(now.getMonth()>=3?now.getFullYear():now.getFullYear()-1,3,1); const fyEnd=new Date(fyStart.getFullYear()+1,2,31);
-  return d>=fyStart&&d<=fyEnd;
-}
-function statusMatch(i:any,s:StatusFilter){if(s==="all")return true;if(s==="paid")return Number(i.balance)<=0;if(s==="overdue")return !!i.is_overdue&&Number(i.balance)>0;if(s==="partial")return Number(i.paid)>0&&Number(i.balance)>0;return Number(i.balance)>0&&!i.is_overdue;}
-
-export default function ClientPortalPage({params}:{params:Promise<{slug:string}>}){
-  const [slug,setSlug]=useState(""); const [token,setToken]=useState(""); const [data,setData]=useState<PortalData|null>(null);
-  const [period,setPeriod]=useState<Period>("all"); const [status,setStatus]=useState<StatusFilter>("all"); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
-  const [password,setPassword]=useState(""); const [loginBusy,setLoginBusy]=useState(false); const [expandedPayment,setExpandedPayment]=useState<string|null>(null); const [expandedProject,setExpandedProject]=useState<string|null>(null); const [profileOpen,setProfileOpen]=useState(false); const [profile,setProfile]=useState<any>({}); const [profileSaving,setProfileSaving]=useState(false); const [profileMessage,setProfileMessage]=useState("");
-  useEffect(()=>{let active=true;params.then(p=>{if(active){setSlug(p.slug);setToken(new URLSearchParams(window.location.search).get("token")||"")}});return()=>{active=false}},[params]);
-  useEffect(()=>{if(slug)load()},[slug]);
+import {useEffect,useState,type FormEvent} from "react";
+import {ArrowDownToLine,ArrowRight,FileText,LockKeyhole,LogOut,ReceiptText,ShieldCheck} from "lucide-react";
+import {money,dateLabel} from "@/lib/tracker";
+type Invoice={number:string;total:number;paid:number;balance:number;date:string|null;status:string;projects:{name:string;amount:number|null}[]};
+type Data={client:string;owner:string;sourceDate:string;invoices:Invoice[];documents:{id:string;file_name:string;invoice_number:string|null}[]};
+export default function Portal(){
+  const [data,setData]=useState<Data|null>(null),[busy,setBusy]=useState(true);
+  const [password,setPassword]=useState(""),[error,setError]=useState(""),[signing,setSigning]=useState(false);
+  const [open,setOpen]=useState<string|null>(null);
   async function load(){
-    setLoading(true);
-    try {
-      const res=await fetch("/api/client-portal/data?slug="+encodeURIComponent(slug),{cache:"no-store"});
-      if(res.ok){
-        const next=await res.json();setData(next);setProfile(next.client||{});setError("");
-      }else if(res.status!==401){
-        setError("The account could not be loaded right now. Please try again.");
-      }
-    }catch{
-      setError("Connection unavailable. Check your internet connection and retry.");
-    }finally{setLoading(false);}
+    setBusy(true);try{const res=await fetch("/api/portal/data",{cache:"no-store"});
+      if(res.ok){setData(await res.json());setError("");}
+      else if(res.status===401){setData(null);}
+      else{setError("Client portal is not available right now.");}
+    }catch{setError("Could not connect. Please retry.");}
+    finally{setBusy(false);}
   }
-  async function login(e:React.FormEvent){
-    e.preventDefault();setLoginBusy(true);setError("");
-    try{
-      const res=await fetch("/api/client-portal/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,token,password})});
+  useEffect(()=>{void load()},[]);
+  async function login(e:FormEvent){
+    e.preventDefault();setSigning(true);setError("");
+    try{const res=await fetch("/api/portal/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password})});
       const json=await res.json().catch(()=>({}));
-      if(!res.ok){setError(json.error||"Could not sign in.");return;}
-      window.history.replaceState({}, "", "/portal/"+encodeURIComponent(slug));
-      setToken("");setPassword("");await load();
-    }catch{setError("Sign-in is temporarily unavailable. Check your connection and retry.");}
-    finally{setLoginBusy(false);}
+      if(!res.ok)throw new Error(json.error||"Unable to sign in.");
+      setPassword("");await load();
+    }catch(e){setError(e instanceof Error?e.message:"Unable to sign in.");}
+    finally{setSigning(false);}
   }
-  const invoices=useMemo(()=>data?.invoices||[],[data]); const payments=useMemo(()=>data?.payments||[],[data]);
-  const scoped=invoices.filter(i=>inPeriod(i.issue_date,period)&&statusMatch(i,status));
-  const billed=scoped.reduce((s,i)=>s+Number(i.total||0),0),paid=scoped.reduce((s,i)=>s+Number(i.paid||0),0),outstanding=scoped.reduce((s,i)=>s+Number(i.balance||0),0);
-  const allBalance=invoices.reduce((s,i)=>s+Number(i.balance||0),0),overdue=invoices.filter(i=>i.is_overdue&&i.balance>0).length;
-  const filteredStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period="+period+"&status="+status;
-  const fullStatement="/api/client-portal/"+encodeURIComponent(slug)+"/statement?period=all&status=all";
-
-  if(loading&& !data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><Building2 size={16}/></div><p>Opening secure client account…</p></div></main>;
-  if(!data)return <main className="portal-screen"><div className="portal-card"><div className="portal-mark"><LockKeyhole size={16}/></div><div className="portal-kicker">SECURE CLIENT ACCOUNT</div><h1>Enter your portal password.</h1><p>This link identifies your account. Your password protects the financial records inside it.</p><form onSubmit={login} className="portal-login"><label>Password<input autoFocus type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Portal password" required/></label>{error&&<div className="portal-login-error" role="alert">{error}</div>}<button className="portal-button dark" disabled={loginBusy}>{loginBusy?"Signing in…":"Open account"}</button></form></div></main>;
-
-  return <main className="portal-screen" style={{"--org-accent":data.organization?.accent_hex||"#7046dd"} as CSSProperties}><div className="portal-shell">
-    <header className="portal-header">
-      <div className="portal-title-lockup">{data.client.logo_path?<img className="portal-client-logo" src={data.client.logo_path} alt=""/>:null}<div><div className="portal-brand">{data.organization?.logo_path?<img className="portal-org-logo" src={data.organization.logo_path} alt=""/>:null}<strong>{data.organization?.name||""}</strong></div><h1>{data.client.legal_name||data.client.name}</h1></div></div>
-      <div className="portal-actions"><a href={fullStatement} className="portal-button dark"><ArrowDownToLine size={15}/>Full statement</a><button className="portal-button" onClick={async()=>{await fetch("/api/client-portal/logout",{method:"POST"});location.href="/portal/"+slug;}}><LogOut size={14}/>Sign out</button></div>
-    </header>
-
-    <section className="portal-controls">
-      <div className="portal-period"><span>Period</span>{(["month","3months","6months","fy","all"] as Period[]).map(p=><button key={p} className={period===p?"active":""} onClick={()=>setPeriod(p)}>{periodLabel(p)}</button>)}</div>
-      <div className="portal-period"><span>Status</span>{(["all","open","overdue","partial","paid"] as StatusFilter[]).map(s=><button key={s} className={status===s?"active":""} onClick={()=>setStatus(s)}>{s==="all"?"All":s==="open"?"Outstanding":s==="partial"?"Partially paid":s[0].toUpperCase()+s.slice(1)}</button>)}</div>
+  const logout=async()=>{await fetch("/api/portal/logout",{method:"POST"});setData(null);setOpen(null);setPassword("");};
+  const total=data?.invoices.reduce((s,i)=>s+i.balance,0)||0;
+  if(busy&&!data)return <main className="client-page"><div className="client-login-box"><span className="client-emblem"><LockKeyhole size={21}/></span><p>Opening your secure account…</p></div></main>;
+  if(!data)return <main className="client-page"><div className="client-login-box"><div className="client-mark">f.</div><p className="overline">SECURE CLIENT ACCESS</p><h1>Your account, simplified.</h1><p className="client-sub">Enter the password shared by your finance contact to view invoices and files.</p>
+    <form onSubmit={login} className="form-stack"><label className="field-label">Portal password<input required autoComplete="current-password" type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p className="client-error" role="alert">{error}</p>}<button className="button button-primary button-large" disabled={signing}>{signing?"Opening…":"Open account"}<ArrowRight size={16}/></button></form>
+    <p className="client-secure"><ShieldCheck size={15}/>Password-protected account</p>
+  </div></main>;
+  return <main className="client-page"><div className="client-shell">
+    <header className="client-header"><div className="client-brand"><div className="client-mark">f.</div><div><small>CLIENT FINANCE PORTAL</small><strong>{data.owner}</strong></div></div><button className="button" onClick={()=>void logout()}><LogOut size={16}/>Sign out</button></header>
+    <div className="client-welcome"><p className="page-kicker">ACCOUNT STATEMENT</p><h1>{data.client}</h1><p>Invoices and records, in one quiet place.</p></div>
+    <section className="client-balance"><div><span>OUTSTANDING BALANCE</span><strong>{money(total)}</strong><small>From {data.invoices.filter(i=>i.balance>0).length} open invoices</small></div><div className="client-balance-aside"><span>ORIGINAL TRACKER DATE</span><strong>{dateLabel(data.sourceDate)}</strong></div></section>
+    <section className="client-section"><div className="client-section-head"><h2>Invoices</h2><span>{data.invoices.length} records</span></div>
+      <div className="client-invoice-list">{data.invoices.map(i=><div className="client-invoice" key={i.number}>
+        <button className="client-invoice-toggle" onClick={()=>setOpen(open===i.number?null:i.number)} aria-expanded={open===i.number}>
+          <span className="client-invoice-icon"><ReceiptText size={19}/></span><span className="client-invoice-name"><strong>Invoice #{i.number}</strong><small>{dateLabel(i.date)} · {i.status}</small></span>
+          <span className="client-invoice-amount"><strong>{money(i.balance)}</strong><small>remaining</small></span><ArrowRight size={17} className={open===i.number?"rotated":""}/></button>
+        {open===i.number&&<div className="client-invoice-detail"><div className="client-detail-facts"><span>Invoice total<strong>{money(i.total)}</strong></span><span>Paid<strong>{money(i.paid)}</strong></span></div>
+          {i.projects.map((p,k)=><div className="client-project-row" key={k}><span>{p.name.replace(/^Elle India_/,"").replaceAll("_Video Editing","")}</span><strong>{money(p.amount)}</strong></div>)}
+          <a className="button" target="_blank" rel="noopener noreferrer" href={"/api/invoices/"+encodeURIComponent(i.number)+"/pdf"}><ArrowDownToLine size={15}/>View summary PDF</a>
+        </div>}
+      </div>)}</div>
     </section>
-
-    <section className="portal-position"><div><span>OUTSTANDING</span><strong>{money(allBalance)}</strong><small>{overdue?overdue+" overdue":"Account up to date"}</small></div><div className="portal-position-facts"><span>{periodLabel(period)} billed <b>{money(billed)}</b></span><span>Paid <b>{money(paid)}</b></span><span>{scoped.length} invoices <b>shown</b></span></div><a href={filteredStatement} className="portal-button dark"><FileText size={14}/>Statement</a></section>
-
-    <section className="portal-panel"><div className="portal-panel-head"><div><h2>Invoices</h2><span>{scoped.length} · {status==="all"?"all":status}</span></div><Receipt size={16}/></div>
-      <div className="portal-list">{scoped.length?scoped.map(i=><a className="portal-row" href={"/portal/"+slug+"/invoice/"+i.id} key={i.id}><div><b>#{i.invoice_number}</b><span>{date(i.issue_date)}{i.due_date?" · Due "+date(i.due_date):""}{i.project_name?" · "+i.project_name:""}</span></div><div><strong>{money(i.total)}</strong><small>{i.balance>0?money(i.balance)+" outstanding": "Paid"}</small></div><ArrowRight size={15}/></a>):<div className="portal-empty">No invoices match these filters.</div>}</div>
-    </section>
-
-    <details className="portal-extras"><summary className="portal-extras-toggle"><span>Payments, projects, documents and account details</span><ChevronDown size={16}/></summary><div className="portal-extras-body">
-    <section className="portal-panel portal-payments"><div className="portal-panel-head"><div><h2>Payments</h2><span>{payments.length} recorded</span></div><WalletCards size={16}/></div>
-      <div className="portal-list">{payments.length?payments.map(p=><div className="portal-payment" key={p.id}>
-        <button className="portal-payment-main" onClick={()=>setExpandedPayment(expandedPayment===p.id?null:p.id)}><div><b>{money(p.amount)}</b><span>{date(p.payment_date)} · Invoice #{p.invoice_number}</span></div><div><strong>{String(p.method||"").replaceAll("_"," ")}</strong><small>{p.reference||"No reference recorded"}</small></div><ChevronDown size={15} className={expandedPayment===p.id?"rotated":""}/></button>
-        {expandedPayment===p.id&&<div className="portal-payment-detail"><div><span>Receipt</span><b>{p.receipt_number}</b></div><div><span>Reference</span><b>{p.reference||"—"}</b></div><div><span>Payment date</span><b>{date(p.payment_date)||"—"}</b></div><div><span>Invoice</span><b>#{p.invoice_number}</b></div><div className="portal-detail-action"><a className="portal-button dark" href={"/api/client-portal/"+slug+"/receipt/"+p.id}><ArrowDownToLine size={14}/>Download receipt</a></div></div>}
-      </div>):<div className="portal-empty">No payments recorded yet.</div>}</div>
-    </section>
-
-    {data.client.show_projects&&<section className="portal-panel portal-docs"><div className="portal-panel-head"><div><h2>Projects</h2><span>{(data.projects||[]).length}</span></div><WalletCards size={16}/></div><div className="portal-doc-grid">{(data.projects||[]).length?(data.projects||[]).map((p:any)=><div className="portal-doc portal-project" key={p.id}><button className="portal-project-main" onClick={()=>setExpandedProject(expandedProject===p.id?null:p.id)}><FileText size={16}/><div><b>{p.name}</b><span>{p.status||"active"}{p.start_date?" · "+date(p.start_date):""}{p.end_date?" → "+date(p.end_date):""}</span></div><ChevronDown size={15} className={expandedProject===p.id?"rotated":""}/></button>{expandedProject===p.id&&<div className="portal-project-detail"><p>{p.description||"No project description has been shared."}</p></div>}</div>):<div className="portal-empty">No projects shared yet.</div>}</div></section>}
-
-    {data.client.show_documents&&<section className="portal-panel portal-docs"><div className="portal-panel-head"><div><h2>Documents</h2><span>{data.documents.length} shared</span></div><FileText size={16}/></div><div className="portal-doc-grid">{data.documents.length?data.documents.map(d=><div className="portal-doc" key={d.id}><FileText size={16}/><div><b>{d.file_name}</b><span>{d.description||d.document_type}</span></div><div className="portal-doc-actions"><a href={"/api/client-portal/"+slug+"/document/"+d.id+"?preview=1"}>Preview</a><a href={"/api/client-portal/"+slug+"/document/"+d.id}>Download</a></div></div>):<div className="portal-empty">No shared documents yet.</div>}</div></section>}
-
-    <section className="portal-panel portal-activity portal-secondary"><div className="portal-panel-head"><div><h2>Activity</h2><span>Recent account events</span></div><CheckCircle2 size={16}/></div><div className="portal-list">{(data.activity||[]).length?(data.activity||[]).slice(0,12).map((a:any)=><div className="portal-activity-row" key={a.id}><span className="portal-activity-dot"/><div><b>{String(a.action||"activity").replaceAll("_"," ")}</b><span>{a.resource_type||"account"}</span></div><small>{new Date(a.created_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div>):<div className="portal-empty">No portal activity recorded yet.</div>}</div></section>
-
-    {data.client.allow_profile_edit&&<section className="portal-panel portal-profile portal-secondary"><button className="portal-profile-toggle" onClick={()=>setProfileOpen(v=>!v)}><div><h2>Account details</h2><p>Update your billing contact information.</p></div><span>{profileOpen?"Hide":"Edit"}</span></button>{profileOpen&&<div className="portal-profile-body"><div className="portal-profile-grid"><label>Name<input value={profile.name||""} onChange={e=>setProfile((p:any)=>({...p,name:e.target.value}))}/></label><label>Legal name<input value={profile.legal_name||""} onChange={e=>setProfile((p:any)=>({...p,legal_name:e.target.value}))}/></label><label>Email<input type="email" value={profile.email||""} onChange={e=>setProfile((p:any)=>({...p,email:e.target.value}))}/></label><label>Phone<input value={profile.phone||""} onChange={e=>setProfile((p:any)=>({...p,phone:e.target.value}))}/></label><label>PAN<input value={profile.pan||""} onChange={e=>setProfile((p:any)=>({...p,pan:e.target.value}))}/></label><label>GSTIN<input value={profile.gstin||""} onChange={e=>setProfile((p:any)=>({...p,gstin:e.target.value}))}/></label><label className="portal-profile-full">Address<textarea value={Array.isArray(profile.address_lines)?profile.address_lines.join("\n"):""} onChange={e=>setProfile((p:any)=>({...p,address_lines:e.target.value.split("\n").map((x:string)=>x.trim()).filter(Boolean)}))}/></label></div>{profileMessage&&<div className="portal-login-error">{profileMessage}</div>}<button className="portal-button dark" disabled={profileSaving} onClick={async()=>{setProfileSaving(true);setProfileMessage("");const res=await fetch("/api/client-portal/"+encodeURIComponent(slug)+"/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(profile)});const j=await res.json();setProfileSaving(false);setProfileMessage(res.ok?"Profile updated.":j.error||"Could not update profile.");if(res.ok){setData((d:any)=>({...d,client:j}));}}}>{profileSaving?"Saving…":"Save account details"}</button></div>}</section>}
-
-    </div></details>
-    <footer className="portal-footer">Secure client account · {data.client.email||"Contact your studio for account questions"}</footer>
+    {data.documents.length>0&&<section className="client-section"><div className="client-section-head"><h2>Shared documents</h2><span>{data.documents.length}</span></div>{data.documents.map(d=><a className="client-document" key={d.id} href={"/api/documents/"+d.id} target="_blank" rel="noopener noreferrer"><FileText size={18}/><span>{d.file_name}</span><ArrowDownToLine size={17}/></a>)}</section>}
+    <footer className="client-footer"><ShieldCheck size={15}/>Private client account · Contact your finance representative for questions.</footer>
   </div></main>;
 }

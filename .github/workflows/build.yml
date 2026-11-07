@@ -1,13 +1,10 @@
-name: Build
-
+name: Production build
 on:
   push:
     branches: [main]
-  pull_request:
-
+  workflow_dispatch:
 permissions:
   contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,11 +17,3 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
-      - name: Render PDF fixtures
-        run: npx tsx scripts/render-pdf-fixtures.ts
-      - name: Upload PDF fixtures
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-fixtures
-          path: artifacts/pdf-fixtures/*.pdf
-          if-no-files-found: error

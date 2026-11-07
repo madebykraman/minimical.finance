@@ -1,17 +1,7 @@
-import type { Metadata, Viewport } from "next";
+import type {Metadata,Viewport} from "next";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: "Finance studio — Billing and projects",
-  description: "An organised space for invoices, clients, projects and payments.",
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata:Metadata={title:"Finance — Kumar Aman",description:"Private work, invoices and payments workspace."};
+export const viewport:Viewport={width:"device-width",initialScale:1,viewportFit:"cover"};
+export default function RootLayout({children}:{children:React.ReactNode}){
   return <html lang="en"><body>{children}</body></html>;
 }

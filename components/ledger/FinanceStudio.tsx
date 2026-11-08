@@ -33,11 +33,11 @@ type InvoiceDraft={number:string;date:string;dueDate:string;clientId:string;taxR
 type InvoiceEdit={number:string;date:string;dueDate:string;notes:string;status:"Draft"|"Sent";
  clientId:string;taxRate:string;items:(InvoiceLine&{id?:string})[]};
 const NAV:{id:View;label:string;icon:typeof LayoutDashboard}[]=[
- {id:"overview",label:"Overview",icon:LayoutDashboard},
- {id:"work",label:"Work",icon:BriefcaseBusiness},
+ {id:"overview",label:"Home",icon:LayoutDashboard},
  {id:"invoices",label:"Invoices",icon:ReceiptText},
- {id:"payments",label:"Payments",icon:Wallet},
+ {id:"work",label:"Work",icon:BriefcaseBusiness},
  {id:"clients",label:"Clients",icon:UsersRound},
+ {id:"payments",label:"Payments",icon:Wallet},
  {id:"documents",label:"Documents",icon:Files},
  {id:"reports",label:"Reports",icon:ChartNoAxesColumn},
  {id:"settings",label:"Settings",icon:Settings2}

@@ -34,3 +34,9 @@ test("invoice PDF uses authenticated download with server errors displayed",()=>
  assert.match(ui,/URL\.createObjectURL/);
  assert.match(ui,/setError\(e instanceof Error/);
 });
+
+test("the four visible navigation actions are exactly Home, Invoices, Work and Clients",()=>{
+ const section=ui.slice(ui.indexOf("const NAV:"),ui.indexOf("const localDate"));
+ const first=Array.from(section.matchAll(/id:"(overview|invoices|work|clients|payments|documents|reports|settings)"/g)).slice(0,4).map(x=>x[1]);
+ assert.deepEqual(first,["overview","invoices","work","clients"]);
+});

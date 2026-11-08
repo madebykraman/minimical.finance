@@ -2,6 +2,7 @@ import type {Metadata,Viewport} from "next";
 import {Geist} from "next/font/google";
 import "./globals.css";
 import "./studio.css";
+import "./workspace-v3.css";
 const geist=Geist({subsets:["latin"],display:"swap",variable:"--font-geist"});
 export const metadata:Metadata={title:"Finance | Your workspace",description:"Organisation-led invoices, projects, clients and payments."};
 export const viewport:Viewport={width:"device-width",initialScale:1,viewportFit:"cover"};

@@ -1,40 +1,36 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-
-const studio=readFileSync("components/ledger/FinanceStudio.tsx","utf8");
-const css=readFileSync("app/studio.css","utf8");
-const layout=readFileSync("app/layout.tsx","utf8");
-
-test("dashboard exposes accurate financial balance with a privacy toggle",()=>{
- assert.match(studio,/fs-balance-hero/);
- assert.match(studio,/balanceVisible\?money\(outstanding\)/);
- assert.match(studio,/fs-hero-action/);
- assert.match(studio,/openInvoices\.length/);
+const ui=readFileSync("components/ledger/FinanceStudio.tsx","utf8");
+const css=readFileSync("app/workspace-v3.css","utf8");
+test("the default workspace shows only the balance and an actionable invoice inbox",()=>{
+ assert.match(ui,/className="v3-balance"/);
+ assert.match(ui,/className="v3-list-section"/);
+ assert.match(ui,/openInvoices.slice\(0,5\)/);
+ assert.doesNotMatch(ui,/fs-hero-layout/);
 });
-test("invoice cards reflect the real ledger and provide usable status filters",()=>{
- assert.match(studio,/fs-invoice-grid/);
- assert.match(studio,/invoiceVisible\.map/);
- assert.match(studio,/aria-pressed=\{filter===key\}/);
- assert.match(studio,/setSelectedInvoice\(i\.number\)/);
- assert.match(studio,/invoiceTone\(i\)/);
+test("navigation is reduced to four tasks with secondary tools hidden until selected",()=>{
+ assert.match(ui,/NAV\.slice\(0,4\)/);
+ assert.match(ui,/NAV\.slice\(4\)/);
+ assert.match(ui,/setMenu\(true\)/);
+ assert.match(ui,/v3-tools-overlay/);
 });
-test("invoice detail and composer show actual amounts without fake activity",()=>{
- assert.match(studio,/fs-detail-document/);
- assert.match(studio,/fs-composer-preview/);
- assert.match(studio,/selected\.rows\.map/);
- assert.match(studio,/payments\.filter\(p=>p\.invoice_number===selected\.number\)/);
- assert.match(studio,/date not provided|Payment date not provided/i);
+test("all active screens have real data and actions, not placeholder examples",()=>{
+ for(const view of ["overview","invoices","work","clients","payments","documents","reports","settings"]){
+  assert.ok(ui.includes('view==="'+view+'"'),view+" screen unavailable");
+ }
+ assert.match(ui,/downloadInvoicePdf/);
+ assert.match(ui,/tracker_revise_invoice/);
+ assert.match(ui,/tracker_compose_and_mark_invoice/);
 });
-test("small screens retain organisation switching and touch-friendly records",()=>{
- assert.match(studio,/aria-label="Switch organisation"/);
- assert.match(studio,/className="fs-mobile-create"/);
- assert.match(studio,/className="fs-mobile-record"/);
- assert.match(css,/@media\(max-width:780px\)/);
- assert.match(css,/\.fs-desktop-register\{display:none\}/);
-});
-test("studio uses the Geist typeface and respects reduced motion",()=>{
- assert.match(layout,/next\/font\/google/);
- assert.match(css,/var\(--font-geist\)/);
+test("mobile navigation is touch friendly and shows the organisation switcher",()=>{
+ assert.match(ui,/className="v3-mobile-nav"/);
+ assert.match(ui,/aria-label="Switch organisation"/);
+ assert.match(css,/\.v3-sidebar\{display:none\}/);
  assert.match(css,/prefers-reduced-motion/);
+});
+test("invoice PDF uses authenticated download with server errors displayed",()=>{
+ assert.match(ui,/response\.headers\.get\("content-type"\)/);
+ assert.match(ui,/URL\.createObjectURL/);
+ assert.match(ui,/setError\(e instanceof Error/);
 });

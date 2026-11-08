@@ -15,5 +15,5 @@ test("documents cannot cross organisation boundaries during upload",()=>{
 test("generated invoices use the explicit selected organisation",()=>{
  const code=readFileSync("app/api/invoices/[number]/pdf/route.ts","utf8");
  assert.match(code,/searchParams.get\("org"\)/);
- assert.match(code,/eq\("organization_id",organization.id\)/);
+ assert.match(code,/eq\("organization_id",org.id\)/);
 });

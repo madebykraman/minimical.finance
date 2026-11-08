@@ -14,7 +14,7 @@ export async function GET(request:Request,{params}:{params:Promise<{number:strin
   if(!admin&&!portal)return NextResponse.json({error:"Sign in to generate an invoice."},{status:401});
   // Member queries use their own RLS-protected session. Only the password-based
   // read-only portal uses the privileged server session.
-  const db=admin?admin.db:serviceClient();
+  const db=admin?(admin.db as unknown as ReturnType<typeof serviceClient>):serviceClient();
   const orgId=new URL(request.url).searchParams.get("org");
   if(admin&&!orgId)return NextResponse.json({error:"Choose an organisation."},{status:400});
   if(admin&&!uuid.test(orgId||""))return NextResponse.json({error:"Invalid organisation."},{status:400});

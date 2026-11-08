@@ -64,7 +64,7 @@ function Empty({title,description,action}:{title:string;description:string;actio
 function Card({title,description,action,children}:{title:string;description?:string;action?:ReactNode;children:ReactNode}){
  return <section className="fs-card"><div className="fs-card-head"><div><h2>{title}</h2>{description&&<p>{description}</p>}</div>{action}</div>{children}</section>;
 }
-function Dialog({title,subtitle,close,children,wide=false}:{title:string;subtitle?:string;close:()=>void;children:ReactNode;wide?:boolean}){
+function Dialog({title,subtitle,close,children,wide=false,error=""}:{title:string;subtitle?:string;close:()=>void;children:ReactNode;wide?:boolean;error?:string}){
  const ref=useRef<HTMLDivElement>(null);
  const closeRef=useRef(close);
  useEffect(()=>{closeRef.current=close},[close]);
@@ -86,7 +86,7 @@ function Dialog({title,subtitle,close,children,wide=false}:{title:string;subtitl
  return <div className="fs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
   <section className={"fs-dialog"+(wide?" fs-dialog-wide":"")} ref={ref} role="dialog" aria-modal="true" aria-label={title}>
    <div className="fs-dialog-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="fs-icon" type="button" onClick={close} aria-label="Close"><X size={20}/></button></div>
-   <div className="fs-dialog-content">{children}</div>
+   <div className="fs-dialog-content">{error&&<div className="fs-alert fs-alert-error fs-dialog-error" role="alert"><AlertCircle size={18}/><span>{error}</span></div>}{children}</div>
   </section>
  </div>;
 }
@@ -594,7 +594,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   </section></div>}
   {error&&<div className="v3-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button aria-label="Dismiss error" onClick={()=>setError("")}><X size={16}/></button></div>}
   {toast&&<div className="v3-toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
-  {uploadOutcome&&<Dialog title={uploadOutcome.already_imported?"Already imported":"Import complete"} subtitle={uploadOutcome.organisation} close={()=>setUploadOutcome(null)}>
+  {uploadOutcome&&<Dialog title={uploadOutcome.already_imported?"Already imported":"Import complete"} subtitle={uploadOutcome.organisation} close={()=>setUploadOutcome(null)} error={error}>
    <div className="fs-import-result"><div className="fs-import-success"><CheckCircle2 size={27}/><div><strong>{uploadOutcome.already_imported?"This file was processed before.":"Your records are now in the database."}</strong><span>No spreadsheet stays connected after importing.</span></div></div>
     <div className="fs-import-metrics"><div><strong>{uploadOutcome.created}</strong><span>Created</span></div><div><strong>{uploadOutcome.updated}</strong><span>Updated</span></div><div><strong>{uploadOutcome.skipped}</strong><span>Skipped</span></div><div><strong>{uploadOutcome.flagged}</strong><span>Needs review</span></div></div>
     {!!uploadOutcome.warnings?.length&&<div className="fs-import-warnings"><strong>Import notes</strong>{uploadOutcome.warnings.map((s,i)=><p key={i}>{s}</p>)}</div>}
@@ -602,7 +602,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><button className="fs-button fs-button-primary" onClick={()=>setUploadOutcome(null)}>Done</button></div>
    </div>
   </Dialog>}
-  {workDraft&&<Dialog title={workDraft.id?"Edit work":"Add work"} subtitle="Project or deliverable" close={()=>setWorkDraft(null)}>
+  {workDraft&&<Dialog title={workDraft.id?"Edit work":"Add work"} subtitle="Project or deliverable" close={()=>setWorkDraft(null)} error={error}>
    <form className="fs-form" onSubmit={saveWork}>
     <label>Work / project name<input required autoFocus value={workDraft.project_name} onChange={e=>setWorkDraft({...workDraft,project_name:e.target.value})} placeholder="Describe the deliverable"/></label>
     <div className="fs-form-two"><label>Amount (INR, optional)<input type="number" min="0" step=".01" value={workDraft.amount} onChange={e=>setWorkDraft({...workDraft,amount:e.target.value})} placeholder="Not yet priced"/></label><label>Assigned by / POC<input value={workDraft.assigned_by} onChange={e=>setWorkDraft({...workDraft,assigned_by:e.target.value})} placeholder="Optional"/></label></div>
@@ -612,7 +612,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions">{workDraft.id&&!rows.find(x=>x.id===workDraft.id)?.invoice_number&&<button type="button" className="fs-button fs-danger" disabled={working} onClick={()=>void deleteWork(workDraft.id!)}><Trash2 size={15}/>Delete</button>}<span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setWorkDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{working?"Saving…":"Save work"}</button></div>
    </form>
   </Dialog>}
-  {clientDraft&&<Dialog title={clientDraft.id?"Edit client":"Add client"} subtitle="Billing and contact information" close={()=>setClientDraft(null)}>
+  {clientDraft&&<Dialog title={clientDraft.id?"Edit client":"Add client"} subtitle="Billing and contact information" close={()=>setClientDraft(null)} error={error}>
    <form className="fs-form" onSubmit={saveClient}><label>Client name<input autoFocus required value={clientDraft.name} onChange={e=>setClientDraft({...clientDraft,name:e.target.value})}/></label>
     <div className="fs-form-two"><label>Email<input type="email" value={clientDraft.email} onChange={e=>setClientDraft({...clientDraft,email:e.target.value})}/></label><label>Phone<input type="tel" value={clientDraft.phone} onChange={e=>setClientDraft({...clientDraft,phone:e.target.value})}/></label></div>
     <label>Billing address<textarea rows={3} value={clientDraft.address} onChange={e=>setClientDraft({...clientDraft,address:e.target.value})}/></label>
@@ -621,16 +621,18 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setClientDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{working?"Saving…":"Save client"}</button></div>
    </form>
   </Dialog>}
-  {paymentDraft&&<Dialog title={paymentDraft.id?"Edit payment":"Record payment"} subtitle="Record actual money received, with a verified date" close={()=>setPaymentDraft(null)}>
+  {paymentDraft&&<Dialog title={paymentDraft.id?"Edit payment":"Record payment"} subtitle="Record actual money received, with a verified date" close={()=>setPaymentDraft(null)} error={error}>
    <form className="fs-form" onSubmit={savePayment}>
-    <label>Invoice<select required value={paymentDraft.invoice_number} onChange={e=>setPaymentDraft({...paymentDraft,invoice_number:e.target.value})}><option value="">Select an unpaid invoice</option>{openInvoices.map(i=><option key={i.number} value={i.number}>#{i.number} — {money(i.balance)} outstanding</option>)}</select></label>
+    <label>Invoice<select required value={paymentDraft.invoice_number} onChange={e=>setPaymentDraft({...paymentDraft,invoice_number:e.target.value})}><option value="">Select an unpaid invoice</option>{paymentDraft.id&&invoices.find(i=>i.number===paymentDraft.invoice_number)&&!openInvoices.some(i=>i.number===paymentDraft.invoice_number)&&
+     <option value={paymentDraft.invoice_number}>#{paymentDraft.invoice_number} — existing payment</option>}
+     {openInvoices.map(i=><option key={i.number} value={i.number}>#{i.number} — {money(i.balance)} outstanding</option>)}</select></label>
     <div className="fs-form-two"><label>Amount received (INR)<input required type="number" step=".01" min=".01" value={paymentDraft.amount} onChange={e=>setPaymentDraft({...paymentDraft,amount:e.target.value})}/></label><label>Date received<input required type="date" value={paymentDraft.paid_on} onChange={e=>setPaymentDraft({...paymentDraft,paid_on:e.target.value})}/></label></div>
     <div className="fs-form-two"><label>Method<select value={paymentDraft.method} onChange={e=>setPaymentDraft({...paymentDraft,method:e.target.value as TrackerPayment["method"]})}><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input value={paymentDraft.reference} onChange={e=>setPaymentDraft({...paymentDraft,reference:e.target.value})}/></label></div>
     <label>Notes<textarea rows={3} value={paymentDraft.notes} onChange={e=>setPaymentDraft({...paymentDraft,notes:e.target.value})}/></label>
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setPaymentDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{paymentDraft.id?"Save payment changes":"Record payment"}</button></div>
    </form>
   </Dialog>}
-  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Add items and review a live billing summary." close={()=>setInvoiceDraft(null)} wide>
+  {invoiceDraft&&<Dialog title="Create invoice" subtitle="Add items and review a live billing summary." close={()=>setInvoiceDraft(null)} error={error} wide>
     <form className="fs-form" onSubmit={createInvoice}>
      <div className="fs-composer-layout"><div className="fs-composer-fields">
      {!clients.length&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Add a client first. <button type="button" className="fs-link" onClick={()=>{setInvoiceDraft(null);addClient()}}>Create client</button></div>}
@@ -689,7 +691,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      </div>
     </form>
    </Dialog>}
-{selected&&<Dialog title={"Invoice #"+selected.number} subtitle={invoiceClient(selected)+" · "+(selected.sourceStatus==="Draft"?"Draft":dateLabel(selected.date))} close={()=>setSelectedInvoice(null)} wide>
+{selected&&<Dialog title={"Invoice #"+selected.number} subtitle={invoiceClient(selected)+" · "+(selected.sourceStatus==="Draft"?"Draft":dateLabel(selected.date))} close={()=>setSelectedInvoice(null)} error={error} wide>
    <div className="fs-detail-grid">
     <div className="fs-detail-document">
      <div className="fs-detail-blue">
@@ -740,7 +742,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     </aside>
    </div>
   </Dialog>}
-  {invoiceEdit&&<Dialog title={"Edit invoice #"+invoiceEdit.number} subtitle="Edit line items and recalculate totals safely." close={()=>setInvoiceEdit(null)} wide>
+  {invoiceEdit&&<Dialog title={"Edit invoice #"+invoiceEdit.number} subtitle="Edit line items and recalculate totals safely." close={()=>setInvoiceEdit(null)} error={error} wide>
     <form className="fs-form" onSubmit={editInvoice}>
      <div className="fs-edit-invoice-layout">
       <div className="fs-edit-fields">
@@ -773,7 +775,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      </div>
     </form>
    </Dialog>}
-{organisationDraft&&<Dialog title="Organisation details" subtitle="Used in your generated financial documents" close={()=>setOrganisationDraft(null)}>
+{organisationDraft&&<Dialog title="Organisation details" subtitle="Used in your generated financial documents" close={()=>setOrganisationDraft(null)} error={error}>
    <form className="fs-form" onSubmit={saveOrganisation}><div className="fs-locked-name"><label>Organisation<input value={organisationDraft.name} disabled/></label><Status tone={organisationDraft.status==="dissolved"?"warn":"success"}>{organisationDraft.status}</Status></div>
     <label>Legal / invoice name<input value={organisationDraft.legal_name??""} onChange={e=>setOrganisationDraft({...organisationDraft,legal_name:e.target.value})}/></label>
     <div className="fs-form-two"><label>Email<input type="email" value={organisationDraft.email??""} onChange={e=>setOrganisationDraft({...organisationDraft,email:e.target.value})}/></label><label>Phone<input type="tel" value={organisationDraft.phone??""} onChange={e=>setOrganisationDraft({...organisationDraft,phone:e.target.value})}/></label></div>

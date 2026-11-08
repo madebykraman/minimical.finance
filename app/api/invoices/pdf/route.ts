@@ -1,6 +1,6 @@
 import {NextResponse} from "next/server";
 import {PDFDocument} from "pdf-lib";
-import {workspaceUser} from "@/lib/ledger/server";
+import {workspaceUser,serviceClient} from "@/lib/ledger/server";
 import {renderInvoicePdf} from "@/lib/ledger/invoice-pdf";
 import {invoiceGroups,type TrackerRow,type TrackerPayment} from "@/lib/tracker";
 
@@ -20,7 +20,7 @@ export async function GET(request:Request){
   const orgId=params.get("org"),filter=params.get("status")||"all";
   if(!orgId||!UUID.test(orgId))return NextResponse.json({error:"Choose a valid organisation."},{status:400});
   if(!allowedStatus.has(filter))return NextResponse.json({error:"Invalid invoice filter."},{status:400});
-  const db=member.db;
+  const db=member.db as unknown as ReturnType<typeof serviceClient>;
   const [orgResult,rowsResult,paymentsResult,clientsResult]=await Promise.all([
    db.from("tracker_organizations").select("*").eq("id",orgId).maybeSingle(),
    db.from("tracker_rows").select("*").eq("organization_id",orgId).not("invoice_number","is",null).order("row_order"),

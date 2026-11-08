@@ -736,3 +736,50 @@ button.fs-list-row:hover,a.fs-list-row:hover{background:#f8faff}
  .fs-login-entry .login-panel h1{font-size:29px}
  .fs-login-entry .login-panel>p.subtle{margin-bottom:23px}
 }
+
+
+/* Rebuild: complexity is disclosed rather than rendered all at once. */
+.fs-dialog-error{position:sticky;top:0;z-index:9;box-shadow:0 8px 25px #6b283815;margin-bottom:16px}
+.fs-form-disclosure{border:1px solid #e4e9f1;border-radius:13px;background:#fff;overflow:hidden}
+.fs-form-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:13px;cursor:pointer;padding:15px 16px;font-size:12px;color:#31425b;font-weight:740;list-style:none}
+.fs-form-disclosure>summary::-webkit-details-marker{display:none}
+.fs-form-disclosure>summary>span{display:flex;align-items:center;gap:9px}
+.fs-form-disclosure>summary>span:first-child svg{color:#3165d1}
+.fs-form-disclosure>summary>span:last-child{color:#8f9eaf;font-size:10px;font-weight:650;white-space:nowrap}
+.fs-form-disclosure[open]>summary{background:#f6f8fd;border-bottom:1px solid #e8edf4}
+.fs-form-disclosure[open]>summary>span:last-child svg,.fs-composer-peek[open]>summary>svg:last-child{transform:rotate(180deg)}
+.fs-form-disclosure-body{padding:17px 16px 19px;display:grid;gap:17px;min-width:0}
+.fs-form-disclosure-body>label,.fs-form-disclosure-body>.fs-form-two>label{display:grid;gap:8px;font-size:12px;color:#49596f;font-weight:700}
+.fs-form-disclosure-body .fs-checklist-title{margin:0}
+.fs-composer-grand{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px 10px;padding:18px;background:#ecf3ff;border:1px solid #d9e6fb;border-radius:13px}
+.fs-composer-grand>span{font-size:12px;color:#54709a;font-weight:720}
+.fs-composer-grand>strong{font-size:25px;letter-spacing:-.06em;color:#234fb3;font-weight:820;font-variant-numeric:tabular-nums}
+.fs-composer-grand>small{font-size:10px;color:#8fa3c3;flex-basis:100%;text-align:right}
+.fs-composer-layout{grid-template-columns:minmax(0,1fr)}
+.fs-composer-fields{max-width:690px;width:100%;margin:0 auto}
+.fs-composer-peek{max-width:690px;width:100%;margin:0 auto;min-width:0;border:1px solid #e6eaf1;border-radius:12px}
+.fs-composer-peek>summary{display:flex;align-items:center;gap:9px;padding:13px 16px;list-style:none;cursor:pointer;font-size:12px;color:#657692;font-weight:720}
+.fs-composer-peek>summary::-webkit-details-marker{display:none}
+.fs-composer-peek>summary>svg:last-child{margin-left:auto}
+.fs-composer-peek .fs-composer-preview{border:0;border-top:1px solid #e8edf3;border-radius:0;position:static;max-height:390px;overflow-y:auto}
+.fs-composer-peek .fs-composer-preview-banner{min-height:130px}
+.fs-composer-peek .fs-composer-preview-paper{margin:0;border-radius:0;padding:18px 24px}
+.v3-invoice-actions{position:relative;flex-shrink:0;z-index:5}
+.v3-invoice-actions>summary{display:grid;place-items:center;width:40px;height:40px;cursor:pointer;border-radius:11px;background:#fff;border:1px solid #e5e9f0;color:#65748b;list-style:none}
+.v3-invoice-actions>summary::-webkit-details-marker{display:none}
+.v3-invoice-actions[open]>summary{color:#255cda;border-color:#b6cafa;background:#f4f7ff}
+.v3-invoice-actions-pop{position:absolute;right:0;top:48px;min-width:230px;border:1px solid #e5eaf2;background:#fff;border-radius:12px;padding:6px;box-shadow:0 14px 40px #18294322;display:grid;gap:2px}
+.v3-invoice-actions-pop button{border:0;background:#fff;border-radius:8px;color:#2d3e55;text-align:left;min-height:39px;padding:8px 11px;font-weight:680;font-size:12px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.v3-invoice-actions-pop button:hover{background:#f4f7fc;color:#255cda}
+.v3-invoice-actions-pop button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:780px){
+ .fs-composer-fields{max-width:100%}
+ .fs-composer-peek{max-width:100%}
+ .v3-invoice-actions-pop{max-width:calc(100vw - 35px)}
+}
+@media(max-width:580px){
+ .fs-composer-grand>strong{font-size:22px}
+ .fs-form-disclosure>summary{padding:15px 12px}
+ .fs-form-disclosure-body{padding:15px 12px}
+ .fs-composer-peek .fs-composer-preview-paper{padding:14px}
+}

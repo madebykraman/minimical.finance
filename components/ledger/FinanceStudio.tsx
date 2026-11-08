@@ -27,7 +27,7 @@ type Batch={id:string;file_label:string;created_at:string;imported_count:number;
 type ImportOutcome={created:number;updated:number;skipped:number;flagged:number;rows:number;already_imported?:boolean;warnings?:string[];issues?:{row:number;reason:string}[];detectedSheets?:string[];organisation?:string};
 type WorkDraft={id?:string;project_name:string;amount:string;assigned_by:string;client_id:string;notes:string;work_status:TrackerRow["work_status"]};
 type ClientDraft={id?:string;name:string;email:string;phone:string;address:string;gstin:string;notes:string};
-type PaymentDraft={invoice_number:string;amount:string;paid_on:string;method:TrackerPayment["method"];reference:string;notes:string};
+type PaymentDraft={id?:string;invoice_number:string;amount:string;paid_on:string;method:TrackerPayment["method"];reference:string;notes:string};
 type InvoiceLine={description:string;quantity:string;rate:string};
 type InvoiceDraft={number:string;date:string;dueDate:string;clientId:string;taxRate:string;notes:string;rowIds:string[];lineItems:InvoiceLine[]};
 type InvoiceEdit={number:string;date:string;dueDate:string;notes:string;status:"Draft"|"Sent";
@@ -248,10 +248,11 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
    assigned_by:d.assigned_by.trim()||null,client_id:d.client_id||null,notes:d.notes.trim()||null,
    work_status:d.work_status,updated_at:new Date().toISOString()};
   await mutation(async()=>{
-   const {error}=d.id?await supabase.from("tracker_rows").update(value).eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
+   const {data,error}=d.id?await supabase.from("tracker_rows").update(value)
+     .eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
     await supabase.from("tracker_rows").insert({...value,organization_id:organizationId,snapshot_id:snapshot.id,
-     row_order:Math.max(0,...rows.map(r=>r.row_order))+1,from_source_pdf:false,source_kind:"created_in_app"});
-   ensure(error);
+     row_order:Math.max(0,...rows.map(r=>r.row_order))+1,from_source_pdf:false,source_kind:"created_in_app"}).select("id").maybeSingle();
+   ensure(error);if(!data)throw new Error("Work was not saved to the selected organisation.");
   },d.id?"Work updated.":"Work created.",()=>setWorkDraft(null));
  }
  async function deleteWork(id:string){
@@ -269,26 +270,37 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   const data={name:d.name.trim(),email:d.email.trim()||null,phone:d.phone.trim()||null,
    address:d.address.trim()||null,gstin:d.gstin.trim()||null,notes:d.notes.trim()||null};
   await mutation(async()=>{
-   const {error}=d.id?await supabase.from("tracker_clients").update(data).eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
-    await supabase.from("tracker_clients").insert({...data,organization_id:organizationId,from_source_pdf:false});
-   ensure(error);
+   const {data:result,error}=d.id?await supabase.from("tracker_clients").update(data)
+      .eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
+     await supabase.from("tracker_clients").insert({...data,organization_id:organizationId,from_source_pdf:false}).select("id").maybeSingle();
+   ensure(error);if(!result)throw new Error("Client was not saved to the selected organisation.");
   },d.id?"Client updated.":"Client added.",()=>setClientDraft(null));
  }
  async function savePayment(e:FormEvent){
   e.preventDefault();if(!paymentDraft)return;
   const d=paymentDraft,g=invoices.find(i=>i.number===d.invoice_number),n=Number(d.amount);
-  if(!g||!Number.isFinite(n)||n<=0||n>g.balance+.001){setError("Amount must be greater than zero and at most the available invoice balance.");return}
+  const previous=d.id?payments.find(p=>p.id===d.id):null;
+  const allowed=(g?.balance||0)+(previous?.invoice_number===d.invoice_number?Number(previous.amount):0);
+  if(!g||g.sourceStatus==="Draft"||!Number.isFinite(n)||n<=0||n>allowed+.001){
+   setError("Choose an issued invoice and an amount within its outstanding balance.");return;
+  }
   await mutation(async()=>{
-   const {error}=await supabase.from("tracker_payments").insert({
-    organization_id:organizationId,invoice_number:d.invoice_number,amount:n,paid_on:d.paid_on,
-    method:d.method,reference:d.reference.trim()||null,notes:d.notes.trim()||null
-   });ensure(error);
-  },"Payment saved.",()=>setPaymentDraft(null));
+   const payload={invoice_number:d.invoice_number,amount:n,paid_on:d.paid_on,method:d.method,
+    reference:d.reference.trim()||null,notes:d.notes.trim()||null};
+   if(d.id){
+    const {data,error}=await supabase.from("tracker_payments").update(payload)
+     .eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle();
+    ensure(error);if(!data)throw new Error("Payment not found or not updated.");
+   }else{
+    const {data,error}=await supabase.from("tracker_payments").insert({...payload,organization_id:organizationId}).select("id").maybeSingle();
+    ensure(error);if(!data)throw new Error("Payment was not created.");
+   }
+  },d.id?"Payment updated; its revision was recorded.":"Payment recorded.",()=>setPaymentDraft(null));
  }
  async function deletePayment(id:string){
   if(!window.confirm("Remove this payment? The invoice balance will increase."))return;
   await mutation(async()=>{
-   const {error}=await supabase.from("tracker_payments").delete().eq("id",id).eq("organization_id",organizationId);ensure(error);
+   const {data,error}=await supabase.from("tracker_payments").delete().eq("id",id).eq("organization_id",organizationId).select("id").maybeSingle();ensure(error);if(!data)throw new Error("Payment not found or not deleted.");
   },"Payment removed.");
  }
  async function createInvoice(e:FormEvent){
@@ -513,6 +525,10 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
       {payments.length?<div className="v3-list">{paymentsVisible.map(p=><div className="v3-record v3-static-record" key={p.id}>
        <span className="v3-record-icon v3-client-icon"><CheckCircle2 size={19}/></span><span className="v3-record-title"><strong>Invoice #{p.invoice_number}</strong><small>{dateLabel(p.paid_on)} · {p.method.replaceAll("_"," ")}</small></span>
        <span className="v3-record-end"><strong>{money(p.amount)}</strong></span>
+       <button type="button" className="v3-icon-button" title="Edit payment" aria-label={"Edit payment for invoice "+p.invoice_number} onClick={()=>setPaymentDraft({
+        id:p.id,invoice_number:p.invoice_number,amount:String(p.amount),paid_on:p.paid_on,
+        method:p.method,reference:p.reference||"",notes:p.notes||""
+       })}><PenLine size={16}/></button>
        <a className="v3-icon-button" title="Download receipt" aria-label={"Receipt for invoice "+p.invoice_number} href={"/api/payments/"+encodeURIComponent(p.id)+"/receipt?org="+encodeURIComponent(organizationId)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/></a>
        <button type="button" className="v3-icon-button" title="Remove payment" aria-label={"Remove payment "+p.id} onClick={()=>void deletePayment(p.id)}><Trash2 size={16}/></button>
       </div>)}</div>:<div className="v3-inline-empty"><Wallet size={23}/><strong>No recorded transactions</strong><span>Record a payment after money is received.</span></div>}
@@ -594,13 +610,13 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setClientDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{working?"Saving…":"Save client"}</button></div>
    </form>
   </Dialog>}
-  {paymentDraft&&<Dialog title="Record payment" subtitle="Only enter a payment after funds are received" close={()=>setPaymentDraft(null)}>
+  {paymentDraft&&<Dialog title={paymentDraft.id?"Edit payment":"Record payment"} subtitle="Record actual money received, with a verified date" close={()=>setPaymentDraft(null)}>
    <form className="fs-form" onSubmit={savePayment}>
     <label>Invoice<select required value={paymentDraft.invoice_number} onChange={e=>setPaymentDraft({...paymentDraft,invoice_number:e.target.value})}><option value="">Select an unpaid invoice</option>{openInvoices.map(i=><option key={i.number} value={i.number}>#{i.number} — {money(i.balance)} outstanding</option>)}</select></label>
     <div className="fs-form-two"><label>Amount received (INR)<input required type="number" step=".01" min=".01" value={paymentDraft.amount} onChange={e=>setPaymentDraft({...paymentDraft,amount:e.target.value})}/></label><label>Date received<input required type="date" value={paymentDraft.paid_on} onChange={e=>setPaymentDraft({...paymentDraft,paid_on:e.target.value})}/></label></div>
     <div className="fs-form-two"><label>Method<select value={paymentDraft.method} onChange={e=>setPaymentDraft({...paymentDraft,method:e.target.value as TrackerPayment["method"]})}><option value="bank_transfer">Bank transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input value={paymentDraft.reference} onChange={e=>setPaymentDraft({...paymentDraft,reference:e.target.value})}/></label></div>
     <label>Notes<textarea rows={3} value={paymentDraft.notes} onChange={e=>setPaymentDraft({...paymentDraft,notes:e.target.value})}/></label>
-    <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setPaymentDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">Record payment</button></div>
+    <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setPaymentDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{paymentDraft.id?"Save payment changes":"Record payment"}</button></div>
    </form>
   </Dialog>}
   {invoiceDraft&&<Dialog title="Create invoice" subtitle="Add items and review a live billing summary." close={()=>setInvoiceDraft(null)} wide>

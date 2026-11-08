@@ -109,6 +109,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  const [error,setError]=useState(""),[toast,setToast]=useState("");
  const [search,setSearch]=useState(""),[filter,setFilter]=useState("all");
  const [menu,setMenu]=useState(false);
+ const [pdfBusy,setPdfBusy]=useState<string|null>(null);
  const [balanceVisible,setBalanceVisible]=useState(true);
  const [workDraft,setWorkDraft]=useState<WorkDraft|null>(null),[clientDraft,setClientDraft]=useState<ClientDraft|null>(null);
  const [paymentDraft,setPaymentDraft]=useState<PaymentDraft|null>(null),[invoiceDraft,setInvoiceDraft]=useState<InvoiceDraft|null>(null);
@@ -407,233 +408,165 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   ...invoices.map(i=>[i.number,invoiceClient(i),i.date,i.total,i.lineTotal,i.paid,i.balance,i.sourceSettled?"Marked paid in opening records":i.paid?"Partial":"Unpaid"])
  ]);
  const pdfUrl=(number:string)=>"/api/invoices/"+encodeURIComponent(number)+"/pdf?org="+encodeURIComponent(organizationId);
- return <div className="fs-root">
-  <aside className="fs-sidebar">
-   <div className="fs-brand"><div className="fs-brand-mark">f<span>.</span></div><div><strong>Finance</strong><small>WORKSPACE</small></div></div>
-   <div className="fs-organisation"><label htmlFor="fs-org">ORGANISATION</label><div className="fs-organisation-input">
-    <Building2 size={16}/><select id="fs-org" value={organizationId} onChange={e=>setOrganisation(e.target.value)} aria-label="Active organisation">
-     {organisations.map(o=><option key={o.id} value={o.id}>{o.name}{o.status==="dissolved"?" (dissolved)":""}</option>)}
-    </select><ChevronDown size={14}/></div>
-    {activeOrg?.status==="dissolved"&&<Status tone="warn">Dissolved organisation</Status>}
-   </div>
-   <div className="fs-sidebar-kicker">WORKSPACE</div>
-   <nav className="fs-nav" aria-label="Main navigation">
-    {NAV.map(({id,label,icon:Icon})=><button type="button" className={"fs-nav-link"+(view===id?" active":"")} key={id}
-      aria-current={view===id?"page":undefined} onClick={()=>navigate(id)}><Icon size={18}/><span>{label}</span></button>)}
+
+ async function downloadInvoicePdf(number:string){
+  if(!organizationId)return;
+  setPdfBusy(number);setError("");
+  try{
+   const response=await fetch(pdfUrl(number)+"&download=1",{credentials:"same-origin",cache:"no-store"});
+   if(!response.ok){
+    const result=await response.json().catch(()=>({}));
+    throw new Error(result.error||"PDF generation failed. Check your account and invoice details.");
+   }
+   if(!response.headers.get("content-type")?.includes("application/pdf"))
+    throw new Error("The server did not return a PDF.");
+   const blob=await response.blob();
+   if(blob.size<100)throw new Error("The generated PDF is empty.");
+   const url=URL.createObjectURL(blob),a=document.createElement("a");
+   a.href=url;a.download="invoice-"+number+".pdf";
+   document.body.appendChild(a);a.click();a.remove();
+   window.setTimeout(()=>URL.revokeObjectURL(url),3000);
+   flash("Invoice PDF generated.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not generate the PDF.")}
+  finally{setPdfBusy(null)}
+ }
+ return <div className="fs-root v3-root">
+  <aside className="v3-sidebar" aria-label="Workspace">
+   <div className="v3-brand"><span>f.</span><div><strong>Finance</strong><small>YOUR WORKSPACE</small></div></div>
+   <label className="v3-org-label" htmlFor="v3-org">ORGANISATION</label>
+   <div className="v3-org-wrap"><Building2 size={17}/><select id="v3-org" value={organizationId} onChange={e=>setOrganisation(e.target.value)} aria-label="Select organisation">
+    {organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+   </select><ChevronDown size={13}/></div>
+   <nav className="v3-nav" aria-label="Primary navigation">
+    {NAV.slice(0,4).map(({id,label,icon:Icon})=><button type="button" key={id} aria-current={view===id?"page":undefined}
+     className={view===id?"active":""} onClick={()=>navigate(id)}><Icon size={19}/>{label}</button>)}
    </nav>
-   <div className="fs-side-spacer"/>
-   <div className="fs-side-foot"><span className="fs-secure"><ShieldCheck size={15}/>Private workspace</span>
-    <button className="fs-account" type="button" onClick={()=>navigate("settings")}><span className="fs-avatar">{email.charAt(0).toUpperCase()}</span><span><strong>My account</strong><small title={email}>{email}</small></span><ChevronRight size={15}/></button>
+   <div className="v3-rail-bottom">
+    <button type="button" className={"v3-more-button"+(NAV.slice(4).some(x=>x.id===view)?" active":"")} onClick={()=>setMenu(true)}><MoreHorizontal size={20}/>More tools<ChevronRight size={15}/></button>
+    <div className="v3-member"><span>{email.slice(0,1).toUpperCase()}</span><div><strong>Private workspace</strong><small title={email}>{email}</small></div></div>
    </div>
   </aside>
-  <div className="fs-main">
-   <header className="fs-topbar">
-    <div className="fs-topbar-left"><button className="fs-icon fs-menu-toggle" type="button" onClick={()=>setMenu(true)} aria-label="Open navigation"><Menu size={21}/></button>
-     <span className="fs-crumb">{orgName}</span><ChevronRight className="fs-desktop-chevron" size={14}/>
-     <div className="fs-mobile-org"><Building2 size={15}/><select aria-label="Switch organisation" value={organizationId} onChange={e=>setOrganisation(e.target.value)}>
-      {organisations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}
-     </select><ChevronDown size={13}/></div><strong>{pageTitle}</strong></div>
-    <div className="fs-topbar-actions">
-     <button className="fs-icon fs-refresh" type="button" aria-label="Refresh data" title="Refresh data" disabled={loading||working} onClick={()=>{setLoading(true);void load()}}><RefreshCw size={17}/></button>
-     <button className="fs-button fs-button-primary" disabled={!organizationId||importing} type="button" onClick={startImport}><UploadCloud size={17}/><span>{importing?"Importing…":"Import data"}</span></button>
+  <div className="v3-main">
+   <header className="v3-header">
+    <div className="v3-header-left"><span className="v3-header-page">{pageTitle}</span>
+     <label className="v3-mobile-org" aria-label="Switch organisation"><Building2 size={15}/><select value={organizationId} onChange={e=>setOrganisation(e.target.value)}>
+      {organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+     </select><ChevronDown size={13}/></label>
+    </div>
+    <div className="v3-header-actions">
+     <button className="v3-icon-button" type="button" title="Refresh" aria-label="Refresh records" disabled={loading||working} onClick={()=>{setLoading(true);void load()}}><RefreshCw size={17}/></button>
+     {view==="invoices"&&<button type="button" className="v3-btn-primary" onClick={openInvoiceForm}><Plus size={17}/>New invoice</button>}
+     {view==="work"&&<button type="button" className="v3-btn-primary" onClick={()=>addWork()}><Plus size={17}/>New work</button>}
+     {view==="clients"&&<button type="button" className="v3-btn-primary" onClick={()=>addClient()}><Plus size={17}/>New client</button>}
+     {view==="payments"&&<button type="button" className="v3-btn-primary" onClick={()=>setPaymentDraft(newPayment())}><Plus size={17}/>Record payment</button>}
+     {view==="documents"&&<button type="button" className="v3-btn-primary" disabled={documentBusy} onClick={()=>documentInput.current?.click()}><UploadCloud size={17}/>{documentBusy?"Uploading…":"Upload file"}</button>}
     </div>
    </header>
-   <main className="fs-content" aria-live="polite">
-    {error&&<div className="fs-alert fs-alert-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="fs-icon" aria-label="Dismiss error" onClick={()=>setError("")}><X size={17}/></button></div>}
-    {loading?<div className="fs-loading"><div className="fs-loader"/><strong>Loading {orgName}</strong><p>Retrieving your private finance data.</p></div>:
-    <>
-    {view==="overview"&&<>
-     <div className="fs-page-heading fs-overview-heading"><div><p className="fs-eyebrow">FINANCE / OVERVIEW</p><h1>{orgName}</h1><p>Your billing and work at a glance.</p></div>
-      <div className="fs-heading-actions"><button type="button" className="fs-button" onClick={()=>addWork()}><Plus size={16}/>New work</button><button type="button" className="fs-button fs-button-primary" onClick={openInvoiceForm}><ReceiptText size={16}/>Create invoice</button></div></div>
-     <div className="fs-hero-layout">
-      <section className="fs-balance-hero" aria-label="Outstanding balance"><div className="fs-balance-hero-top"><span><span className="fs-hero-pulse"/>OUTSTANDING BALANCE</span>
-       <button type="button" aria-label={balanceVisible?"Hide outstanding balance":"Show outstanding balance"} aria-pressed={!balanceVisible} className="fs-balance-eye" onClick={()=>setBalanceVisible(v=>!v)}>{balanceVisible?<Eye size={18}/>:<EyeOff size={18}/>}</button></div>
-       <strong className="fs-balance-amount">{balanceVisible?money(outstanding):"••••••"}</strong>
-       <p>{openInvoices.length?openInvoices.length+" invoice"+(openInvoices.length===1?"":"s")+" awaiting payment":"No unpaid issued invoices"}</p>
-       <div className="fs-hero-buttons"><button className="fs-hero-action" type="button" onClick={openInvoiceForm}><span><Plus size={19}/></span>Create invoice<ArrowRight size={16}/></button>
-        <button className="fs-hero-action fs-hero-secondary" type="button" onClick={()=>setPaymentDraft(newPayment())}><Wallet size={17}/>Record payment</button></div>
-       <div className="fs-hero-foot"><span><ShieldCheck size={14}/>Private workspace</span><span>INR · LIVE</span></div>
+   <main className="v3-content">
+    {loading?<div className="v3-loading" role="status"><div className="fs-loader"/><p>Loading {orgName}…</p></div>:<>
+     {view==="overview"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">OVERVIEW</p><h1>{orgName}</h1><p>Everything important, without the clutter.</p></div>
+      {activeOrg?.status==="dissolved"&&<div className="v3-inline-note"><AlertCircle size={17}/>Dissolved organisation — past records can be reviewed and imported.</div>}
+      <section className="v3-balance" aria-label="Outstanding invoices">
+       <div className="v3-balance-head"><span>OUTSTANDING</span><button type="button" aria-label={balanceVisible?"Hide balance":"Show balance"} onClick={()=>setBalanceVisible(v=>!v)}>{balanceVisible?<Eye size={19}/>:<EyeOff size={19}/>}</button></div>
+       <strong>{balanceVisible?money(outstanding):"••••••"}</strong>
+       <div className="v3-balance-footer"><span>{openInvoices.length} invoices to collect · {money(collected)} settled</span><button type="button" onClick={openInvoiceForm}><Plus size={17}/>New invoice<ArrowRight size={16}/></button></div>
       </section>
-      <div className="fs-hero-facts">
-       <div className="fs-hero-fact"><div className="fs-hero-fact-heading"><span>Paid & settled</span><span className="fs-fact-icon fs-fact-green"><CheckCircle2 size={18}/></span></div><strong>{money(collected)}</strong><div className="fs-fact-bottom"><span>{issuedInvoices.length?Math.round(collected/Math.max(invoiced,1)*100):0}% of issued value</span><div className="fs-fact-progress"><span style={{width:(issuedInvoices.length?Math.min(100,collected/Math.max(invoiced,1)*100):0)+"%"}}/></div></div></div>
-       <div className="fs-hero-fact"><div className="fs-hero-fact-heading"><span>Total issued</span><span className="fs-fact-icon"><ReceiptText size={18}/></span></div><strong>{money(invoiced)}</strong><div className="fs-fact-bottom"><span>{issuedInvoices.length} issued · {draftCount} drafts</span><ArrowRight size={16}/></div></div>
-       <div className="fs-hero-fact"><div className="fs-hero-fact-heading"><span>Project activity</span><span className="fs-fact-icon"><BriefcaseBusiness size={18}/></span></div><strong>{rows.length} <small>projects</small></strong><div className="fs-fact-bottom"><span>{unbilled.length} not invoiced</span><ArrowRight size={16}/></div></div>
-      </div>
-     </div>
-     {activeOrg?.status==="dissolved"&&<div className="fs-alert fs-alert-warn"><AlertCircle size={18}/>This organisation is dissolved. Historical records remain accessible.</div>}
-     {rows.length===0&&clients.length===0?<div className="fs-welcome"><div className="fs-welcome-icon"><UploadCloud size={27}/></div><h2>Bring in your records.</h2><p>Import Excel or CSV data. Clients, projects and invoices are stored directly in this organisation, with no ongoing sheet connection.</p><button className="fs-button fs-button-primary" type="button" onClick={startImport}><UploadCloud size={17}/>Import your first file</button><small>Or add a client and create an invoice from scratch.</small></div>:<>
-      <div className="fs-overview-sections">
-       <Card title="Invoices to follow up" description="Issued invoices with an outstanding balance" action={<button className="fs-link" onClick={()=>navigate("invoices")}>See all <ArrowUpRight size={15}/></button>}>
-        {openInvoices.length?openInvoices.slice(0,5).map(i=><button className="fs-overview-invoice" key={i.number} onClick={()=>setSelectedInvoice(i.number)}>
-         <span className="fs-overview-invoice-icon"><ReceiptText size={18}/></span><span className="fs-overview-invoice-copy"><strong>{invoiceClient(i)}</strong><small>Invoice #{i.number} · {i.dueDate?"Due "+dateLabel(i.dueDate):"Issued "+dateLabel(i.date)}</small></span>
-         <span className="fs-overview-invoice-right"><strong>{money(i.balance)}</strong><Status tone={invoiceTone(i)}>{invoiceStatus(i)}</Status></span><ChevronRight className="fs-overview-invoice-arrow" size={17}/></button>):<Empty title="All clear" description="No issued invoices are awaiting payment."/>}
-       </Card>
-       <Card title="Ready to invoice" description="Work that has not yet been billed" action={<button className="fs-link" onClick={()=>navigate("work")}>View work <ArrowUpRight size={15}/></button>}>
-        {unbilled.length?unbilled.slice(0,5).map(r=><button className="fs-overview-invoice" key={r.id} onClick={()=>addWork(r)}>
-         <span className="fs-overview-invoice-icon fs-overview-work-icon"><BriefcaseBusiness size={18}/></span><span className="fs-overview-invoice-copy"><strong>{titleFromSource(r.project_name)}</strong><small>{clientLabel(r.client_id)} · {r.assigned_by||"Not assigned"}</small></span>
-         <span className="fs-overview-invoice-right"><strong>{money(r.amount)}</strong><small>Unbilled</small></span><ChevronRight className="fs-overview-invoice-arrow" size={17}/></button>):<Empty title="Everything billed" description="All current work is assigned to invoices."/>}
-       </Card>
-      </div>
-      {snapshot?.reported_pending&&Math.abs(Number(snapshot.reported_pending)-outstanding)>0.01&&<div className="fs-alert fs-alert-warn"><AlertCircle size={17}/>Opening balance: {money(snapshot.reported_pending)}. Current balance: {money(outstanding)}.</div>}
-     </>}
+      {clients.length===0&&rows.length===0?
+       <section className="v3-empty-start"><div><UploadCloud size={25}/></div><h2>Your organisation is ready.</h2><p>Bring in existing records with one upload, or add your first client.</p><button className="v3-btn-primary" onClick={startImport}><UploadCloud size={16}/>Import spreadsheet</button><button className="v3-text-button" onClick={()=>addClient()}>Add a client manually</button></section>:
+       <section className="v3-list-section"><div className="v3-list-heading"><div><h2>To collect</h2><p>Invoices that need attention</p></div><button onClick={()=>navigate("invoices")}>All invoices <ChevronRight size={16}/></button></div>
+        {openInvoices.length?<div className="v3-list">{openInvoices.slice(0,5).map(i=><button type="button" className="v3-record" key={i.number} onClick={()=>setSelectedInvoice(i.number)}>
+         <span className="v3-record-icon"><ReceiptText size={19}/></span><span className="v3-record-title"><strong>{invoiceClient(i)}</strong><small>#{i.number} · {i.dueDate?"Due "+dateLabel(i.dueDate):"Issued "+dateLabel(i.date)}</small></span>
+         <span className="v3-record-end"><strong>{money(i.balance)}</strong><small>{invoiceStatus(i)}</small></span><ChevronRight size={17}/></button>)}</div>:
+         <div className="v3-inline-empty"><CheckCircle2 size={22}/><strong>Nothing to collect</strong><span>All issued invoices are settled.</span></div>}
+       </section>}
+     </div>}
+     {view==="invoices"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">BILLING</p><h1>Invoices</h1><p>{issuedInvoices.length} issued · {draftCount} drafts · {money(outstanding)} outstanding</p></div>
+      <div className="v3-controls"><div className="v3-tabs" role="group" aria-label="Invoice filter">{([["all","All"],["open","Unpaid"],["paid","Paid"],["draft","Drafts"]] as const).map(([id,label])=><button type="button" key={id} className={filter===id?"active":""} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div>
+       <label className="v3-search"><Search size={17}/><input aria-label="Find invoice" placeholder="Search invoices or clients" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
+      {invoiceVisible.length?<div className="v3-list">{invoiceVisible.map(i=><button type="button" className="v3-record" key={i.number} onClick={()=>setSelectedInvoice(i.number)}>
+       <span className="v3-record-icon"><ReceiptText size={19}/></span><span className="v3-record-title"><strong>{invoiceClient(i)}</strong><small>#{i.number} · {dateLabel(i.date)}</small></span>
+       <span className="v3-record-end"><strong>{money(i.total)}</strong><Status tone={invoiceTone(i)}>{invoiceStatus(i)}</Status></span><ChevronRight size={17}/></button>)}</div>:
+       <div className="v3-inline-empty"><ReceiptText size={23}/><strong>No invoices here</strong><span>{q||filter!=="all"?"Try another filter or search.":"Create or import an invoice."}</span>{!q&&filter==="all"&&<button className="v3-btn-primary" onClick={openInvoiceForm}><Plus size={16}/>Create invoice</button>}</div>}
+     </div>}
+     {view==="work"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">PROJECTS</p><h1>Work</h1><p>{rows.length} work items · {unbilled.length} awaiting invoicing</p></div>
+      <div className="v3-controls"><div className="v3-tabs" role="group" aria-label="Work filter">{([["all","All"],["unbilled","Unbilled"],["complete","Complete"]] as const).map(([id,label])=><button key={id} className={filter===id?"active":""} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div>
+       <label className="v3-search"><Search size={17}/><input aria-label="Find work" placeholder="Search projects" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
+      {workVisible.length?<div className="v3-list">{workVisible.map(r=><button type="button" className="v3-record" key={r.id} onClick={()=>addWork(r)}>
+       <span className="v3-record-icon"><BriefcaseBusiness size={19}/></span><span className="v3-record-title"><strong>{titleFromSource(r.project_name)}</strong><small>{clientLabel(r.client_id)}{r.invoice_number?" · Invoice #"+r.invoice_number:""}</small></span>
+       <span className="v3-record-end"><strong>{money(r.amount)}</strong><small>{r.work_status}</small></span><ChevronRight size={17}/></button>)}</div>:
+       <div className="v3-inline-empty"><BriefcaseBusiness size={23}/><strong>No matching work</strong><span>Add work or change your filter.</span><button className="v3-btn-primary" onClick={()=>addWork()}><Plus size={16}/>New work</button></div>}
+     </div>}
+     {view==="clients"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">RELATIONSHIPS</p><h1>Clients</h1><p>{clients.length} clients in {orgName}</p></div>
+      <label className="v3-search v3-single-search"><Search size={17}/><input aria-label="Find client" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Find a client"/></label>
+      {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).length?<div className="v3-list">
+       {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><button className="v3-record" type="button" key={c.id} onClick={()=>addClient(c)}>
+        <span className="v3-record-icon v3-client-icon"><UsersRound size={19}/></span><span className="v3-record-title"><strong>{c.name}</strong><small>{c.email||c.phone||"No contact details yet"}</small></span>
+        <span className="v3-record-end"><small>{rows.filter(r=>r.client_id===c.id).length} work items</small></span><ChevronRight size={17}/></button>)}</div>:
+       <div className="v3-inline-empty"><UsersRound size={23}/><strong>No clients found</strong><span>Import your records or create a client.</span><button className="v3-btn-primary" onClick={()=>addClient()}><Plus size={16}/>Add client</button></div>}
+     </div>}
+     {view==="payments"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">PAYMENTS</p><h1>Payment history</h1><p>Individual receipts and genuine payment dates</p></div>
+      {payments.length?<div className="v3-list">{paymentsVisible.map(p=><div className="v3-record v3-static-record" key={p.id}>
+       <span className="v3-record-icon v3-client-icon"><CheckCircle2 size={19}/></span><span className="v3-record-title"><strong>Invoice #{p.invoice_number}</strong><small>{dateLabel(p.paid_on)} · {p.method.replaceAll("_"," ")}</small></span>
+       <span className="v3-record-end"><strong>{money(p.amount)}</strong></span>
+       <a className="v3-icon-button" title="Download receipt" aria-label={"Receipt for invoice "+p.invoice_number} href={"/api/payments/"+encodeURIComponent(p.id)+"/receipt?org="+encodeURIComponent(organizationId)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/></a>
+       <button type="button" className="v3-icon-button" title="Remove payment" aria-label={"Remove payment "+p.id} onClick={()=>void deletePayment(p.id)}><Trash2 size={16}/></button>
+      </div>)}</div>:<div className="v3-inline-empty"><Wallet size={23}/><strong>No recorded transactions</strong><span>Record a payment after money is received.</span></div>}
+      <details className="v3-disclosure"><summary>Historical settlements from opening records <ChevronDown size={16}/></summary><div className="v3-list">{invoices.filter(i=>i.sourceSettled).map(i=><button className="v3-record" key={i.number} onClick={()=>setSelectedInvoice(i.number)}><span className="v3-record-title"><strong>Invoice #{i.number}</strong><small>{i.sourcePaidOn?dateLabel(i.sourcePaidOn):"Date not supplied"}</small></span><span className="v3-record-end"><strong>{money(i.total)}</strong></span><ChevronRight size={16}/></button>)}</div></details>
+     </div>}
+     {view==="documents"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">FILES</p><h1>Documents</h1><p>Private original files and generated invoices</p></div>
+      <details className="v3-disclosure"><summary>Upload options <ChevronDown size={16}/></summary><div className="v3-upload-options">
+       <label>Invoice<select value={documentInvoice} onChange={e=>setDocumentInvoice(e.target.value)}><option value="">No invoice</option>{invoices.map(i=><option key={i.number} value={i.number}>{i.number}</option>)}</select></label>
+       <label>Client<select value={documentClient} onChange={e=>setDocumentClient(e.target.value)}><option value="">No client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+       <label className="fs-check"><input type="checkbox" disabled={!documentClient||activeOrg?.name!=="Kumar Aman"} checked={documentVisibility} onChange={e=>setDocumentVisibility(e.target.checked)}/>Share to enabled client portal</label>
+      </div></details>
+      {documents.length?<div className="v3-list">{documents.map(d=><div className="v3-record v3-static-record" key={d.id}><span className="v3-record-icon"><FileText size={19}/></span>
+       <span className="v3-record-title"><strong>{d.file_name}</strong><small>{Math.round(d.size_bytes/1024)} KB · {d.visible_to_client?"Shared":"Private"}</small></span>
+       <a className="v3-icon-button" href={"/api/documents/"+encodeURIComponent(d.id)} target="_blank" rel="noopener noreferrer" title="Open document" aria-label={"Open "+d.file_name}><ExternalLink size={17}/></a>
+       <button className="v3-icon-button" title="Delete document" aria-label={"Delete "+d.file_name} onClick={()=>void deleteDocument(d.id)}><Trash2 size={16}/></button></div>)}</div>:
+       <div className="v3-inline-empty"><Files size={23}/><strong>No uploaded documents</strong><span>Upload an existing PDF or image, or generate one from an invoice.</span></div>}
+      <details className="v3-disclosure"><summary>Generate invoice PDFs <ChevronDown size={16}/></summary><div className="v3-list">{invoices.map(i=><button type="button" className="v3-record" key={i.number} disabled={pdfBusy===i.number} onClick={()=>void downloadInvoicePdf(i.number)}><span className="v3-record-title"><strong>Invoice #{i.number}</strong><small>{invoiceClient(i)}</small></span><span className="v3-record-end"><strong>{money(i.total)}</strong></span><ArrowDownToLine size={17}/></button>)}</div></details>
+     </div>}
+     {view==="reports"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">REPORTING</p><h1>Reports</h1><p>Current issued balances, separate from draft invoices</p></div>
+      <div className="v3-report-summary"><div><span>Issued</span><strong>{money(invoiced)}</strong></div><div><span>Settled</span><strong>{money(collected)}</strong></div><div><span>Outstanding</span><strong>{money(outstanding)}</strong></div></div>
+      <details className="v3-disclosure" open><summary>Invoice reconciliation <ChevronDown size={16}/></summary><div className="v3-list">{invoices.map(i=><button type="button" className="v3-record" key={i.number} onClick={()=>setSelectedInvoice(i.number)}><span className="v3-record-title"><strong>Invoice #{i.number}</strong><small>{Math.abs(i.discrepancy)>.001?"Difference: "+money(Math.abs(i.discrepancy)):"Line totals agree"}</small></span><span className="v3-record-end"><Status tone={Math.abs(i.discrepancy)>.001?"warn":"success"}>{Math.abs(i.discrepancy)>.001?"Review":"Match"}</Status></span><ChevronRight size={16}/></button>)}</div></details>
+      <div className="v3-report-actions"><button className="v3-secondary-button" onClick={downloadInvoices}><ArrowDownToLine size={17}/>Export invoices CSV</button><button className="v3-secondary-button" onClick={downloadWork}><ArrowDownToLine size={17}/>Export work CSV</button></div>
+      <details className="v3-disclosure"><summary>Import history <ChevronDown size={16}/></summary><div className="v3-list">{imports.map(b=><div className="v3-record v3-static-record" key={b.id}><span className="v3-record-title"><strong>{b.file_label}</strong><small>{dateLabel(b.created_at.slice(0,10))} · {b.imported_count} created · {b.updated_count} updated · {b.flagged_count} flagged</small></span></div>)}</div></details>
+     </div>}
+     {view==="settings"&&<div className="v3-page">
+      <div className="v3-page-top"><p className="v3-kicker">PREFERENCES</p><h1>Settings</h1><p>Organisation identity and private access</p></div>
+      <div className="v3-settings-card"><div><h2>{orgName}</h2><p>{activeOrg?.legal_name||"Legal name not configured"}</p><small>{activeOrg?.email||"No company email"} · {activeOrg?.status}</small></div>
+       <button className="v3-secondary-button" onClick={()=>activeOrg&&setOrganisationDraft({...activeOrg})}><PenLine size={16}/>Edit details</button></div>
+      <div className="v3-settings-card"><div><h2>Import data</h2><p>Upload an Excel, CSV or TSV file. No spreadsheet stays connected.</p></div><button className="v3-secondary-button" onClick={startImport}><UploadCloud size={17}/>Import</button></div>
+      {activeOrg?.name==="Kumar Aman"&&<details className="v3-disclosure"><summary>Elle India client access <ChevronDown size={16}/></summary><form className="fs-form v3-settings-form" onSubmit={savePortal}>
+       <label className="fs-check"><input type="checkbox" checked={portalEnabled} onChange={e=>setPortalEnabled(e.target.checked)}/>Enable the password-protected client portal</label>
+       <label>New portal password<input type="password" minLength={12} autoComplete="new-password" value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder="At least 12 characters"/></label>
+       <button className="v3-btn-primary" disabled={portalBusy}>{portalBusy?"Saving…":"Save portal settings"}</button>
+      </form></details>}
+      <button type="button" className="v3-signout" onClick={()=>void supabase.auth.signOut().then(()=>window.location.assign("/"))}><LogOut size={17}/>Sign out</button>
+     </div>}
     </>}
-    {view==="work"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">PROJECT REGISTER</p><h1>Work</h1><p>Every project, price and assignment, in one searchable list.</p></div><div className="fs-heading-actions"><button className="fs-button" onClick={downloadWork}><ArrowDownToLine size={16}/>Export</button><button className="fs-button fs-button-primary" onClick={()=>addWork()}><Plus size={16}/>New work</button></div></div>
-     <div className="fs-filterbar"><label className="fs-search"><Search size={17}/><input aria-label="Search work" placeholder="Search projects, clients or people…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
-      <div className="fs-segments">{[["all","All"],["unbilled","Unbilled"],["invoiced","Invoiced"],["complete","Complete"]].map(([id,label])=><button key={id} className={filter===id?"active":""} onClick={()=>setFilter(id)}>{label}</button>)}</div>
-     </div>
-     <Card title="Projects and deliverables" description={workVisible.length+" items"}>
-      <div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>WORK</th><th>CLIENT</th><th>POC</th><th>INVOICE</th><th className="fs-right">AMOUNT</th><th>STATUS</th><th/></tr></thead><tbody>
-       {workVisible.map(r=><tr key={r.id}><td><button className="fs-table-main" onClick={()=>addWork(r)}>{titleFromSource(r.project_name)}</button>{r.notes&&<small className="fs-table-sub">Has notes</small>}</td>
-        <td>{clientLabel(r.client_id)}</td><td>{r.assigned_by||<span className="fs-dim">Not set</span>}</td>
-        <td>{r.invoice_number?<button className="fs-link" onClick={()=>{navigate("invoices");setSelectedInvoice(r.invoice_number)}}>{r.invoice_number}</button>:<span className="fs-dim">—</span>}</td>
-        <td className="fs-right fs-nowrap fs-strong">{money(r.amount)}</td><td><Status tone={r.work_status==="complete"?"success":"neutral"}>{r.work_status}</Status></td>
-        <td><button className="fs-icon" aria-label={"Edit "+r.project_name} onClick={()=>addWork(r)}><PenLine size={16}/></button></td></tr>)}
-      </tbody></table></div>
-      <div className="fs-mobile-register" aria-label="Work items">{workVisible.map(r=><button className="fs-mobile-record" type="button" key={r.id} onClick={()=>addWork(r)}>
-       <div className="fs-mobile-record-head"><span className="fs-mobile-record-icon"><BriefcaseBusiness size={19}/></span>
-        <div><strong>{titleFromSource(r.project_name)}</strong><small>{clientLabel(r.client_id)}</small></div><ChevronRight size={17}/></div>
-       <div className="fs-mobile-record-bottom"><strong>{money(r.amount)}</strong><span>{r.invoice_number?"Invoice #"+r.invoice_number:"Not invoiced"}</span>
-        <Status tone={r.work_status==="complete"?"success":"neutral"}>{r.work_status}</Status></div>
-      </button>)}</div>
-      {!workVisible.length&&<Empty title="No work found" description="Try clearing the filters, importing a file or adding work."/>}
-     </Card>
-    </>}
-    {view==="invoices"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">BILLING</p><h1>Invoices</h1><p>Every invoice, payment and balance, clearly organised.</p></div><div className="fs-heading-actions"><button className="fs-button" onClick={downloadInvoices}><ArrowDownToLine size={16}/>Export</button><button className="fs-button fs-button-primary" onClick={openInvoiceForm}><Plus size={16}/>New invoice</button></div></div>
-     <div className="fs-invoice-summary"><div className="fs-invoice-summary-main"><span>Outstanding amount</span><strong>{money(outstanding)}</strong><small>{openInvoices.length} issued invoices to follow up</small></div><div className="fs-invoice-summary-side"><div><span>Paid & settled</span><strong>{money(collected)}</strong></div><div><span>Invoices</span><strong>{invoices.length} <small>· {draftCount} drafts</small></strong></div></div></div>
-     <div className="fs-invoices-toolbar"><div className="fs-segments fs-invoice-filters" role="group" aria-label="Filter invoices">
-      {([["all","All"],["open","Open"],["paid","Paid"],["draft","Drafts"]] as const).map(([key,name])=><button type="button" key={key} className={filter===key?"active":""} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{name}<span>{key==="all"?invoices.length:key==="open"?openInvoices.length:key==="paid"?issuedInvoices.filter(i=>i.balance<=0).length:draftCount}</span></button>)}
-     </div><label className="fs-search"><Search size={17}/><input aria-label="Search invoices" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search invoice or client"/></label></div>
-     {invoiceVisible.length?<div className="fs-invoice-grid">{invoiceVisible.map(i=>{
-      const percent=i.total>0?Math.min(100,Math.round(i.paid/i.total*100)):0;
-      return <button type="button" className="fs-invoice-tile" key={i.number} onClick={()=>setSelectedInvoice(i.number)} aria-label={"Open invoice "+i.number+" for "+invoiceClient(i)}>
-       <div className="fs-invoice-tile-top"><span className="fs-invoice-tile-icon"><ReceiptText size={20}/></span><Status tone={invoiceTone(i)}>{invoiceStatus(i)}</Status></div>
-       <div className="fs-invoice-tile-client">{invoiceClient(i)}</div><div className="fs-invoice-tile-id">Invoice #{i.number}</div>
-       <div className="fs-invoice-tile-amount">{money(i.total)}</div>
-       <div className="fs-invoice-tile-track" aria-label={percent+" percent paid"}><span style={{width:percent+"%"}}/></div>
-       <div className="fs-invoice-tile-foot"><span>{i.dueDate?"Due "+dateLabel(i.dueDate):"Issued "+dateLabel(i.date)}</span><strong>{i.sourceStatus==="Draft"?"Not issued":i.balance===0?"Fully paid":money(i.balance)+" due"}</strong></div>
-      </button>;
-     })}</div>:<div className="fs-card"><Empty title={q||filter!=="all"?"No matching invoices":"No invoices yet"} description={q||filter!=="all"?"Try another search or filter.":"Create your first invoice or import existing records."} action={!q&&filter==="all"?<button className="fs-button fs-button-primary" onClick={openInvoiceForm}><Plus size={16}/>Create invoice</button>:undefined}/></div>}
-    </>}
-    {view==="payments"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">RECEIVABLES</p><h1>Payments</h1><p>Separate historical paid status from newly recorded transactions.</p></div><button className="fs-button fs-button-primary" onClick={()=>setPaymentDraft(newPayment())}><Plus size={16}/>Record payment</button></div>
-     <div className="fs-metrics fs-metrics-two"><Metric label="Paid / settled" value={money(collected)} detail="Includes paid invoices in the opening workbook" icon={CheckCircle2}/><Metric label="Remaining" value={money(outstanding)} detail={openInvoices.length+" unpaid invoices"} icon={Wallet} emphasis/></div>
-     <div className="fs-panels-two">
-      <Card title="Recorded transactions" description="New payments entered with real dates and methods" action={<button className="fs-link" onClick={()=>saveCsv(slug(orgName)+"-payments.csv",[["Invoice","Amount","Date","Method","Reference"],...payments.map(p=>[p.invoice_number,p.amount,p.paid_on,p.method,p.reference])])}><ArrowDownToLine size={16}/>CSV</button>}>
-       {paymentsVisible.length?paymentsVisible.map(p=><div className="fs-list-row fs-list-static" key={p.id}><span className="fs-row-icon"><Wallet size={17}/></span><span className="fs-row-main"><strong>Invoice {p.invoice_number}</strong><small>{dateLabel(p.paid_on)} · {p.method.replaceAll("_"," ")}{p.reference?" · "+p.reference:""}</small></span><span className="fs-row-money">{money(p.amount)}</span><a className="fs-icon" title="Download receipt" aria-label={"Receipt for invoice "+p.invoice_number} href={"/api/payments/"+encodeURIComponent(p.id)+"/receipt?org="+encodeURIComponent(organizationId)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/></a><button className="fs-icon fs-danger-hover" aria-label="Remove payment" onClick={()=>void deletePayment(p.id)}><Trash2 size={16}/></button></div>):
-       <Empty title="No individual transactions yet" description="Historical paid invoices are shown separately. Record new receipts only when money arrives."/>}
-      </Card>
-      <Card title="Paid in opening records" description="Status imported as paid; some dates were not recorded">
-       {invoices.filter(x=>x.sourceSettled).length?invoices.filter(x=>x.sourceSettled).map(i=><button className="fs-list-row" key={i.number} onClick={()=>setSelectedInvoice(i.number)}><span className="fs-row-icon"><Check size={18}/></span><span className="fs-row-main"><strong>Invoice {i.number}</strong><small>{i.sourcePaidOn?dateLabel(i.sourcePaidOn):"Date not supplied in workbook"}</small></span><span className="fs-row-money">{money(i.total)}</span><ChevronRight size={17}/></button>):
-       <Empty title="No opening settlements" description="Paid historical invoices will be listed here."/>}
-      </Card>
-     </div>
-    </>}
-    {view==="clients"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">RELATIONSHIPS</p><h1>Clients</h1><p>Contact details, assigned projects and billing activity.</p></div><button className="fs-button fs-button-primary" onClick={()=>addClient()}><Plus size={16}/>New client</button></div>
-     <div className="fs-filterbar"><label className="fs-search"><Search size={17}/><input aria-label="Find client" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients…"/></label></div>
-     <Card title="Client directory" description={clients.length+" clients in this organisation"}>
-      {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).length?
-      <><div className="fs-table-scroll fs-desktop-register"><table className="fs-table"><thead><tr><th>CLIENT</th><th>CONTACT</th><th>WORK</th><th>INVOICES</th><th/></tr></thead><tbody>
-       {clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><tr key={c.id}>
-        <td><button className="fs-table-main" onClick={()=>addClient(c)}>{c.name}</button></td>
-        <td><span>{c.email||"—"}</span><small className="fs-table-sub">{c.phone||""}</small></td>
-        <td>{rows.filter(r=>r.client_id===c.id).length}</td>
-        <td>{invoices.filter(i=>i.rows.some(r=>r.client_id===c.id)).length}</td>
-        <td><button className="fs-icon" aria-label={"Edit "+c.name} onClick={()=>addClient(c)}><PenLine size={16}/></button></td>
-       </tr>)}
-      </tbody></table></div>
-       <div className="fs-mobile-register" aria-label="Client directory">{clients.filter(c=>!q||[c.name,c.email,c.phone].join(" ").toLowerCase().includes(q)).map(c=><button className="fs-mobile-record" type="button" key={c.id} onClick={()=>addClient(c)}>
-        <div className="fs-mobile-record-head"><span className="fs-mobile-record-icon fs-client-icon"><UsersRound size={19}/></span>
-         <div><strong>{c.name}</strong><small>{c.email||c.phone||"No contact added"}</small></div><ChevronRight size={17}/></div>
-        <div className="fs-mobile-record-bottom"><span>{rows.filter(r=>r.client_id===c.id).length} work items</span><span>{invoices.filter(i=>i.rows.some(r=>r.client_id===c.id)).length} invoices</span></div>
-       </button>)}</div></>:
-      <Empty title="No clients" description="Import your existing client list in one upload, or add a client manually." action={<button className="fs-button" onClick={startImport}><UploadCloud size={16}/>Import clients</button>}/>}
-     </Card>
-    </>}
-    {view==="documents"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">YOUR FILES</p><h1>Documents</h1><p>Private storage for generated invoices and uploaded records.</p></div><button className="fs-button fs-button-primary" onClick={()=>documentInput.current?.click()} disabled={documentBusy}><Plus size={16}/>{documentBusy?"Uploading…":"Upload file"}</button></div>
-     <div className="fs-upload-options"><label>Related invoice<select value={documentInvoice} onChange={e=>setDocumentInvoice(e.target.value)}><option value="">None</option>{invoices.map(i=><option key={i.number} value={i.number}>{i.number}</option>)}</select></label>
-      <label>Client<select value={documentClient} onChange={e=>setDocumentClient(e.target.value)}><option value="">None</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label className="fs-check"><input type="checkbox" checked={documentVisibility} onChange={e=>setDocumentVisibility(e.target.checked)} disabled={!documentClient||activeOrg?.name!=="Kumar Aman"}/>Share in client portal</label>
-     </div>
-     <Card title="Uploaded files" description="Secure storage with member-only downloads by default" action={<Status>{documents.length} files</Status>}>
-      {documents.length?documents.map(d=><div className="fs-list-row fs-list-static" key={d.id}><span className="fs-row-icon"><FileText size={18}/></span><span className="fs-row-main"><strong>{d.file_name}</strong><small>{Math.round(d.size_bytes/1024)} KB · {d.invoice_number?"Invoice "+d.invoice_number+" · ":""}{d.visible_to_client?"Shared":"Private"}</small></span>
-       <a href={"/api/documents/"+encodeURIComponent(d.id)} target="_blank" rel="noopener noreferrer" className="fs-button fs-button-small"><ArrowDownToLine size={15}/>Open</a>
-       <button className="fs-icon fs-danger-hover" aria-label={"Delete "+d.file_name} onClick={()=>void deleteDocument(d.id)}><Trash2 size={16}/></button></div>):
-       <Empty title="No documents yet" description="Upload an original PDF, or generate an invoice from the invoice register."/>}
-     </Card>
-     <Card title="Invoice PDFs" description="Generated PDFs use the current organisation and client identity">
-      {invoices.length?invoices.map(i=><a className="fs-list-row" key={i.number} href={pdfUrl(i.number)} target="_blank" rel="noopener noreferrer"><span className="fs-row-icon"><ReceiptText size={18}/></span><span className="fs-row-main"><strong>Invoice {i.number}</strong><small>{invoiceClient(i)} · {dateLabel(i.date)}</small></span><span className="fs-row-money">{money(i.total)}</span><ArrowDownToLine size={17}/></a>):
-       <Empty title="No invoices" description="Create an invoice to generate a PDF."/>}
-     </Card>
-    </>}
-    {view==="reports"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">REPORTING</p><h1>Reports</h1><p>Live figures calculated from the database, not an attached spreadsheet.</p></div><button className="fs-button" onClick={downloadInvoices}><ArrowDownToLine size={16}/>Export CSV</button></div>
-     <div className="fs-metrics fs-metrics-three"><Metric label="Invoiced" value={money(invoiced)} detail={invoices.length+" invoices"} icon={ReceiptText}/><Metric label="Paid" value={money(collected)} detail="Includes workbook settlement status" icon={CheckCircle2}/><Metric label="Outstanding" value={money(outstanding)} detail={openInvoices.length+" open invoices"} icon={Wallet} emphasis/></div>
-     <div className="fs-panels-two">
-      <Card title="Balances by invoice" description="Only unpaid portions are included">
-       {invoices.length?<div className="fs-chart">{invoices.map(i=><div className="fs-chart-row" key={i.number}><span>#{i.number}</span><div className="fs-chart-track"><span style={{width:(outstanding?i.balance/outstanding*100:0)+"%"}}/></div><strong>{money(i.balance)}</strong></div>)}</div>:
-       <Empty title="No financial activity" description="Import records or create invoices to see reports."/>}
-      </Card>
-      <Card title="Reconciliation" description="Work amounts compared with invoice totals">
-       {invoices.length?invoices.map(i=><button key={i.number} className="fs-list-row" onClick={()=>setSelectedInvoice(i.number)}><span className="fs-row-main"><strong>Invoice {i.number}</strong><small>{Math.abs(i.discrepancy)>.001?"Line items differ from invoice total":"Line items agree"}</small></span><span className="fs-row-money">{money(i.total)}</span><Status tone={Math.abs(i.discrepancy)>.001?"warn":"success"}>{Math.abs(i.discrepancy)>.001?"Review":"Match"}</Status></button>):
-       <Empty title="Nothing to reconcile" description="Invoiced work will be checked automatically."/>}
-      </Card>
-     </div>
-     <Card title="Import history" description="Import metadata only—no live spreadsheet connection">
-      {imports.length?imports.map(batch=><div key={batch.id} className="fs-list-row fs-list-static"><span className="fs-row-icon"><UploadCloud size={17}/></span><span className="fs-row-main"><strong>{batch.file_label}</strong><small>{dateLabel(batch.created_at.slice(0,10))} · {batch.imported_count} created · {batch.updated_count} updated · {batch.flagged_count} flagged</small></span></div>):
-      <Empty title="No later imports" description="Opening records are already stored in the database. Future uploads appear here."/>}
-     </Card>
-    </>}
-    {view==="settings"&&<>
-     <div className="fs-page-heading"><div><p className="fs-eyebrow">WORKSPACE SETTINGS</p><h1>Settings</h1><p>Keep company details accurate for invoicing and documents.</p></div><button className="fs-button fs-button-primary" onClick={()=>activeOrg&&setOrganisationDraft({...activeOrg})}><PenLine size={16}/>Edit organisation</button></div>
-     <div className="fs-panels-two">
-      <Card title="Organisation profile" description="Displayed on documents and invoice PDFs">
-       <div className="fs-facts">
-        <div><span>Organisation</span><strong>{orgName}</strong></div>
-        <div><span>Status</span><strong><Status tone={activeOrg?.status==="dissolved"?"warn":"success"}>{activeOrg?.status||"—"}</Status></strong></div>
-        <div><span>Legal name</span><strong>{activeOrg?.legal_name||"Not specified"}</strong></div>
-        <div><span>Email</span><strong>{activeOrg?.email||"Not specified"}</strong></div>
-        <div><span>GSTIN</span><strong>{activeOrg?.gstin||"Not specified"}</strong></div>
-        <div><span>Bank</span><strong>{activeOrg?.bank_name||"Not specified"}</strong></div>
-       </div>
-      </Card>
-      <Card title="Data and access" description="Authorised workspace members only">
-       <div className="fs-facts"><div><span>Account</span><strong>{email}</strong></div><div><span>Import behavior</span><strong>Create or update existing records</strong></div><div><span>Database</span><strong>Supabase · independent of spreadsheets</strong></div></div>
-       <div className="fs-settings-actions"><button className="fs-button" onClick={startImport}><UploadCloud size={16}/>Import a file</button><button className="fs-button" onClick={()=>void supabase.auth.signOut().then(()=>window.location.assign("/"))}><LogOut size={16}/>Sign out</button></div>
-      </Card>
-     </div>
-     {activeOrg?.name==="Kumar Aman"&&<Card title="Elle India client portal" description="Password-protected read-only view for the opening client">
-      <form className="fs-form fs-portal-form" onSubmit={savePortal}>
-       <label className="fs-check"><input type="checkbox" checked={portalEnabled} onChange={e=>setPortalEnabled(e.target.checked)}/>Enable password access</label>
-       <label>New or replacement portal password<input type="password" autoComplete="new-password" minLength={12} value={portalPassword} onChange={e=>setPortalPassword(e.target.value)} placeholder="At least 12 characters"/></label>
-       <div className="fs-form-actions"><button className="fs-button fs-button-primary" disabled={portalBusy}>{portalBusy?"Saving…":"Save portal settings"}</button><a className="fs-button" href="/portal/elle-india" target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/>Open client portal</a></div>
-      </form>
-     </Card>}
-    </>}
-    </>
-    }
-    <footer className="fs-footer">Finance workspace <span>Private · {orgName}</span></footer>
    </main>
   </div>
-  <input ref={importInput} type="file" hidden accept=".xlsx,.csv,.tsv" onChange={e=>{const f=e.target.files?.[0];if(f)void importFile(f)}}/>
-  <input ref={documentInput} type="file" hidden accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadDocument(f)}}/>
-  <nav className="fs-mobile-nav" aria-label="Quick navigation">
-   <button type="button" onClick={()=>navigate("overview")} aria-current={view==="overview"?"page":undefined} className={view==="overview"?"active":""}><LayoutDashboard size={20}/><span>Home</span></button>
-   <button type="button" onClick={()=>navigate("invoices")} aria-current={view==="invoices"?"page":undefined} className={view==="invoices"?"active":""}><ReceiptText size={20}/><span>Invoices</span></button>
-   <button type="button" className="fs-mobile-create" aria-label="Create invoice" onClick={openInvoiceForm}><Plus size={23}/></button>
-   <button type="button" onClick={()=>navigate("work")} aria-current={view==="work"?"page":undefined} className={view==="work"?"active":""}><BriefcaseBusiness size={20}/><span>Work</span></button>
-   <button type="button" onClick={()=>setMenu(true)}><MoreHorizontal size={20}/><span>More</span></button>
+  <input type="file" hidden ref={importInput} accept=".xlsx,.csv,.tsv" onChange={e=>{const file=e.target.files?.[0];if(file)void importFile(file)}}/>
+  <input type="file" hidden ref={documentInput} accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadDocument(file)}}/>
+  <nav className="v3-mobile-nav" aria-label="Mobile navigation">
+   {NAV.slice(0,4).map(({id,label,icon:Icon})=><button key={id} aria-current={view===id?"page":undefined} className={view===id?"active":""} onClick={()=>navigate(id)}><Icon size={21}/><span>{id==="overview"?"Home":label}</span></button>)}
+   <button type="button" className={NAV.slice(4).some(x=>x.id===view)?"active":""} onClick={()=>setMenu(true)}><MoreHorizontal size={21}/><span>More</span></button>
   </nav>
-    {menu&&<div className="fs-backdrop fs-mobile-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMenu(false)}}><section className="fs-mobile-sheet" role="dialog" aria-modal="true" aria-label="Navigation">
-   <div className="fs-dialog-head"><h2>Navigate</h2><button type="button" className="fs-icon" onClick={()=>setMenu(false)} aria-label="Close navigation"><X size={19}/></button></div>
-   <div className="fs-mobile-links">{NAV.map(({id,label,icon:Icon})=><button type="button" key={id} onClick={()=>navigate(id)} className={view===id?"active":""}><Icon size={19}/>{label}<ChevronRight size={17}/></button>)}</div>
-   <button className="fs-button fs-button-primary fs-mobile-import" onClick={()=>{setMenu(false);startImport()}}><UploadCloud size={17}/>Import data</button>
+  {menu&&<div className="fs-backdrop v3-tools-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setMenu(false)}}><section className="v3-tools" role="dialog" aria-modal="true" aria-label="More tools">
+   <div className="v3-tools-header"><strong>More tools</strong><button className="v3-icon-button" aria-label="Close tools" onClick={()=>setMenu(false)}><X size={19}/></button></div>
+   {NAV.slice(4).map(({id,label,icon:Icon})=><button key={id} className={view===id?"active":""} onClick={()=>navigate(id)}><Icon size={20}/><span>{label}</span><ChevronRight size={15}/></button>)}
+   <button onClick={()=>{setMenu(false);startImport()}}><UploadCloud size={20}/><span>Import a file</span><ChevronRight size={15}/></button>
   </section></div>}
-  {error&&<div className="fs-operation-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={16}/></button></div>}
-   {toast&&<div className="fs-toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
+  {error&&<div className="v3-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button aria-label="Dismiss error" onClick={()=>setError("")}><X size={16}/></button></div>}
+  {toast&&<div className="v3-toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
   {uploadOutcome&&<Dialog title={uploadOutcome.already_imported?"Already imported":"Import complete"} subtitle={uploadOutcome.organisation} close={()=>setUploadOutcome(null)}>
    <div className="fs-import-result"><div className="fs-import-success"><CheckCircle2 size={27}/><div><strong>{uploadOutcome.already_imported?"This file was processed before.":"Your records are now in the database."}</strong><span>No spreadsheet stays connected after importing.</span></div></div>
     <div className="fs-import-metrics"><div><strong>{uploadOutcome.created}</strong><span>Created</span></div><div><strong>{uploadOutcome.updated}</strong><span>Updated</span></div><div><strong>{uploadOutcome.skipped}</strong><span>Skipped</span></div><div><strong>{uploadOutcome.flagged}</strong><span>Needs review</span></div></div>
@@ -766,7 +699,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      {selected.document&&<div className="fs-alert fs-alert-note"><FileText size={17}/>Original file reference: {selected.document}. The generated PDF is not the original.</div>}
      {selected.sourceStatus==="Draft"&&<div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>Draft only. It is not part of issued receivables.</div>}
      <div className="fs-detail-actions">
-      <a className="fs-button fs-button-primary" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/>Generate invoice PDF</a>
+      <button type="button" className="fs-button fs-button-primary" onClick={()=>void downloadInvoicePdf(selected.number)} disabled={pdfBusy===selected.number}><ArrowDownToLine size={17}/>{pdfBusy===selected.number?"Generating…":"Download invoice PDF"}</button>
       {!selected.sourceSettled&&!payments.some(p=>p.invoice_number===selected.number)&&<button className="fs-button" onClick={()=>{
        setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",
         status:selected.sourceStatus==="Sent"?"Sent":"Draft",clientId:selected.rows[0]?.client_id||"",
@@ -826,5 +759,6 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setOrganisationDraft(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">Save details</button></div>
    </form>
   </Dialog>}
+
  </div>;
 }

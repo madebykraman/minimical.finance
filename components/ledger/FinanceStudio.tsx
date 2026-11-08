@@ -432,6 +432,28 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  ]);
  const pdfUrl=(number:string)=>"/api/invoices/"+encodeURIComponent(number)+"/pdf?org="+encodeURIComponent(organizationId);
 
+ async function downloadAllInvoicePdfs(){
+  if(!organizationId||pdfBusy)return;
+  setPdfBusy("batch");setError("");
+  try{
+   const response=await fetch("/api/invoices/pdf?org="+encodeURIComponent(organizationId)+"&status="+encodeURIComponent(filter==="open"||filter==="paid"||filter==="draft"?filter:"all"),{
+    cache:"no-store",credentials:"same-origin"
+   });
+   if(!response.ok){
+    const result=await response.json().catch(()=>({}));
+    throw new Error(result.error||"Could not export invoice PDFs.");
+   }
+   if(!response.headers.get("content-type")?.includes("application/pdf"))throw new Error("The server did not return a PDF.");
+   const blob=await response.blob();
+   if(blob.size<100)throw new Error("The PDF export was empty.");
+   const url=URL.createObjectURL(blob),a=document.createElement("a");
+   a.href=url;a.download=slug(orgName)+"-invoices.pdf";
+   document.body.appendChild(a);a.click();a.remove();
+   window.setTimeout(()=>URL.revokeObjectURL(url),5000);
+   flash("Invoice PDFs exported.");
+  }catch(e){setError(e instanceof Error?e.message:"Export failed.")}
+  finally{setPdfBusy(null)}
+ }
  async function downloadInvoicePdf(number:string){
   if(!organizationId)return;
   setPdfBusy(number);setError("");
@@ -507,7 +529,11 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      {view==="invoices"&&<div className="v3-page">
       <div className="v3-page-top"><p className="v3-kicker">BILLING</p><h1>Invoices</h1><p>{issuedInvoices.length} issued · {draftCount} drafts · {money(outstanding)} outstanding</p></div>
       <div className="v3-controls"><div className="v3-tabs" role="group" aria-label="Invoice filter">{([["all","All"],["open","Unpaid"],["paid","Paid"],["draft","Drafts"]] as const).map(([id,label])=><button type="button" key={id} className={filter===id?"active":""} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div>
-       <label className="v3-search"><Search size={17}/><input aria-label="Find invoice" placeholder="Search invoices or clients" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
+       <label className="v3-search"><Search size={17}/><input aria-label="Find invoice" placeholder="Search invoices or clients" value={search} onChange={e=>setSearch(e.target.value)}/></label>
+       <details className="v3-invoice-actions"><summary aria-label="Invoice export options"><MoreHorizontal size={20}/></summary>
+        <div className="v3-invoice-actions-pop"><button type="button" onClick={()=>void downloadAllInvoicePdfs()} disabled={!!pdfBusy||!invoices.length}><FileText size={16}/>{pdfBusy==="batch"?"Exporting…":"Download invoice PDFs"}</button>
+         <button type="button" onClick={downloadInvoices}><ArrowDownToLine size={16}/>Export invoice CSV</button></div>
+       </details></div>
       {invoiceVisible.length?<div className="v3-list">{invoiceVisible.map(i=><button type="button" className="v3-record" key={i.number} onClick={()=>setSelectedInvoice(i.number)}>
        <span className="v3-record-icon"><ReceiptText size={19}/></span><span className="v3-record-title"><strong>{invoiceClient(i)}</strong><small>#{i.number} · {dateLabel(i.date)}</small></span>
        <span className="v3-record-end"><strong>{money(i.total)}</strong><Status tone={invoiceTone(i)}>{invoiceStatus(i)}</Status></span><ChevronRight size={17}/></button>)}</div>:

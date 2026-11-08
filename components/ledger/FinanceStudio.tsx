@@ -197,7 +197,10 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   if(id===organizationId)return;
   window.localStorage.setItem("finance.org",id);
   setOrganizationId(id);setRows([]);setPayments([]);setClients([]);setDocuments([]);setImports([]);
-  setSnapshot(null);setSelectedInvoice(null);setSearch("");setFilter("all");setError("");setMenu(false);
+  setSnapshot(null);setSelectedInvoice(null);setInvoiceDraft(null);setInvoiceEdit(null);
+  setClientDraft(null);setWorkDraft(null);setPaymentDraft(null);setOrganisationDraft(null);
+  setUploadOutcome(null);setDocumentInvoice("");setDocumentClient("");setDocumentVisibility(false);
+  setSearch("");setFilter("all");setError("");setMenu(false);
  };
  const navigate=(next:View)=>{
   setView(next);setSearch("");setFilter("all");setSelectedInvoice(null);setMenu(false);
@@ -219,10 +222,12 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   address:client.address??"",gstin:client.gstin??"",notes:client.notes??""
  }:newClient());
  const openInvoiceForm=()=>{
-  const numbered=invoices.map(i=>Number(i.number)).filter(Number.isInteger);
-  const next=String(Math.max(0,...numbered)+1);
+  const prefix=(activeOrg?.invoice_prefix||"INV-").replace(/[^a-zA-Z0-9-]/g,"").slice(0,30)||"INV-";
+  const numbered=invoices.map(i=>i.number.startsWith(prefix)?Number(i.number.slice(prefix.length)):NaN)
+   .filter(n=>Number.isSafeInteger(n)&&n>=0);
+  const next=String(Math.max(0,...numbered)+1).padStart(3,"0");
   const date=localDate(),due=new Date(date+"T00:00:00Z");due.setUTCDate(due.getUTCDate()+14);
-   setInvoiceDraft({number:activeOrg?.invoice_prefix?activeOrg.invoice_prefix+next:next,date,dueDate:due.toISOString().slice(0,10),
+   setInvoiceDraft({number:prefix+next,date,dueDate:due.toISOString().slice(0,10),
     clientId:clients.length===1?clients[0].id:"",taxRate:"0",notes:"",rowIds:[],lineItems:[{description:"",quantity:"1",rate:""}]});
  };
  const startImport=()=>importInput.current?.click();
@@ -244,6 +249,12 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   e.preventDefault();if(!workDraft||!snapshot||!organizationId)return;
   const d=workDraft;
   if(!d.project_name.trim()||d.amount&&!amountValid(d.amount)){setError("Provide a work name and a non-negative amount.");return}
+  const old=d.id?rows.find(r=>r.id===d.id):undefined;
+  if(old?.invoice_number&&(d.project_name.trim()!==old.project_name
+   ||(d.amount===""?null:Number(d.amount))!==old.amount
+   ||(d.client_id||null)!==(old.client_id||null))){
+   setError("This work is already invoiced. Open the invoice and use Edit invoice to change billing details.");return;
+  }
   const value={project_name:d.project_name.trim(),amount:d.amount===""?null:Number(d.amount),
    assigned_by:d.assigned_by.trim()||null,client_id:d.client_id||null,notes:d.notes.trim()||null,
    work_status:d.work_status,updated_at:new Date().toISOString()};
@@ -260,8 +271,8 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   if(row?.invoice_number){setError("Invoiced work cannot be deleted from this screen. Preserve the invoice history.");return}
   if(!window.confirm("Permanently delete this uninvoiced work item?"))return;
   await mutation(async()=>{
-   const {error}=await supabase.from("tracker_rows").delete().eq("id",id).eq("organization_id",organizationId);
-   ensure(error);
+   const {data,error}=await supabase.from("tracker_rows").delete().eq("id",id).eq("organization_id",organizationId).select("id").maybeSingle();
+   ensure(error);if(!data)throw new Error("Work was not deleted.");
   },"Work removed.",()=>setWorkDraft(null));
  }
  async function saveClient(e:FormEvent){

@@ -40,3 +40,18 @@ test("the four visible navigation actions are exactly Home, Invoices, Work and C
  const first=Array.from(section.matchAll(/id:"(overview|invoices|work|clients|payments|documents|reports|settings)"/g)).slice(0,4).map(x=>x[1]);
  assert.deepEqual(first,["overview","invoices","work","clients"]);
 });
+
+test("invoice numbering increments existing prefixed numbers rather than duplicating INV-001",()=>{
+ assert.match(ui,/i\.number\.startsWith\(prefix\)/);
+ assert.match(ui,/Math\.max\(0,\.\.\.numbered\)\+1/);
+ assert.match(ui,/number:prefix\+next/);
+});
+test("switching organisations closes stale editors to prevent cross-org changes",()=>{
+ assert.match(ui,/setInvoiceEdit\(null\)/);
+ assert.match(ui,/setPaymentDraft\(null\)/);
+ assert.match(ui,/setDocumentInvoice\(""\)/);
+});
+test("billed work prices must be changed through the audited invoice editor",()=>{
+ assert.match(ui,/This work is already invoiced/);
+ assert.match(ui,/open the invoice and use Edit invoice/i);
+});

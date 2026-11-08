@@ -4,14 +4,15 @@ import {workspaceUser,serviceClient,sameOrigin} from "@/lib/ledger/server";
 export const runtime="nodejs";
 export async function POST(request:Request){
  if(!sameOrigin(request))return NextResponse.json({error:"Origin mismatch"},{status:403});
- if(!await workspaceUser())return NextResponse.json({error:"Not authorised"},{status:401});
+ const member=await workspaceUser();
+ if(!member)return NextResponse.json({error:"Not authorised"},{status:401});
  try{
   const form=await request.formData(),file=form.get("file");
   const orgId=String(form.get("organization_id")||"");
   if(!/^[0-9a-f-]{36}$/i.test(orgId)||!(file instanceof File))
    return NextResponse.json({error:"Organisation and file are required."},{status:400});
   if(file.size===0||file.size>15*1024*1024)return NextResponse.json({error:"Choose a file under 15 MB."},{status:400});
-  const db=serviceClient();
+  const db=member.db as unknown as ReturnType<typeof serviceClient>;
   const {data:org,error:orgError}=await db.from("tracker_organizations").select("id,name").eq("id",orgId).maybeSingle();
   if(orgError||!org)return NextResponse.json({error:"Organisation not found."},{status:404});
   const invoice=String(form.get("invoice_number")||"").trim()||null;

@@ -3,9 +3,9 @@ import {workspaceUser,serviceClient,sameOrigin} from "@/lib/ledger/server";
 import {portalSession} from "@/lib/ledger/portal";
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
  try{
-  const {id}=await params;const admin=!!await workspaceUser(),portal=admin?false:await portalSession();
+  const {id}=await params;const admin=await workspaceUser(),portal=admin?false:await portalSession();
   if(!admin&&!portal)return NextResponse.json({error:"Unauthorised"},{status:401});
-  const db=serviceClient();const {data,error}=await db.from("tracker_documents").select("storage_path,visible_to_client,client_id").eq("id",id).maybeSingle();
+  const db=admin?(admin.db as unknown as ReturnType<typeof serviceClient>):serviceClient();const {data,error}=await db.from("tracker_documents").select("storage_path,visible_to_client,client_id").eq("id",id).maybeSingle();
   if(error||!data)return NextResponse.json({error:"Not found"},{status:404});
   if(!admin){
     const {data:org}=await db.from("tracker_organizations").select("id").eq("name","Kumar Aman").maybeSingle();
@@ -19,9 +19,9 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
 }
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
  if(!sameOrigin(request))return NextResponse.json({error:"Origin mismatch"},{status:403});
- if(!await workspaceUser())return NextResponse.json({error:"Unauthorised"},{status:401});
+ const member=await workspaceUser();if(!member)return NextResponse.json({error:"Unauthorised"},{status:401});
  try{
-  const {id}=await params;const db=serviceClient();const {data,error}=await db.from("tracker_documents").select("storage_path").eq("id",id).maybeSingle();
+  const {id}=await params;const db=member.db as unknown as ReturnType<typeof serviceClient>;const {data,error}=await db.from("tracker_documents").select("storage_path").eq("id",id).maybeSingle();
   if(error)throw error;if(!data)return NextResponse.json({error:"Not found"},{status:404});
   const {error:removeError}=await db.storage.from("finos-documents").remove([data.storage_path]);
   if(removeError)throw removeError;

@@ -30,7 +30,8 @@ type ClientDraft={id?:string;name:string;email:string;phone:string;address:strin
 type PaymentDraft={invoice_number:string;amount:string;paid_on:string;method:TrackerPayment["method"];reference:string;notes:string};
 type InvoiceLine={description:string;quantity:string;rate:string};
 type InvoiceDraft={number:string;date:string;dueDate:string;clientId:string;taxRate:string;notes:string;rowIds:string[];lineItems:InvoiceLine[]};
-type InvoiceEdit={number:string;date:string;dueDate:string;notes:string;status:"Draft"|"Sent"};
+type InvoiceEdit={number:string;date:string;dueDate:string;notes:string;status:"Draft"|"Sent";
+ clientId:string;taxRate:string;items:(InvoiceLine&{id?:string})[]};
 const NAV:{id:View;label:string;icon:typeof LayoutDashboard}[]=[
  {id:"overview",label:"Overview",icon:LayoutDashboard},
  {id:"work",label:"Work",icon:BriefcaseBusiness},
@@ -65,10 +66,12 @@ function Card({title,description,action,children}:{title:string;description?:str
 }
 function Dialog({title,subtitle,close,children,wide=false}:{title:string;subtitle?:string;close:()=>void;children:ReactNode;wide?:boolean}){
  const ref=useRef<HTMLDivElement>(null);
+ const closeRef=useRef(close);
+ useEffect(()=>{closeRef.current=close},[close]);
  useEffect(()=>{
   const before=document.activeElement as HTMLElement|null;
   const key=(e:KeyboardEvent)=>{
-   if(e.key==="Escape")close();
+   if(e.key==="Escape")closeRef.current();
    if(e.key==="Tab"&&ref.current){
     const controls=[...ref.current.querySelectorAll<HTMLElement>('input:not([disabled]),button:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]')];
     if(!controls.length)return;
@@ -79,7 +82,7 @@ function Dialog({title,subtitle,close,children,wide=false}:{title:string;subtitl
   document.addEventListener("keydown",key);
   ref.current?.querySelector<HTMLElement>("input,button")?.focus();
   return()=>{document.removeEventListener("keydown",key);before?.focus()};
- },[close]);
+ },[]);
  return <div className="fs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
   <section className={"fs-dialog"+(wide?" fs-dialog-wide":"")} ref={ref} role="dialog" aria-modal="true" aria-label={title}>
    <div className="fs-dialog-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="fs-icon" type="button" onClick={close} aria-label="Close"><X size={20}/></button></div>
@@ -186,6 +189,9 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  ]):0;
  const draftTax=invoiceDraft?Math.round(draftSubtotal*Number(invoiceDraft.taxRate||0))/100:0;
  const draftTotal=draftSubtotal+draftTax;
+ const editSubtotal=invoiceEdit?sum(invoiceEdit.items.map(x=>(Number(x.quantity)||0)*(Number(x.rate)||0))):0;
+ const editTax=invoiceEdit?Math.round(editSubtotal*Number(invoiceEdit.taxRate||0))/100:0;
+ const editTotal=editSubtotal+editTax;
  const setOrganisation=(id:string)=>{
   if(id===organizationId)return;
   window.localStorage.setItem("finance.org",id);
@@ -241,7 +247,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
    assigned_by:d.assigned_by.trim()||null,client_id:d.client_id||null,notes:d.notes.trim()||null,
    work_status:d.work_status,updated_at:new Date().toISOString()};
   await mutation(async()=>{
-   const {error}=d.id?await supabase.from("tracker_rows").update(value).eq("id",d.id).eq("organization_id",organizationId):
+   const {error}=d.id?await supabase.from("tracker_rows").update(value).eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
     await supabase.from("tracker_rows").insert({...value,organization_id:organizationId,snapshot_id:snapshot.id,
      row_order:Math.max(0,...rows.map(r=>r.row_order))+1,from_source_pdf:false,source_kind:"created_in_app"});
    ensure(error);
@@ -262,7 +268,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
   const data={name:d.name.trim(),email:d.email.trim()||null,phone:d.phone.trim()||null,
    address:d.address.trim()||null,gstin:d.gstin.trim()||null,notes:d.notes.trim()||null};
   await mutation(async()=>{
-   const {error}=d.id?await supabase.from("tracker_clients").update(data).eq("id",d.id).eq("organization_id",organizationId):
+   const {error}=d.id?await supabase.from("tracker_clients").update(data).eq("id",d.id).eq("organization_id",organizationId).select("id").maybeSingle():
     await supabase.from("tracker_clients").insert({...data,organization_id:organizationId,from_source_pdf:false});
    ensure(error);
   },d.id?"Client updated.":"Client added.",()=>setClientDraft(null));
@@ -314,13 +320,24 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
  async function editInvoice(e:FormEvent){
   e.preventDefault();if(!invoiceEdit)return;
   const d=invoiceEdit;
+  if(!d.clientId){setError("Choose the client on this invoice.");return}
   if(d.dueDate&&d.dueDate<d.date){setError("Due date must follow issue date.");return}
+  if(!d.items.length){setError("Every invoice needs at least one line item.");return}
+  if(d.items.some(x=>x.description.trim().length<2||!amountValid(x.quantity)||Number(x.quantity)===0||!amountValid(x.rate))){
+   setError("Each line needs a description, positive quantity and a valid rate.");return
+  }
+  if(!amountValid(d.taxRate)||Number(d.taxRate)>100||!Number.isFinite(editTotal)){
+   setError("Tax must be between 0 and 100%.");return
+  }
   await mutation(async()=>{
-   const {error}=await supabase.rpc("tracker_edit_invoice",{
-    p_organization_id:organizationId,p_number:d.number,p_issue_date:d.date,
-    p_due_date:d.dueDate||null,p_notes:d.notes.trim(),p_status:d.status
+   const {error}=await supabase.rpc("tracker_revise_invoice",{
+    p_organization_id:organizationId,p_number:d.number,p_client_id:d.clientId,
+    p_issue_date:d.date,p_due_date:d.dueDate||null,p_tax_rate:Number(d.taxRate),
+    p_notes:d.notes.trim(),p_status:d.status,
+    p_items:d.items.map(x=>({...(x.id?{id:x.id}:{}),description:x.description.trim(),
+     quantity:Number(x.quantity),rate:Number(x.rate)}))
    });ensure(error);
-  },"Invoice details saved.",()=>setInvoiceEdit(null));
+  },"Invoice, lines and totals updated.",()=>setInvoiceEdit(null));
  }
  async function saveOrganisation(e:FormEvent){
   e.preventDefault();if(!organisationDraft)return;
@@ -330,7 +347,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
    bank_name:d.bank_name?.trim()||null,bank_account:d.bank_account?.trim()||null,bank_ifsc:d.bank_ifsc?.trim()||null,
    invoice_prefix:d.invoice_prefix?.trim()||"",invoice_footer:d.invoice_footer?.trim()||null,updated_at:new Date().toISOString()};
   await mutation(async()=>{
-   const {error}=await supabase.from("tracker_organizations").update(payload).eq("id",organizationId);ensure(error);
+   const {error,data}=await supabase.from("tracker_organizations").update(payload).eq("id",organizationId).select("id").maybeSingle();ensure(error);if(!data)throw new Error("Organisation was not updated.");
    setOrganisations(prev=>prev.map(o=>o.id===organizationId?{...o,...payload}:o));
   },"Organisation settings updated.",()=>setOrganisationDraft(null));
  }
@@ -615,7 +632,8 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
    <div className="fs-mobile-links">{NAV.map(({id,label,icon:Icon})=><button type="button" key={id} onClick={()=>navigate(id)} className={view===id?"active":""}><Icon size={19}/>{label}<ChevronRight size={17}/></button>)}</div>
    <button className="fs-button fs-button-primary fs-mobile-import" onClick={()=>{setMenu(false);startImport()}}><UploadCloud size={17}/>Import data</button>
   </section></div>}
-  {toast&&<div className="fs-toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
+  {error&&<div className="fs-operation-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={16}/></button></div>}
+   {toast&&<div className="fs-toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
   {uploadOutcome&&<Dialog title={uploadOutcome.already_imported?"Already imported":"Import complete"} subtitle={uploadOutcome.organisation} close={()=>setUploadOutcome(null)}>
    <div className="fs-import-result"><div className="fs-import-success"><CheckCircle2 size={27}/><div><strong>{uploadOutcome.already_imported?"This file was processed before.":"Your records are now in the database."}</strong><span>No spreadsheet stays connected after importing.</span></div></div>
     <div className="fs-import-metrics"><div><strong>{uploadOutcome.created}</strong><span>Created</span></div><div><strong>{uploadOutcome.updated}</strong><span>Updated</span></div><div><strong>{uploadOutcome.skipped}</strong><span>Skipped</span></div><div><strong>{uploadOutcome.flagged}</strong><span>Needs review</span></div></div>
@@ -749,22 +767,50 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      {selected.sourceStatus==="Draft"&&<div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>Draft only. It is not part of issued receivables.</div>}
      <div className="fs-detail-actions">
       <a className="fs-button fs-button-primary" href={pdfUrl(selected.number)} target="_blank" rel="noopener noreferrer"><ArrowDownToLine size={17}/>Generate invoice PDF</a>
-      {selected.rows.some(r=>r.invoice_created_in_app)&&selected.balance>0&&<button className="fs-button" onClick={()=>{
-       setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",status:selected.sourceStatus==="Sent"?"Sent":"Draft"});setSelectedInvoice(null);
+      {!selected.sourceSettled&&!payments.some(p=>p.invoice_number===selected.number)&&<button className="fs-button" onClick={()=>{
+       setInvoiceEdit({number:selected.number,date:selected.date||localDate(),dueDate:selected.dueDate||"",notes:selected.publicNotes||"",
+        status:selected.sourceStatus==="Sent"?"Sent":"Draft",clientId:selected.rows[0]?.client_id||"",
+        taxRate:String(selected.taxRate),items:selected.rows.map(r=>({
+         id:r.id,description:r.project_name,quantity:String(r.unit_price==null?1:r.quantity||1),
+         rate:String(r.unit_price??r.amount??"")
+        }))});setSelectedInvoice(null);
       }}><PenLine size={16}/>Edit invoice</button>}
       {selected.sourceStatus!=="Draft"&&selected.balance>0&&<button className="fs-button" onClick={()=>{setSelectedInvoice(null);setPaymentDraft({...newPayment(),invoice_number:selected.number})}}><Wallet size={16}/>Record payment</button>}
      </div>
     </aside>
    </div>
   </Dialog>}
-  {invoiceEdit&&<Dialog title={"Edit invoice "+invoiceEdit.number} subtitle="Update dates, notes and delivery status" close={()=>setInvoiceEdit(null)}>
+  {invoiceEdit&&<Dialog title={"Edit invoice #"+invoiceEdit.number} subtitle="Edit line items and recalculate totals safely." close={()=>setInvoiceEdit(null)} wide>
     <form className="fs-form" onSubmit={editInvoice}>
-     <div className="fs-form-two"><label>Issue date<input type="date" required value={invoiceEdit.date} onChange={e=>setInvoiceEdit({...invoiceEdit,date:e.target.value})}/></label>
-      <label>Due date<input type="date" value={invoiceEdit.dueDate} onChange={e=>setInvoiceEdit({...invoiceEdit,dueDate:e.target.value})}/></label></div>
-     <label>Invoice status<select value={invoiceEdit.status} onChange={e=>setInvoiceEdit({...invoiceEdit,status:e.target.value as "Draft"|"Sent"})}><option value="Draft">Draft</option><option value="Sent">Sent (delivered separately)</option></select></label>
-     <label>Public invoice notes<textarea rows={3} value={invoiceEdit.notes} onChange={e=>setInvoiceEdit({...invoiceEdit,notes:e.target.value})}/></label>
-     <div className="fs-inline-help">Setting the status to Sent records the change. It does not send an email.</div>
-     <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceEdit(null)}>Cancel</button><button disabled={working} className="fs-button fs-button-primary">{working?"Saving…":"Save invoice"}</button></div>
+     <div className="fs-edit-invoice-layout">
+      <div className="fs-edit-fields">
+       <div className="fs-form-two">
+        <label>Bill to<select required value={invoiceEdit.clientId} onChange={e=>setInvoiceEdit({...invoiceEdit,clientId:e.target.value})}><option value="">Choose a client</option>{clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label>
+        <label>Invoice number<input value={invoiceEdit.number} readOnly aria-label="Invoice number (locked)"/></label>
+       </div>
+       <div className="fs-form-two"><label>Issue date<input type="date" required value={invoiceEdit.date} onChange={e=>setInvoiceEdit({...invoiceEdit,date:e.target.value})}/></label>
+        <label>Due date<input type="date" value={invoiceEdit.dueDate} onChange={e=>setInvoiceEdit({...invoiceEdit,dueDate:e.target.value})}/></label></div>
+       <div className="fs-checklist-title">Line items <small>{invoiceEdit.items.length} included</small></div>
+       <div className="fs-line-editor">{invoiceEdit.items.map((line,i)=><div className="fs-line-editor-row" key={line.id||i}>
+        <label>Description<input required maxLength={500} value={line.description} onChange={e=>setInvoiceEdit({...invoiceEdit,items:invoiceEdit.items.map((x,k)=>k===i?{...x,description:e.target.value}:x)})}/></label>
+        <label>Qty<input type="number" required min=".001" step=".001" value={line.quantity} onChange={e=>setInvoiceEdit({...invoiceEdit,items:invoiceEdit.items.map((x,k)=>k===i?{...x,quantity:e.target.value}:x)})}/></label>
+        <label>Rate (₹)<input type="number" required min="0" step=".01" value={line.rate} onChange={e=>setInvoiceEdit({...invoiceEdit,items:invoiceEdit.items.map((x,k)=>k===i?{...x,rate:e.target.value}:x)})}/></label>
+        <button type="button" className="fs-icon fs-danger-hover" aria-label={"Remove line "+(i+1)} disabled={invoiceEdit.items.length<=1} onClick={()=>setInvoiceEdit({...invoiceEdit,items:invoiceEdit.items.filter((_,k)=>k!==i)})}><Trash2 size={16}/></button>
+       </div>)}
+        <button type="button" className="fs-button fs-button-small" onClick={()=>setInvoiceEdit({...invoiceEdit,items:[...invoiceEdit.items,{description:"",quantity:"1",rate:""}]})}><Plus size={15}/>Add line</button>
+       </div>
+       <div className="fs-form-two"><label>Tax (%)<input type="number" min="0" max="100" step=".01" required value={invoiceEdit.taxRate} onChange={e=>setInvoiceEdit({...invoiceEdit,taxRate:e.target.value})}/></label>
+        <label>Status<select value={invoiceEdit.status} onChange={e=>setInvoiceEdit({...invoiceEdit,status:e.target.value as "Draft"|"Sent"})}><option value="Draft">Draft</option><option value="Sent">Sent (record only)</option></select></label></div>
+       <label>Invoice notes<textarea rows={3} maxLength={4000} value={invoiceEdit.notes} onChange={e=>setInvoiceEdit({...invoiceEdit,notes:e.target.value})}/></label>
+       <div className="fs-alert fs-alert-note"><LockKeyhole size={17}/>Changes are saved with an invoice revision. Already-paid invoices cannot be repriced. Sent does not send email.</div>
+       <div className="fs-form-actions"><button type="button" className="fs-button" onClick={()=>setInvoiceEdit(null)}>Cancel</button><span className="fs-flex"/>
+        <button className="fs-button fs-button-primary" disabled={working||!invoiceEdit.items.length}>{working?"Saving…":"Save invoice changes"}</button></div>
+      </div>
+      <aside className="fs-edit-summary"><span>LIVE TOTAL</span><strong>{money(editTotal)}</strong>
+       <div><span>Subtotal</span><b>{money(editSubtotal)}</b></div><div><span>Tax</span><b>{money(editTax)}</b></div>
+       <small>Changes recalculate the invoice amount. Nothing is issued automatically.</small>
+      </aside>
+     </div>
     </form>
    </Dialog>}
 {organisationDraft&&<Dialog title="Organisation details" subtitle="Used in your generated financial documents" close={()=>setOrganisationDraft(null)}>

@@ -641,7 +641,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
      </select></label>
      <div className="fs-form-two"><label>Invoice number<input required autoFocus maxLength={48} pattern="[a-zA-Z0-9-]+" value={invoiceDraft.number} onChange={e=>setInvoiceDraft({...invoiceDraft,number:e.target.value})}/></label>
       <label>Issue date<input required type="date" value={invoiceDraft.date} onChange={e=>setInvoiceDraft({...invoiceDraft,date:e.target.value})}/></label></div>
-     <label>Payment due<input type="date" value={invoiceDraft.dueDate} onChange={e=>setInvoiceDraft({...invoiceDraft,dueDate:e.target.value})}/></label>
+     
      <div className="fs-checklist-title">Invoice line items <small>{invoiceDraft.lineItems.length} rows</small></div>
      <div className="fs-line-editor">{invoiceDraft.lineItems.map((line,i)=><div className="fs-line-editor-row" key={i}>
       <label>Item description<input maxLength={500} value={line.description} placeholder="Video editing, design service…" onChange={e=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.map((x,k)=>k===i?{...x,description:e.target.value}:x)})}/></label>
@@ -650,7 +650,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
       <button type="button" className="fs-icon fs-danger-hover" aria-label={"Remove line "+(i+1)} onClick={()=>setInvoiceDraft({...invoiceDraft,lineItems:invoiceDraft.lineItems.filter((_,k)=>k!==i)})}><Trash2 size={17}/></button>
      </div>)}
      <button type="button" className="fs-button fs-button-small" onClick={()=>setInvoiceDraft({...invoiceDraft,lineItems:[...invoiceDraft.lineItems,{description:"",quantity:"1",rate:""}]})}><Plus size={15}/>Add line item</button></div>
-     <div className="fs-checklist-title">Include existing unbilled work <small>{invoiceDraft.rowIds.length} selected</small></div>
+     <details className="fs-form-disclosure"><summary><span><BriefcaseBusiness size={17}/>Include existing work</span><span>${invoiceDraft.rowIds.length} selected <ChevronDown size={16}/></span></summary><div className="fs-form-disclosure-body"><div className="fs-checklist-title">Include existing unbilled work <small>{invoiceDraft.rowIds.length} selected</small></div>
      <div className="fs-checklist">{unbilled.filter(r=>!r.client_id||r.client_id===invoiceDraft.clientId).length?
       unbilled.filter(r=>!r.client_id||r.client_id===invoiceDraft.clientId).map(r=><label key={r.id}>
        <input type="checkbox" disabled={!invoiceDraft.clientId||r.amount===null} checked={invoiceDraft.rowIds.includes(r.id)}
@@ -658,15 +658,19 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
        <span><strong>{titleFromSource(r.project_name)}</strong><small>{r.amount===null?"Set a price first":clientLabel(r.client_id)}</small></span>
        <b>{money(r.amount)}</b></label>):
       <p>No unbilled work for this client. Create an invoice from the new line items above.</p>}</div>
-     <div className="fs-form-two"><label>Tax rate (%)<input type="number" min="0" max="100" step=".01" value={invoiceDraft.taxRate} onChange={e=>setInvoiceDraft({...invoiceDraft,taxRate:e.target.value})}/></label>
+     </div></details>
+     <details className="fs-form-disclosure"><summary><span><Settings2 size={17}/>Payment terms & options</span><span>Optional <ChevronDown size={16}/></span></summary>
+      <div className="fs-form-disclosure-body"><label>Payment due<input type="date" value={invoiceDraft.dueDate} onChange={e=>setInvoiceDraft({...invoiceDraft,dueDate:e.target.value})}/></label><div className="fs-form-two"><label>Tax rate (%)<input type="number" min="0" max="100" step=".01" value={invoiceDraft.taxRate} onChange={e=>setInvoiceDraft({...invoiceDraft,taxRate:e.target.value})}/></label>
       <div className="fs-invoice-total"><small>GRAND TOTAL</small><strong>{money(draftTotal)}</strong><span>{money(draftSubtotal)} + {money(draftTax)} tax</span></div></div>
      <label>Invoice notes<textarea rows={3} value={invoiceDraft.notes} onChange={e=>setInvoiceDraft({...invoiceDraft,notes:e.target.value})} placeholder="Payment terms, purchase order or delivery notes"/></label>
+     </div></details>
+     <div className="fs-composer-grand"><span>Invoice total</span><strong>{money(draftTotal)}</strong><small>Draft · Not sent</small></div>
      <div className="fs-inline-help">Created invoices begin as drafts. Legal, address and bank fields are taken from organisation settings.</div>
      <div className="fs-form-actions"><span className="fs-flex"/><button type="button" className="fs-button" onClick={()=>setInvoiceDraft(null)}>Cancel</button>
       <button disabled={working||!invoiceDraft.clientId||(!invoiceDraft.rowIds.length&&!invoiceDraft.lineItems.some(x=>x.description.trim()))} className="fs-button fs-button-primary">{working?"Creating…":"Create invoice"}</button></div>
     
       </div>
-      <aside className="fs-composer-preview" aria-label="Live invoice summary">
+      <details className="fs-composer-peek"><summary><Eye size={16}/>Invoice preview <ChevronDown size={16}/></summary><div className="fs-composer-preview" aria-label="Live invoice summary">
        <div className="fs-composer-preview-banner"><span className="fs-composer-preview-eyebrow">INVOICE DRAFT</span>
         <strong>{activeOrg?.legal_name||orgName}</strong><small>Invoice #{invoiceDraft.number||"—"}</small>
         <div className="fs-composer-preview-value">{money(draftTotal)}</div>
@@ -687,7 +691,7 @@ export default function FinanceStudio({initialView,email}:{initialView:View;emai
         </div>
         <div className="fs-composer-preview-footer"><LockKeyhole size={13}/>Preview only · Not sent</div>
        </div>
-      </aside>
+      </div></details>
      </div>
     </form>
    </Dialog>}
